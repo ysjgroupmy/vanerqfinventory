@@ -1,0 +1,9 @@
+{
+  "name": "0428-sauce-line",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Static production-panel app (Supabase + Clerk), served locally for dev via a zero-dependency Node server.",
+  "scripts": {
+    "dev": "node dev-server.js"
+  }
+}

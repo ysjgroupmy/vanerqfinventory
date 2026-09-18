@@ -1,0 +1,3211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<script>
+  /* Supabase's anon key and Clerk's publishable key are both meant to be
+     public —security is enforced by Supabase RLS and Clerk session
+     verification server-side, not by hiding these values. Baking them in
+     means every staff member goes straight to Clerk sign-in on first visit
+     instead of having to paste three fields into the setup screen by hand. */
+  (function(){
+    try{
+      if(!localStorage.getItem("qf_cfg_v1")){
+        localStorage.setItem("qf_cfg_v1", JSON.stringify({
+          supabaseUrl: "https://xxuadkcjelbwxqwwodpo.supabase.co",
+          supabaseAnonKey: "sb_publishable_zV6rJwzSBg2bSSZXIIIuzg_6r40vLTv",
+          clerkKey: "pk_test_ZHluYW1pYy1ib2EtOTEzOS5jbGVyay5hY2NvdW50cy5kZXYk"
+        }));
+      }
+    }catch(e){}
+  })();
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>0428 Sauce Line</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   0428 SAUCE LINE —light industrial control panel
+   Ground: cool bench white. Chrome: petrol. Signals: lamp colours.
+   Figures: IBM Plex Mono. Readouts: Barlow Condensed.
+   Single committed light theme (an HMI panel is a lit panel).
+   ============================================================ */
+:root{
+  color-scheme: light;
+  --paper:#EBEEEA;        /* bench ground, faint green-grey bias */
+  --panel:#FFFFFF;
+  --panel-2:#F6F8F5;
+  --panel-3:#EEF1EC;
+  --ink:#12171A;
+  --ink-2:#586268;
+  --ink-3:#8B948F;
+  --rule:#D6DBD5;
+  --rule-2:#C0C7BF;
+  --accent:#0B4F4A;       /* petrol —chrome, primary actions */
+  --accent-2:#0E6660;
+  --accent-ink:#EAF2F0;
+
+  --crit:#B8241A;  --crit-bg:#FBEAE8;  --crit-rule:#E9B7B2;
+  --warn:#8F6304;  --warn-bg:#FCF3DE;  --warn-rule:#E4CE96;
+  --ok:#1F6B45;    --ok-bg:#E7F2EB;    --ok-rule:#B3D5C1;
+  --info:#1B4F8C;  --info-bg:#E9F0F9;  --info-rule:#B6C9E2;
+
+  --series-in:#0F8C7E;    /* produced —validated pair */
+  --series-out:#BE5A0A;   /* shipped out */
+
+  --f-ui:"IBM Plex Sans","Noto Sans SC",-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  --f-mono:"IBM Plex Mono","SF Mono",ui-monospace,Menlo,Consolas,monospace;
+  --f-disp:"Barlow Condensed","IBM Plex Sans",sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:var(--f-ui); font-size:13.5px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:#0B4F4A25}
+::-webkit-scrollbar{width:12px;height:12px}
+::-webkit-scrollbar-thumb{background:var(--rule-2);border:3px solid var(--paper)}
+::-webkit-scrollbar-track{background:transparent}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.num{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.dim{color:var(--ink-2)} .faint{color:var(--ink-3)}
+.hidden{display:none!important}
+svg.ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none;vertical-align:-3px}
+
+/* ---------------- gate screens (setup / sign-in) ---------------- */
+.gate{position:fixed;inset:0;background:var(--paper);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px;overflow:auto}
+.gate-card{background:var(--panel);border:1px solid var(--rule);border-top:3px solid var(--accent);padding:28px;width:min(430px,100%);box-shadow:0 18px 50px rgba(0,0,0,.14)}
+.gate-card h1{font-family:var(--f-disp);font-size:25px;font-weight:700;margin-bottom:6px}
+.gate-card .dim{font-size:12.5px;margin-bottom:16px;line-height:1.5}
+.gate-card code{font-family:var(--f-mono);background:var(--panel-3);padding:1px 4px;font-size:11.5px}
+.gate-card .field{margin-bottom:11px}
+#clerk-mount{min-height:60px}
+#clerk-user{display:flex;align-items:center;margin-left:8px}
+
+/* ---------------- top status bar ---------------- */
+.topbar{
+  position:sticky;top:0;z-index:30;
+  background:var(--accent);color:var(--accent-ink);
+  display:flex;align-items:center;gap:18px;
+  padding:0 18px;height:50px;
+  border-bottom:3px solid #08403C;
+}
+.tb-id{display:flex;align-items:baseline;gap:9px;font-family:var(--f-disp);letter-spacing:.02em}
+.tb-id>b{font-size:23px;font-weight:700;line-height:1}
+.tb-id>span{font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:.14em;color:#93B8B3}
+.tb-sep{width:1px;height:24px;background:#2C6C67;flex:none}
+.tb-read{font-family:var(--f-mono);font-size:11.5px;color:#A7C6C2;line-height:1.35;white-space:nowrap}
+.tb-read b{display:block;color:#F2F8F7;font-size:12.5px;font-weight:500}
+.tb-read.warnread b{color:#F0C674}
+.tb-id{position:relative;cursor:pointer;padding:6px 9px;margin-left:-9px;border:1px solid transparent;transition:background .12s,border-color .12s}
+.tb-id:hover,.tb-id.open{background:#08403C;border-color:#2C6C67}
+.tb-id:focus-visible{outline:2px solid #93B8B3;outline-offset:1px}
+.tb-chev{width:13px;height:13px;color:#93B8B3;align-self:center;margin-left:2px}
+#deptmenu,#deptmenu *{text-transform:none;letter-spacing:0}
+#deptmenu{position:absolute;top:calc(100% + 7px);left:0;min-width:250px;background:var(--panel);
+  border:1px solid var(--rule-2);box-shadow:0 14px 40px rgba(0,0,0,.3);z-index:60;display:none;padding:5px}
+#deptmenu.open{display:block}
+#deptmenu .dm-h{font-family:var(--f-mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--ink-3);padding:8px 10px 5px}
+#deptmenu button{display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:none;border:none;
+  font:inherit;font-size:13px;color:var(--ink);padding:8px 10px;cursor:pointer}
+#deptmenu button:hover{background:var(--panel-3)}
+#deptmenu button b{font-family:var(--f-mono);font-weight:600;font-size:12.5px;line-height:1.3}
+#deptmenu button span{color:var(--ink-2);font-size:12px}
+#deptmenu button .mk{width:12px;flex:none;color:var(--accent);font-weight:700;font-size:12px;text-align:center}
+#deptmenu .sep{height:1px;background:var(--rule);margin:5px 0}
+.tb-lamps{margin-left:auto;display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.tb-lamp{
+  display:flex;align-items:center;gap:7px;background:#08403C;border:1px solid #2C6C67;
+  padding:5px 10px;font-family:var(--f-mono);font-size:11.5px;color:#C6DEDA;white-space:nowrap;
+}
+.tb-lamp b{font-size:13px;color:#fff;font-weight:600}
+.tb-lamp.on{background:#7E1913;border-color:#B8241A;color:#FBD8D4}
+.tb-lamp.on b{color:#fff}
+.tb-lamp.warn{background:#5E4103;border-color:#8F6304;color:#F6E4B8}
+.lamp{width:9px;height:9px;flex:none;border:1px solid rgba(0,0,0,.28)}
+.lamp.crit{background:var(--crit)} .lamp.warn{background:var(--warn)}
+.lamp.ok{background:var(--ok)} .lamp.off{background:#5E6B69}
+@keyframes blink{0%,45%{opacity:1}55%,100%{opacity:.25}}
+.tb-lamp.on .lamp{animation:blink 1.6s steps(1) infinite}
+
+.demo-bar{background:var(--warn-bg);border-bottom:1px solid var(--warn-rule);color:var(--warn);
+  font-size:12.5px;padding:7px 18px;display:flex;align-items:center;gap:10px;font-weight:500}
+.demo-bar b{font-family:var(--f-mono);letter-spacing:.06em;text-transform:uppercase;font-size:11px;
+  background:var(--warn);color:#fff;padding:2px 7px}
+
+/* ---------------- shell ---------------- */
+.shell{display:flex;align-items:flex-start;min-height:calc(100vh - 50px)}
+.rail{
+  width:186px;flex:none;position:sticky;top:50px;align-self:flex-start;
+  background:var(--panel);border-right:1px solid var(--rule);
+  padding:10px 0 16px;min-height:calc(100vh - 50px);
+}
+.rail button{
+  display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+  background:none;border:none;border-left:3px solid transparent;
+  font:inherit;font-size:13px;font-weight:500;color:var(--ink-2);
+  padding:9px 14px 9px 13px;cursor:pointer;transition:background .12s,color .12s;
+}
+.rail button .st{font-family:var(--f-mono);font-size:10.5px;color:var(--ink-3);letter-spacing:.04em}
+.rail button:hover{background:var(--panel-3);color:var(--ink)}
+.rail button.active{background:var(--panel-3);color:var(--ink);border-left-color:var(--accent);font-weight:600}
+.rail button.active .st{color:var(--accent)}
+.rail button .dot{margin-left:auto;width:7px;height:7px;background:var(--crit);display:none}
+.rail button.alarm .dot{display:block}
+.rail-foot{margin-top:14px;padding:12px 14px 0;border-top:1px solid var(--rule);
+  font-size:11px;color:var(--ink-3);line-height:1.5}
+
+.work{flex:1;min-width:0;padding:20px 24px 64px;max-width:1280px}
+.phead{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+h1{font-family:var(--f-disp);font-size:27px;font-weight:700;letter-spacing:.005em;line-height:1.05;text-wrap:balance}
+.psub{color:var(--ink-2);font-size:12.5px;margin-top:2px;max-width:74ch}
+
+/* ---------------- panels ---------------- */
+.panel{background:var(--panel);border:1px solid var(--rule);margin-bottom:16px}
+.panel-h{display:flex;align-items:center;gap:12px;padding:9px 14px;background:var(--panel-2);border-bottom:1px solid var(--rule)}
+.panel-h h2{font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:var(--ink);display:flex;align-items:center;gap:8px}
+.panel-h .meta{margin-left:auto;font-size:11.5px;color:var(--ink-3);text-align:right}
+.panel-b{padding:14px}
+.panel-b.flush{padding:0}
+.scroll{overflow-x:auto}
+
+/* ---------------- alarm strip ---------------- */
+.alarms{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-bottom:16px}
+.al{background:var(--panel);border:1px solid var(--rule);border-top:3px solid var(--rule-2);padding:12px 14px 13px;display:flex;flex-direction:column;gap:2px;min-height:104px}
+.al .k{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-2);display:flex;align-items:center;gap:7px}
+.al .v{font-family:var(--f-disp);font-size:40px;font-weight:700;line-height:1;letter-spacing:-.005em;font-variant-numeric:tabular-nums}
+.al .d{font-size:11.5px;color:var(--ink-2);line-height:1.4;margin-top:auto}
+.al .d b{color:var(--ink);font-weight:600}
+.al.crit{border-top-color:var(--crit);background:var(--crit-bg)} .al.crit .v{color:var(--crit)}
+.al.warn{border-top-color:var(--warn);background:var(--warn-bg)} .al.warn .v{color:var(--warn)}
+.al.info{border-top-color:var(--info)} .al.info .v{color:var(--info)}
+.al.ok{border-top-color:var(--ok)} .al.ok .v{color:var(--ok)}
+.al.quiet .v{color:var(--ink-3)}
+
+/* ---------------- tables ---------------- */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-family:var(--f-mono);font-size:10px;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--ink-2);font-weight:600;padding:8px 12px;background:var(--panel-2);
+  border-bottom:1px solid var(--rule-2);white-space:nowrap}
+th.num{text-align:right}
+.scroll[style*="max-height"] th{position:sticky;top:0;z-index:1}
+td{padding:8px 12px;border-bottom:1px solid var(--rule);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--panel-2)}
+td.name{min-width:190px}
+.sub{display:block;font-size:11px;color:var(--ink-3);font-family:var(--f-mono);margin-top:1px}
+tr.sev-crit td:first-child{box-shadow:inset 3px 0 0 var(--crit)}
+tr.sev-warn td:first-child{box-shadow:inset 3px 0 0 var(--warn)}
+tr.sev-ok td:first-child{box-shadow:inset 3px 0 0 var(--ok)}
+tr.sev-info td:first-child{box-shadow:inset 3px 0 0 var(--info)}
+tr.grp td{background:var(--panel-3);border-bottom:1.5px solid var(--rule-2);padding:7px 12px}
+tr.grp b{font-family:var(--f-mono);font-size:11px;letter-spacing:.1em}
+tr.grp span{font-size:11px;color:var(--ink-3);margin-left:10px}
+tr.grp:hover td{background:var(--panel-3)}
+.empty{padding:30px 16px;text-align:center;color:var(--ink-3);font-size:13px}
+.empty b{display:block;color:var(--ink);font-size:14px;margin-bottom:4px;font-weight:600}
+
+/* ---------------- tags ---------------- */
+.tag{display:inline-flex;align-items:center;gap:5px;font-family:var(--f-mono);font-size:10.5px;
+  font-weight:500;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;white-space:nowrap;border:1px solid}
+.t-crit{background:var(--crit-bg);color:var(--crit);border-color:var(--crit-rule)}
+.t-warn{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-rule)}
+.t-ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-rule)}
+.t-info{background:var(--info-bg);color:var(--info);border-color:var(--info-rule)}
+.t-off{background:var(--panel-3);color:var(--ink-3);border-color:var(--rule-2)}
+
+/* ---------------- controls ---------------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  background:var(--panel);border:1px solid var(--rule-2);color:var(--ink);
+  font:inherit;font-size:12.5px;font-weight:500;padding:6px 12px;cursor:pointer;
+  transition:background .12s,border-color .12s;white-space:nowrap;text-decoration:none}
+.btn:hover{background:var(--panel-3);border-color:var(--ink-3)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn.primary:hover{background:var(--accent-2);border-color:var(--accent-2)}
+.btn.danger{color:var(--crit);border-color:var(--crit-rule)}
+.btn.danger:hover{background:var(--crit-bg)}
+.btn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.sm{padding:3px 8px;font-size:11.5px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn .ic{width:14px;height:14px}
+input,select,textarea{background:var(--panel);border:1px solid var(--rule-2);color:var(--ink);
+  font:inherit;font-size:12.5px;padding:6px 10px;outline:none;transition:border-color .12s,box-shadow .12s}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px #0B4F4A1F}
+input[type=number]{width:88px;text-align:right;font-family:var(--f-mono)}
+input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px}
+textarea{width:100%;resize:vertical;font-family:var(--f-mono);font-size:12px;line-height:1.5}
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.bar input[type=search]{flex:1;min-width:180px}
+.lbl{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-2)}
+.star{background:none;border:none;cursor:pointer;padding:3px;color:var(--rule-2);display:inline-flex}
+.star:hover{color:var(--warn)} .star.on{color:var(--warn)} .star.on svg{fill:currentColor}
+
+/* ---------------- meters & bars ---------------- */
+.hrow{display:grid;grid-template-columns:minmax(130px,1.4fr) minmax(120px,2fr) 128px;gap:12px;align-items:center;
+  padding:6px 14px;font-size:12.5px}
+.hrow:hover{background:var(--panel-2)}
+.hrow .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.track{height:13px;background:var(--panel-3);border:1px solid var(--rule);position:relative}
+.fill{height:100%;transition:width .5s cubic-bezier(.2,.8,.3,1)}
+.tick{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink)}
+.tick::after{content:"";position:absolute;left:-2px;top:-4px;border-left:3px solid transparent;
+  border-right:3px solid transparent;border-top:4px solid var(--ink)}
+.meter{height:22px;background:var(--panel-3);border:1px solid var(--rule-2);position:relative;overflow:hidden}
+.meter .mf{height:100%;background:var(--accent);transition:width .5s ease}
+.meter .mf.over{background:var(--crit)}
+.meter .mt{position:absolute;inset:0;display:flex;align-items:center;padding:0 9px;
+  font-family:var(--f-mono);font-size:11px;color:var(--ink);mix-blend-mode:normal;justify-content:space-between}
+.meter .mt b{font-weight:600}
+
+/* ---------------- chart ---------------- */
+.chart{position:relative;padding:12px 14px 4px}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.axl{font-family:var(--f-mono);font-size:9.5px;fill:var(--ink-3)}
+.legend{display:flex;gap:16px;padding:2px 14px 12px;font-size:12px;color:var(--ink-2);flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;margin-right:6px;vertical-align:-1px;border:1px solid rgba(0,0,0,.15)}
+#tip{position:fixed;z-index:60;background:var(--ink);color:#F2F5F3;font-family:var(--f-mono);font-size:11.5px;
+  padding:7px 10px;pointer-events:none;display:none;line-height:1.55;box-shadow:0 4px 14px rgba(0,0,0,.22);max-width:250px}
+#tip.show{display:block}
+#tip b{color:#fff;font-weight:600}
+
+/* ---------------- modal / toast ---------------- */
+#modal-root:empty{display:none}
+.mbg{position:fixed;inset:0;background:rgba(18,23,26,.55);display:flex;align-items:center;justify-content:center;z-index:70;padding:20px}
+.modal{background:var(--panel);border:1px solid var(--rule-2);border-top:3px solid var(--accent);
+  width:min(470px,100%);max-height:88vh;overflow:auto;padding:20px;box-shadow:0 18px 50px rgba(0,0,0,.28)}
+.modal h3{font-family:var(--f-disp);font-size:20px;font-weight:600;margin-bottom:14px;text-wrap:balance}
+.field{margin-bottom:11px}
+.field label{display:block;font-family:var(--f-mono);font-size:10.5px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-2);margin-bottom:4px}
+.field input,.field select{width:100%}
+.mfoot{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;flex-wrap:wrap}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:80;
+  background:var(--ink);color:#F2F5F3;padding:10px 16px;font-size:12.5px;display:none;
+  max-width:min(560px,92vw);box-shadow:0 8px 26px rgba(0,0,0,.3);border-left:3px solid var(--series-in)}
+#toast.show{display:block;animation:tin .22s ease-out}
+@keyframes tin{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
+
+/* ---------------- drop zone ---------------- */
+.drop{border:2px dashed var(--rule-2);background:var(--panel-2);padding:30px 18px;text-align:center;
+  color:var(--ink-2);cursor:pointer;margin-bottom:14px;transition:border-color .15s,background .15s}
+.drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-ink)}
+.drop b{display:block;color:var(--ink);font-size:14px;margin-bottom:3px}
+.cookline{display:grid;grid-template-columns:1fr 96px 96px 88px 34px;gap:8px;align-items:center;margin-bottom:8px}
+.cookline .yld{font-family:var(--f-mono);font-size:12px;text-align:right}
+.xbtn{background:none;border:1px solid var(--rule-2);color:var(--ink-3);cursor:pointer;
+  font-family:var(--f-mono);font-size:13px;line-height:1;padding:6px 0;width:100%}
+.xbtn:hover{color:var(--crit);border-color:var(--crit-rule);background:var(--crit-bg)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;align-items:start}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--rule);font-size:12.5px}
+.kv:last-child{border-bottom:none}
+.kv b{font-family:var(--f-mono);font-weight:600}
+
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition-duration:.01ms!important}}
+@media(max-width:860px){
+  .shell{flex-direction:column}
+  .rail{position:static;width:100%;min-height:0;display:flex;flex-wrap:wrap;border-right:none;border-bottom:1px solid var(--rule);padding:6px}
+  .rail button{width:auto;border-left:none;border-bottom:3px solid transparent;padding:8px 11px}
+  .rail button.active{border-left:none;border-bottom-color:var(--accent)}
+  .rail-foot{display:none}
+  .work{padding:16px 14px 48px}
+  .topbar{height:auto;padding:8px 14px;flex-wrap:wrap;gap:10px}
+  .tb-sep{display:none}
+  .hrow{grid-template-columns:minmax(96px,1fr) 1.4fr 104px;padding:6px 10px}
+  .cookline{grid-template-columns:1fr 1fr;gap:6px}
+}
+</style>
+</head><body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-panel" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18"/><path d="M3 9h18M9 9v12"/></symbol>
+<symbol id="i-stock" viewBox="0 0 24 24"><path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 8l8 4 8-4M12 12v8"/></symbol>
+<symbol id="i-cook" viewBox="0 0 24 24"><path d="M5 10h14v6a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4z"/><path d="M19 11h2a2 2 0 0 1 0 4h-2"/><path d="M9 6.5c0-1 1-1.5 1-2.5M13 6.5c0-1 1-1.5 1-2.5"/></symbol>
+<symbol id="i-sales" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="M9.5 12h5M9.5 16h5"/></symbol>
+<symbol id="i-log" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.2l3.4 2"/></symbol>
+<symbol id="i-setup" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M18.8 5.2l-2.1 2.1M7.3 16.7l-2.1 2.1"/></symbol>
+<symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.6l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.3-4.1 5.9-.9z"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5L21.5 20h-19z"/><path d="M12 10v4.5M12 17.6v.2"/></symbol>
+<symbol id="i-up" viewBox="0 0 24 24"><path d="M3.5 17L9 10.5l4 4L20.5 6"/><path d="M15.5 6h5v5"/></symbol>
+<symbol id="i-undo" viewBox="0 0 24 24"><path d="M8 6L4 10l4 4"/><path d="M4 10h10a6 6 0 0 1 0 12h-3"/></symbol>
+<symbol id="i-print" viewBox="0 0 24 24"><path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8"/><path d="M7 15h10v6H7z"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-scale" viewBox="0 0 24 24"><path d="M12 4v16M6 20h12"/><path d="M4 10l3-6 3 6a3 3 0 0 1-6 0zM14 10l3-6 3 6a3 3 0 0 1-6 0z"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="M6 9.5l6 6 6-6"/></symbol>
+<symbol id="i-clip" viewBox="0 0 24 24"><rect x="4.5" y="3.5" width="15" height="17.5" rx="1.5"/><path d="M8.5 3.5V2h7v1.5"/><path d="M8.5 9.5h7M8.5 13.5h7M8.5 17.5h4"/><path d="M7 3.5h10"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="1.5"/><path d="M15 9V4.5a1.5 1.5 0 0 0-1.5-1.5H4.5A1.5 1.5 0 0 0 3 4.5v9A1.5 1.5 0 0 0 4.5 15H9"/></symbol>
+<symbol id="i-count" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="1.5"/><path d="M9 4V2.8h6V4"/><path d="M9 10h6M9 14h6M9 18h3"/></symbol>
+<symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V4M4 20h16"/><path d="M8.5 20v-6M13 20V8M17.5 20v-9"/></symbol>
+</defs></svg>
+
+<div id="gate-setup" class="gate">
+  <div class="gate-card">
+    <h1>0428 Sauce Line —Setup</h1>
+    <p class="dim">One-time setup for this browser. These values are stored only in this browser's local storage and sent only to Supabase and Clerk directly —never anywhere else.</p>
+    <div class="field"><label>Supabase project URL</label><input id="cfg-url" placeholder="https://xxxxxxxx.supabase.co"></div>
+    <div class="field"><label>Supabase anon public key</label><input id="cfg-key" placeholder="eyJhbGciOi..."></div>
+    <div class="field"><label>Clerk publishable key</label><input id="cfg-clerk" placeholder="pk_live_... or pk_test_..."></div>
+    <button class="btn primary" id="cfg-save" style="width:100%;justify-content:center">Save and continue</button>
+    <p class="dim" style="margin-top:14px;font-size:11.5px">Before this will work: run <code>supabase-schema.sql</code> in your Supabase project's SQL editor, and connect Clerk to Supabase as a Third-Party Auth provider. Full steps are in <code>README.md</code>.</p>
+  </div>
+</div>
+
+<div id="gate-auth" class="gate hidden">
+  <div class="gate-card">
+    <h1>0428 Sauce Line</h1>
+    <p class="dim">Sign in to open the line.</p>
+    <div id="clerk-mount"></div>
+    <button class="btn" style="width:100%;justify-content:center;margin-top:14px" onclick="localStorage.removeItem(CFG_KEY);location.reload()">Use different Supabase / Clerk keys</button>
+  </div>
+</div>
+
+<div id="app-root" class="hidden">
+<header class="topbar">
+  <div class="tb-id" id="deptbtn" role="button" tabindex="0" title="Switch department">
+    <b id="tb-code">—</b><span id="tb-name"></span>
+    <svg class="ic tb-chev"><use href="#i-chev"/></svg>
+    <div id="deptmenu"></div>
+  </div>
+  <div class="tb-sep"></div>
+  <div class="tb-read"><span id="tb-co">—</span><b id="tb-date">—</b></div>
+  <div class="tb-sep"></div>
+  <div class="tb-read">Sales data<b id="tb-fresh">—</b></div>
+  <div class="tb-sep"></div>
+  <div class="tb-read">Data<b id="tb-sync">connecting—</b></div>
+  <div class="tb-lamps" id="tb-lamps"></div>
+  <div id="clerk-user"></div>
+</header>
+<div id="demo-bar"></div>
+
+<div class="shell">
+  <nav class="rail" id="rail">
+    <button data-page="panel" class="active"><span class="st">01</span><svg class="ic"><use href="#i-panel"/></svg>Panel<span class="dot"></span></button>
+    <button data-page="stock"><span class="st">02</span><svg class="ic"><use href="#i-stock"/></svg>Stock</button>
+    <button data-page="stocktake"><span class="st">03</span><svg class="ic"><use href="#i-clip"/></svg>Stocktake<span class="dot"></span></button>
+    <button data-page="count"><span class="st">04</span><svg class="ic"><use href="#i-count"/></svg>Count</button>
+    <button data-page="cook"><span class="st">05</span><svg class="ic"><use href="#i-cook"/></svg>Cook</button>
+    <button data-page="sales"><span class="st">06</span><svg class="ic"><use href="#i-sales"/></svg>Sales In</button>
+    <button data-page="log"><span class="st">07</span><svg class="ic"><use href="#i-log"/></svg>Log</button>
+    <button data-page="setup"><span class="st">08</span><svg class="ic"><use href="#i-setup"/></svg>Setup</button>
+    <div class="rail-foot" id="rail-foot">Export a backup from Setup regularly.</div>
+  </nav>
+
+  <main class="work">
+
+  <!-- ======== 01 PANEL ======== -->
+  <section id="page-panel">
+    <div class="phead">
+      <div><h1>Production Panel</h1><div class="psub" id="panel-sub">Line status, today's cook list, and what is about to run short.</div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <select id="panel-cat"><option value="all">All categories</option></select>
+        <button class="btn" onclick="undoLast()"><svg class="ic"><use href="#i-undo"/></svg>Undo</button>
+        <select id="sheet-store" title="Storage location shown on the cook sheet"><option value="all">All locations</option></select>
+        <button class="btn primary" onclick="printCookSheet()"><svg class="ic"><use href="#i-print"/></svg>Cook sheet</button>
+      </div>
+    </div>
+    <div id="panel-body"></div>
+  </section>
+
+  <!-- ======== 02 STOCK ======== -->
+  <section id="page-stock" class="hidden">
+    <div class="phead">
+      <div><h1>Stock Register</h1><div class="psub">Every item on this line, its balance, its minimum, and how many days that balance covers. <b>Set minimums</b> rebuilds them from real sales —the 90th percentile of rolling 7-day demand, enough for a bad week in 9 weeks out of 10.</div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" onclick="copyCodes()"><svg class="ic"><use href="#i-copy"/></svg><span id="copy-label">Copy codes</span></button>
+        <button class="btn" onclick="openMinTool()"><svg class="ic"><use href="#i-scale"/></svg>Set minimums</button>
+        <button class="btn primary" onclick="openAdd()"><svg class="ic"><use href="#i-plus"/></svg>Add item</button>
+      </div>
+    </div>
+    <div class="bar">
+      <input type="search" id="s-q" placeholder="Search name / 名称 / code—">
+      <select id="s-cat"><option value="all">All categories</option></select>
+      <select id="s-store"><option value="all">All locations</option></select>
+      <select id="s-filter">
+        <option value="all">All items</option>
+        <option value="short">Below minimum</option>
+        <option value="out">Out of stock</option>
+        <option value="watch">Watched only</option>
+        <option value="preorder">Pre-order only</option>
+        <option value="idle">No movement</option>
+        <option value="stopped">Stopped</option>
+      </select>
+      <button class="btn" id="s-hide" aria-pressed="false">Hide stopped</button>
+    </div>
+    <div class="panel"><div class="scroll" id="stock-table"></div></div>
+  </section>
+
+  <!-- ======== 03 STOCKTAKE ======== -->
+  <section id="page-stocktake" class="hidden">
+    <div class="phead">
+      <div><h1>Stocktake</h1><div class="psub">Build the list of items to go and count, print the paper for the floor, then key the figures in on station 04. The list is shared and belongs to the department you are in.</div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input id="st-name" placeholder="Sheet title (optional)" style="min-width:170px">
+        <button class="btn primary" onclick="printStocktakePaper()"><svg class="ic"><use href="#i-print"/></svg>Export stocktake paper</button>
+      </div>
+    </div>
+    <div id="stocktake-body"></div>
+  </section>
+
+  <!-- ======== 04 COUNT ======== -->
+  <section id="page-count" class="hidden">
+    <div class="phead">
+      <div><h1>Stock Count</h1><div class="psub">Key the counted balance beside each item and apply the whole sheet in one go. Every difference is written to the log as a correction, so the count is auditable.</div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <select id="c-store"><option value="all">All locations</option></select>
+        <select id="c-scope"><option value="all">All items</option><option value="list">Stocktake list only</option></select>
+        <button class="btn" onclick="printCountSheet()"><svg class="ic"><use href="#i-print"/></svg>Blank count sheet</button>
+      </div>
+    </div>
+    <div id="count-body"></div>
+  </section>
+
+  <!-- ======== 04 COOK ======== -->
+  <section id="page-cook" class="hidden">
+    <div class="phead">
+      <div><h1>Cook Schedule</h1><div class="psub">Plan the day's batches against kettle capacity, then log what actually came out. Actual against planned gives you yield.</div></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span class="lbl">Cook date</span><input type="date" id="cook-date">
+      </div>
+    </div>
+    <div id="cook-body"></div>
+  </section>
+
+  <!-- ======== 04 SALES IN ======== -->
+  <section id="page-sales" class="hidden">
+    <div class="phead"><div><h1>Sales Import</h1>
+      <div class="psub">Drop the SI_Item export (or any sheet with a product and a quantity column). The system reads INVOICEDATE / MATERIAL / UOM / TOTALQTY, skips 合计小计 subtotal rows, and combines invoice lines per item. Every line is remembered by Bill No, so re-importing the same file skips duplicates and a revised invoice applies only the difference. <b>Pack size must match exactly</b> —a line whose UOM is not one you stock is reported and left out rather than deducted from the wrong pack.</div></div></div>
+    <div class="bar"><span class="lbl">Sales date</span><input type="date" id="sales-date"></div>
+    <div class="drop" id="drop">
+      <b>Drop the sales file here</b>or click to choose
+      <div class="mono faint" style="font-size:11.5px;margin-top:4px">.xlsx · .xls · .csv</div>
+      <input type="file" id="sales-file" accept=".xlsx,.xls,.csv" style="display:none">
+    </div>
+    <div id="import-preview"></div>
+  </section>
+
+  <!-- ======== 05 LOG ======== -->
+  <section id="page-log" class="hidden">
+    <div class="phead"><div><h1>Movement Log</h1><div class="psub">Every change to a balance, newest first.</div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <select id="log-filter">
+          <option value="all">All movements</option>
+          <option value="production">Cooks</option>
+          <option value="sale">Sales out</option>
+          <option value="adjust">Corrections</option>
+        </select>
+        <button class="btn danger" onclick="clearLog()">Clear log</button>
+      </div>
+    </div>
+    <div class="panel"><div class="scroll" id="log-table"></div></div>
+  </section>
+
+  <!-- ======== 06 SETUP ======== -->
+  <section id="page-setup" class="hidden">
+    <div class="phead"><div><h1>Setup &amp; Backup</h1><div class="psub">Load the item list for the department you are in, set its line capacity, and keep a backup.</div></div></div>
+    <div class="grid2">
+      <div>
+        <div class="panel">
+          <div class="panel-h"><h2>Departments</h2><span class="meta">Each keeps its own items, history and settings</span></div>
+          <div class="panel-b" id="setup-depts"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><h2>Item list</h2></div>
+          <div class="panel-b" id="setup-items">
+            <p class="dim" style="font-size:12.5px;margin-bottom:10px">Upload a sheet with one row per item. Recognised columns: <span class="mono">name / 名称</span>, <span class="mono">uom / 单位</span>, <span class="mono">stock / 库存</span>, <span class="mono">min / 最低</span>, <span class="mono">code</span>, <span class="mono">category</span>. Matching names update in place, new names are added.</p>
+            <div class="drop" id="drop-items" style="padding:20px 14px;margin-bottom:10px">
+              <b>Drop the item list</b>or click to choose a file
+              <input type="file" id="items-file" accept=".xlsx,.xls,.csv" style="display:none">
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn primary" id="btn-reload-base" onclick="reloadBase()">Reload the 0428 list</button>
+              <button class="btn" onclick="exportItemTemplate()">Download blank template</button>
+              <button class="btn" onclick="loadDemo()">Load example data</button>
+            </div>
+            <p class="dim" style="font-size:12px;margin-top:10px" id="reload-note"><b style="color:var(--ink)">Reload the 0428 list</b> tops up anything missing from the list originally supplied, without touching balances you have already counted. Categories come from the first two digits of the item code.</p>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><h2>Line settings</h2></div>
+          <div class="panel-b">
+            <div class="field"><label>Daily kettle capacity (kg of finished product)</label>
+              <input type="number" id="set-cap" step="any" min="0" style="width:100%"></div>
+            <div class="field"><label>Cover target —days of stock a minimum should represent</label>
+              <input type="number" id="set-cover" step="1" min="1" style="width:100%"></div>
+            <div class="field"><label>Production head —printed on the cook sheet</label>
+              <input id="set-head" style="width:100%"></div>
+            <button class="btn primary" onclick="saveSettings()">Save settings</button>
+            <p class="dim" style="font-size:12px;margin-top:10px">Capacity drives the load meter on the cook schedule. The cover target is what <b>Set minimums</b> on the stock page uses to rebuild every minimum from real usage.</p>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="panel-h"><h2>Where the data lives</h2></div>
+          <div class="panel-b" id="setup-storage"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><h2>Backup</h2></div>
+          <div class="panel-b">
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn primary" onclick="doBackup()">Download backup (.json)</button>
+              <button class="btn" onclick="$('#restore-file').click()">Restore from backup</button>
+              <button class="btn" onclick="exportStockCsv()">Export stock (.csv)</button>
+              <input type="file" id="restore-file" accept=".json" style="display:none">
+            </div>
+            <p class="dim" style="font-size:12px;margin-top:11px">A backup carries items, minimums, the movement log, the cook schedule and the invoice registry. Take one before clearing browser data.</p>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><h2>Danger zone</h2></div>
+          <div class="panel-b">
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn danger" onclick="wipeAll()">Erase everything</button>
+            </div>
+            <p class="dim" style="font-size:12px;margin-top:11px">Removes every item, movement and plan from the department you are in. There is no undo —download a backup first.</p>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><h2>Line summary</h2></div>
+          <div class="panel-b" id="setup-summary"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  </main>
+</div>
+</div>
+
+<div id="modal-root"></div>
+<div id="tip"></div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* ============================================================
+   0428 SAUCE LINE
+   ============================================================ */
+/* The first two digits of an item code are its category —the same coding the
+   0227 workbook uses, so an imported list gets categorised without a category column. */
+const CODE_CAT = {"11":"Pork","12":"Chicken","13":"Beef","31":"Rice","32":"Noodles & Pasta",
+  "33":"Vegetable / Fruits","41":"Dried Herbs & Nuts","43":"Dried Seafood","45":"Dried Meat",
+  "46":"Powder & Starch","62":"Sauce & Paste","63":"Soup","70":"Dessert","71":"Meat / Seafood",
+  "72":"Dessert","73":"Dim sum non-meat","74":"Dim sum with meat"};
+
+/* The 0428 item list. Category comes from the first two digits of the item code.
+   `min` is the 90th percentile of rolling 7-day demand and `baseDaily` the mean
+   daily demand, both measured from the SI_Item export, 1 May —3 Sep 2026 (126 days).
+   `preorder` marks items sold on fewer than 25 of those days —made to order, not stocked. */
+const BASE_ITEMS = [
+  {"code": "33C00G1ZQF00240", "name": "QF Coleslaw 高丽菜沙律", "uom": "2.5kg/pkt", "store": "0434CH", "cat": "Vegetable / Fruits", "min": 156, "baseDaily": 19.64},
+  {"code": "33C00G1ZQF00241", "name": "QF Coleslaw 高丽菜沙律 新", "uom": "2.5kg/pkt", "store": "0434CH", "cat": "Vegetable / Fruits", "min": 148, "baseDaily": 19.46},
+  {"code": "33SCVG1PQF01823", "name": "SBC Curry Vegetable 咖喱杂菜", "uom": "2.3kg/pkt", "store": "0434FR", "cat": "Vegetable / Fruits", "min": 54, "baseDaily": 6.25},
+  {"code": "33SCVG1PQF01862", "name": "SBC Curry Vegetable Gravy 咖喱杂菜酱", "uom": "2kg/pkt", "store": "0434FR", "cat": "Vegetable / Fruits", "min": 0, "baseDaily": 0, "preorder": true},
+  {"code": "63MS0G1PQF00058", "name": "QF Mushroom Soup 蘑菇汤汁", "uom": "1kg/pkt", "store": "0434FR", "cat": "Soup", "min": 261, "baseDaily": 28.7},
+  {"code": "62CC0G2ZQF02147", "name": "QF Clam Chowder 奶香蜆蜊汤汁", "uom": "2kg/pkt", "store": "0434FR", "cat": "Sauce & Paste", "min": 109, "baseDaily": 10.03},
+  {"code": "31GKTT1ZVT01641", "name": "Golden Kirin Thai Hom Mali Rice 泰国茉莉香米", "uom": "2kg/pkt", "store": "CENTER", "cat": "Rice", "min": 76, "baseDaily": 8.93},
+  {"code": "32CVSG1ZQF00554", "name": "QF Cooked Vermicelli Spaghetti 熟米粉面", "uom": "1.9kg/pkt", "store": "0434CH", "cat": "Noodles & Pasta", "min": 52, "baseDaily": 6.24},
+  {"code": "46PS0R1ZVT00975", "name": "Potato Starch 马铃薯粉", "uom": "2kg/pkt", "store": "CENTER", "cat": "Powder & Starch", "min": 38, "baseDaily": 4.9},
+  {"code": "46BC0T2ZQF00904", "name": "Biscuit Crumb 饼干", "uom": "1kg/pkt", "store": "CENTER", "cat": "Powder & Starch", "min": 18, "baseDaily": 2.13},
+  {"code": "62CS0G1ZQF00247", "name": "QF Chinchalok Sauce 珍珠白虾酱", "uom": "1kg/pkt", "store": "0434FR", "cat": "Sauce & Paste", "min": 27, "baseDaily": 2.78},
+  {"code": "62CS0G1ZQF00247", "name": "QF Chinchalok Sauce 珍珠白虾酱", "uom": "0.2kg/pkt", "store": "0434FR", "cat": "Sauce & Paste", "min": 0, "baseDaily": 3.34, "preorder": true},
+  {"code": "33SCA01PQF01896", "name": "Chinchalok Aubergine 珍珠白茄子", "uom": "1kg/pkt", "store": "0434FR", "cat": "Vegetable / Fruits", "min": 52, "baseDaily": 6.06},
+  {"code": "46SFCG1ZQF02877", "name": "Special Fried Chicken Flour 特制炸鸡粉", "uom": "3kg/pkt", "store": "CENTER", "cat": "Powder & Starch", "min": 61, "baseDaily": 6.21},
+  {"code": "46SCMG1ZQF02878", "name": "Special Chicken Marinade Powder 特制腌鸡粉", "uom": "1.5kg/pkt", "store": "CENTER", "cat": "Powder & Starch", "min": 12, "baseDaily": 0.94},
+  {"code": "62PS0G1ZQF00277", "name": "Potato Salad 马铃薯沙律", "uom": "2kg/pkt", "store": "0434CH", "cat": "Sauce & Paste", "min": 28, "baseDaily": 3.71},
+  {"code": "62CP0G1ZQF00245", "name": "Cheese Pasta 奶酪意大利面", "uom": "2kg/pkt", "store": "0434CH", "cat": "Sauce & Paste", "min": 30, "baseDaily": 3.93},
+  {"code": "62SMSG1PQF02211", "name": "SBC Marinated Sauce 腌制酱料", "uom": "0.56kg/pkt", "store": "0434FR", "cat": "Sauce & Paste", "min": 20, "baseDaily": 1.9},
+  {"code": "62BS0G1ZQF00237", "name": "QF Brown Sauce 西餐棕酱", "uom": "3kg/pkt", "store": "0434FR", "cat": "Sauce & Paste", "min": 24, "baseDaily": 3.14},
+  {"code": "62SS0G1ZQF00294", "name": "QF Spaghetti Sauce 意大利面酱", "uom": "3kg/pkt", "store": "0434FR", "cat": "Sauce & Paste", "min": 33, "baseDaily": 3.93},
+  {"code": "62TSSG1ZQF00303", "name": "QF Thai Sweet & Sour Sauce 泰酸甜酱", "uom": "2kg/pkt", "store": "0434CH", "cat": "Sauce & Paste", "min": 14, "baseDaily": 1.6},
+  {"code": "62SCTG1ZQF00289", "name": "QF Sambal Chilli Thai 泰式沙巴辣椒", "uom": "3kg/pkt", "store": "0434CH", "cat": "Sauce & Paste", "min": 8, "baseDaily": 0.74},
+  {"code": "62MS0G1ZQF00272", "name": "QF Mango Sauce 芒果酱", "uom": "2kg/pkt", "store": "0434CH", "cat": "Sauce & Paste", "min": 10, "baseDaily": 1.08},
+  {"code": "12PB0G1IQF00457", "name": "QF Prawn Balls 鸡肉虾球", "uom": "20pcs/pkt", "store": "0434FR", "cat": "Chicken", "min": 84, "baseDaily": 5.99},
+  {"code": "62FNSG1ZQF00261", "name": "QF Fire Noodle Sauce 火面酱", "uom": "2kg/pkt", "store": "0434CH", "cat": "Sauce & Paste", "min": 20, "baseDaily": 2.56},
+  {"code": "12FCMG1IQF02372", "name": "QF Fried Chicken Marinade 腌制炸鸡", "uom": "1kg/pkt", "store": "0434FR", "cat": "Chicken", "min": 155, "baseDaily": 15.25},
+  {"code": "12FCMG1IQF02372", "name": "QF Fried Chicken Marinade 腌制炸鸡", "uom": "2kg/pkt", "store": "0434FR", "cat": "Chicken", "min": 0, "baseDaily": 0.21, "preorder": true},
+  {"code": "62SPSG1ZQF00291", "name": "QF Sweet Plum Sauce 酸梅辣酱", "uom": "2kg/pkt", "store": "0434CH", "cat": "Sauce & Paste", "min": 27, "baseDaily": 3.27},
+  {"code": "46MMPG1ZQF00962", "name": "QF Mashed Potatoes Powder 西餐薯泥粉", "uom": "0.365kg/pkt", "store": "CENTER", "cat": "Powder & Starch", "min": 28, "baseDaily": 3.37},
+  {"code": "46FCPG1ZQF00929", "name": "QF Fried Chicken Powder 炸鸡粉", "uom": "3kg/pkt", "store": "CENTER", "cat": "Powder & Starch", "min": 5, "baseDaily": 0.6},
+  {"code": "46FCPG1ZQF00930", "name": "QF Fried Chicken Powder 炸鸡粉 新", "uom": "3kg/pkt", "store": "CENTER", "cat": "Powder & Starch", "min": 8, "baseDaily": 0.96},
+  {"code": "62CS0G1ZQF00244", "name": "Corn Salad 玉米沙律", "uom": "1kg/pkt", "store": "0434FR", "cat": "Sauce & Paste", "min": 6, "baseDaily": 0.59},
+  {"code": "71THFG1IQF00201", "name": "QF Thai Handmade Fish Cake 手工泰式鱼饼", "uom": "20pcs/pkt", "store": "0434FR", "cat": "Meat / Seafood", "min": 27, "baseDaily": 2.94},
+  {"code": "31GLWT1ZVT00548", "name": "Green Lion White Glutinuos Rice 绿狮白糯米", "uom": "1kg/pkt", "store": "CENTER", "cat": "Rice", "min": 16, "baseDaily": 1.6},
+  {"code": "46PS0R1ZVT00976", "name": "Pure Salt 盐", "uom": "1kg/pkt", "store": "CENTER", "cat": "Powder & Starch", "min": 0, "baseDaily": 0.36, "preorder": true},
+  {"code": "62SESG1ZQF00290", "name": "QF Salted Egg Sauce 咸蛋酱", "uom": "2kg/pkt", "store": "0434FR", "cat": "Sauce & Paste", "min": 3, "baseDaily": 0.24},
+  {"code": "62PTSG1ZQF00278", "name": "QF Phat Thai Sauce 泰面酱", "uom": "2kg/pkt", "store": "CENTER", "cat": "Sauce & Paste", "min": 8, "baseDaily": 0.83},
+  {"code": "12PB0G1IQF00457", "name": "QF Prawn Balls 鸡肉虾球", "uom": "10pcs/pkt", "store": "0434FR", "cat": "Chicken", "min": 0, "baseDaily": 0.13, "preorder": true, "added": true},
+  {"code": "32CVSG1ZQF00554", "name": "QF Cooked Vermicelli Spaghetti 熟米粉面", "uom": "0.19kg/pkt", "store": "0434CH", "cat": "Noodles & Pasta", "min": 0, "baseDaily": 0.02, "preorder": true, "added": true},
+  {"code": "62BS0G1ZQF00237", "name": "QF Brown Sauce 西餐棕酱", "uom": "0.2kg/pkt", "store": "0434FR", "cat": "Sauce & Paste", "min": 0, "baseDaily": 0.24, "preorder": true, "added": true},
+  {"code": "62BS0G1ZQF00237", "name": "QF Brown Sauce 西餐棕酱", "uom": "0.3kg/pkt", "store": "0434FR", "cat": "Sauce & Paste", "min": 0, "baseDaily": 0.01, "preorder": true, "added": true},
+  {"code": "62CS0G1ZQF00244", "name": "Corn Salad 玉米沙律", "uom": "0.2kg/pkt", "store": "0434FR", "cat": "Sauce & Paste", "min": 0, "baseDaily": 0.63, "preorder": true, "added": true},
+  {"code": "62SS0G1ZQF00294", "name": "QF Spaghetti Sauce 意大利面酱", "uom": "0.3kg/pkt", "store": "0434FR", "cat": "Sauce & Paste", "min": 0, "baseDaily": 0.01, "preorder": true, "added": true},
+  {"code": "46MMPG1ZQF00962", "name": "QF Mashed Potatoes Powder 西餐薯泥粉", "uom": "1kg/pkt", "store": "CENTER", "cat": "Powder & Starch", "min": 0, "baseDaily": 0.11, "preorder": true, "added": true},
+  {"code": "46PS0R1ZVT00975", "name": "Potato Starch 马铃薯粉", "uom": "25kg/pkt", "store": "CENTER", "cat": "Powder & Starch", "min": 5, "baseDaily": 0.55, "added": true},
+  {"code": "46PS0R1ZVT00976", "name": "Pure Salt 盐", "uom": "25kg/pkt", "store": "CENTER", "cat": "Powder & Starch", "min": 0, "baseDaily": 0.01, "preorder": true, "added": true},
+  {"code": "46SCMG1ZQF02878", "name": "Special Chicken Marinade Powder 特制腌鸡粉", "uom": "3kg/pkt", "store": "CENTER", "cat": "Powder & Starch", "min": 0, "baseDaily": 0.08, "preorder": true, "added": true},
+  {"code": "31GKTT1ZVT01641", "name": "Golden Kirin Thai Hom Mali Rice 泰国茉莉香米", "uom": "25kg/pkt", "store": "CENTER", "cat": "Rice", "min": 0, "baseDaily": 0.06, "preorder": true, "added": true},
+  {"code": "31GLWT1ZVT00548", "name": "Green Lion White Glutinuos Rice 绿狮白糯米", "uom": "25kg/pkt", "store": "CENTER", "cat": "Rice", "min": 0, "baseDaily": 0.03, "preorder": true, "added": true},
+  {"code": "63MS0G1PQF00058", "name": "QF Mushroom Soup 蘑菇汤汁", "uom": "0.3kg/pkt", "store": "0434FR", "cat": "Soup", "min": 0, "baseDaily": 0.01, "preorder": true, "added": true},
+  {"code": "33C00G1ZQF00240", "name": "QF Coleslaw 高丽菜沙律", "uom": "0.3kg/pkt", "store": "0434CH", "cat": "Vegetable / Fruits", "min": 0, "baseDaily": 0.01, "preorder": true, "added": true},
+  {"code": "33SCA01PQF01896", "name": "Chinchalok Aubergine 珍珠白茄子", "uom": "0.3kg/pkt", "store": "0434FR", "cat": "Vegetable / Fruits", "min": 0, "baseDaily": 2.17, "preorder": true, "added": true}
+];
+
+const $  = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = n => (Math.round(n*100)/100).toLocaleString();
+const fmt1 = n => (Math.round(n*10)/10).toLocaleString();
+const todayStr = () => new Date().toISOString().slice(0,10);
+const dayAdd = (d,n) => new Date(new Date(d+"T12:00").getTime()+n*86400000).toISOString().slice(0,10);
+function norm(s){ return String(s??"").toLowerCase().replace(/[\s ]/g,"").replace(/[()\uFF08\uFF09\/\\.,\uFF0C:\uFF1A\-\u2010-\u2015'"\u2018\u2019\u201C\u201D]/g,""); }
+/* Pack sizes must never be fuzzy: norm() strips the decimal point, which makes
+   "2.5kg/pkt" and "25kg/pkt" the same string. UOM keys use this instead. */
+function normUom(s){ return String(s??"").toLowerCase().replace(/\s+/g,"").replace(/ /g,""); }
+const keyNU = (name,uom) => norm(name)+"|"+normUom(uom);
+function toast(m){ const t=$("#toast"); t.textContent=m; t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),3600); }
+
+let state = null;
+function defaultState(){
+  return { v:1, items:[], tx:[], plan:[], bills:{}, nextId:1, planSeq:1, batchSeq:1, txSeq:1,
+           capacity:600, coverTarget:7, prodHead:"Ho Zi Zong", stocktake:[], demo:false,
+           lastBatch:null, lastBatchBills:null };
+}
+/* Every tx entry needs a stable id (per department) so the sync layer can
+   diff and upsert/delete individual rows instead of whole-log blobs. */
+function newTx(o){ return Object.assign({id:state.txSeq++}, o); }
+/* Load (or top up) the supplied list without disturbing counted balances. */
+function seedBase(){
+  const have = new Map(state.items.map(i=>[keyNU(i.name, i.uom), i]));
+  let added=0, touched=0;
+  for(const b of BASE_ITEMS){
+    const ex = have.get(keyNU(b.name, b.uom));
+    if(ex){
+      if(!ex.code) ex.code=b.code;
+      if(!ex.store){ ex.store=b.store; touched++; }
+      if(!ex.cat || ex.cat==="Uncategorised") ex.cat=b.cat;
+      if(ex.preorder===undefined) ex.preorder=!!b.preorder;
+      if(!ex.min && !ex.baseDaily){ ex.min=b.min||0; ex.baseDaily=b.baseDaily||0; touched++; }
+      continue;
+    }
+    state.items.push({id:state.nextId++, name:b.name, uom:b.uom, code:b.code, store:b.store,
+      cat:b.cat, stock:0, min:b.min||0, baseDaily:b.baseDaily||0, preorder:!!b.preorder,
+      stopped:false, watch:false, counted:false});
+    added++;
+  }
+  return {added, touched};
+}
+function item(id){ return state.items.find(i=>i.id===id); }
+const allStores = () => [...new Set(state.items.map(i=>i.store||"—"))].sort();
+function inStore(it,v){ return v==="all" || (it.store||"—")===v; }
+/* an item nobody has counted and that has never moved */
+function uncounted(it){ return !it.counted && it.stock===0 && !state.tx.some(t=>t.itemId===it.id); }
+/* the readable half of a bilingual name, for tight readouts */
+function shortName(n){
+  const en = String(n||"").replace(/[\u4e00-\u9fff\uff08\uff09()]/g,"").replace(/\s+/g," ").trim();
+  const t = en || String(n||"").trim();
+  return t.length>26 ? t.slice(0,25).trim()+"…" : t;
+}
+
+/* ---------- weight: a UOM like "2kg/pkt" carries a real weight ---------- */
+function kgPerUnit(uom){
+  const s = String(uom||"").toLowerCase().trim();
+  if(s==="kg") return 1;
+  const m = s.match(/([\d.]+)\s*kg/);
+  if(m){ const v=parseFloat(m[1]); if(!isNaN(v)&&v>0) return v; }
+  const g = s.match(/([\d.]+)\s*g\b/);
+  if(g){ const v=parseFloat(g[1]); if(!isNaN(v)&&v>0) return v/1000; }
+  return null;                       // pieces, pc, bottles —counted, not weighed
+}
+function kgOf(it, qty){ const k = kgPerUnit(it && it.uom); return k ? k*qty : 0; }
+
+/* ---------- usage, cover, trend ---------- */
+/* Every rolling window below is anchored to the newest sale date in the log,
+   not to wall-clock "today" —sales import in batches, often days or weeks
+   behind, and anchoring on today would zero-pad the whole recent window
+   every time an import is overdue, silently starving the rate/percentile
+   math even though real history is sitting right there. */
+function latestSaleDate(){
+  let hi=null;
+  for(const t of state.tx){ if(t.type!=="sale") continue; if(hi===null||t.date>hi) hi=t.date; }
+  return hi || todayStr();
+}
+function windowDaily(id, fromAgo, toAgo){
+  const asOf = new Date(latestSaleDate()+"T12:00").getTime();
+  const a = asOf-fromAgo*86400000, b = asOf-toAgo*86400000;
+  let sum=0;
+  for(const t of state.tx){
+    if(t.itemId!==id || t.type!=="sale") continue;
+    const ts = new Date(t.date+"T12:00").getTime();
+    if(ts>=a && ts<b) sum += -t.qty;
+  }
+  return sum/Math.max(fromAgo-toAgo,1);
+}
+/* A flat trailing-7-day average either forgets a real demand shift the moment
+   it falls out of the window, or gets dragged around by one huge one-off
+   order for the whole week. An EWMA fades older days smoothly instead of a
+   hard cutoff, and capping any single day at 3x the recent median keeps a
+   rare bulk order from skewing the rate for days afterward. */
+function smartDailyRate(id){
+  const series = salesSeries(id, 42);            // oldest -> newest, zero-filled
+  const nz = series.filter(v=>v>0).sort((a,b)=>a-b);
+  const median = nz.length ? nz[Math.floor(nz.length/2)] : 0;
+  const cap = median*3;
+  const capped = (nz.length>=4 && cap>0) ? series.map(v=>Math.min(v,cap)) : series;
+  const alpha = 1 - Math.pow(0.5, 1/3);           // ~3-day half-life
+  let rate = capped[0];
+  for(let i=1;i<capped.length;i++) rate = alpha*capped[i] + (1-alpha)*rate;
+  return Math.max(0, rate);
+}
+function usageRate(it){ const r=smartDailyRate(it.id); return r>0 ? r : (it.baseDaily||0); }
+function coverDays(it){ const r=usageRate(it); return r>0 ? it.stock/r : null; }
+function shortfall(it){ return Math.max(0, Math.round((it.min - it.stock)*100)/100); }
+function trend(it){
+  const now = windowDaily(it.id,7,0), prev = windowDaily(it.id,14,7);
+  if(now<0.05 && prev<0.05) return null;
+  if(prev<=0) return {dir:"up", now, prev, r:Infinity};
+  const r = now/prev;
+  return {dir: r>=1.25?"up" : r<=0.8?"down" : "flat", now, prev, r};
+}
+const active = () => state.items.filter(i=>!i.stopped);
+function inCat(it,c){ return c==="all" || (it.cat||"Uncategorised")===c; }
+function panelCat(){ const s=$("#panel-cat"); return s?s.value:"all"; }
+
+/* severity: one ladder used everywhere on this page */
+function sev(it){
+  if(it.stopped || it.preorder) return "off";
+  if(uncounted(it)) return "off";          // balance unknown until it is counted
+  if(it.stock<0) return "data";
+  const c = coverDays(it);
+  if(it.stock<=0 && (usageRate(it)>0 || it.min>0)) return "crit";
+  if(c!=null && c<=1) return "crit";
+  if(c!=null && c<=3) return "warn";
+  if(it.min>0 && it.stock<it.min) return "warn";
+  return "ok";
+}
+function sevTag(it){
+  const s = sev(it), c = coverDays(it);
+  if(it.stopped) return '<span class="tag t-off">Stopped</span>';
+  if(it.preorder) return '<span class="tag t-info">Pre-order</span>';
+  if(uncounted(it)) return '<span class="tag t-off">Not counted</span>';
+  if(s==="data") return '<span class="tag t-crit">Negative</span>';
+  if(it.stock<=0 && s==="crit") return '<span class="tag t-crit">Out</span>';
+  if(s==="crit") return '<span class="tag t-crit">'+fmt1(c)+'d left</span>';
+  if(s==="warn") return c!=null ? '<span class="tag t-warn">'+fmt1(c)+'d left</span>' : '<span class="tag t-warn">Below min</span>';
+  return '<span class="tag t-ok">OK</span>';
+}
+function coverCell(it){
+  const c = coverDays(it);
+  if(c==null) return '<span class="faint">—</span>';
+  return fmt1(c);
+}
+
+/* ---------- the make list: the decision this page exists to produce ---------- */
+function makeList(){
+  const cat = panelCat();
+  return active()
+    .filter(i => inCat(i,cat) && !i.preorder && !uncounted(i) && usageRate(i)>0 && i.min>0 && i.stock < i.min)
+    .map(i => ({it:i, need:shortfall(i), cover:coverDays(i), s:sev(i)}))
+    .sort((a,b)=> (a.cover==null?9e9:a.cover) - (b.cover==null?9e9:b.cover));
+}
+/* items climbing fast that are NOT low yet —tomorrow's problem */
+function risingList(){
+  const cat = panelCat();
+  const out=[];
+  for(const i of active()){
+    if(!inCat(i,cat) || i.preorder || uncounted(i)) continue;
+    if(i.min>0 && i.stock<i.min) continue;      // already on the make list
+    const t = trend(i), c = coverDays(i);
+    if(t && t.dir==="up" && c!=null && c<=14) out.push({it:i, t, cover:c});
+  }
+  return out.sort((a,b)=>a.cover-b.cover);
+}
+function dataIssues(){
+  const neg = state.items.filter(i=>i.stock<0);
+  let last=null;
+  for(const t of state.tx) if(t.type==="sale" && (!last || t.date>last)) last=t.date;
+  const stale = last ? Math.floor((Date.now()-new Date(last+"T12:00").getTime())/86400000) : null;
+  const idle = active().filter(i=>usageRate(i)===0 && i.min>0).length;
+  return {neg, stale, lastSale:last, idle};
+}
+
+/* ============================================================
+   AUTH + STORAGE
+   Clerk signs people in; Supabase (Postgres + Realtime) holds the data.
+   Supabase is configured to trust Clerk's session token directly (Third-
+   Party Auth), so every request carries it and Postgres treats a signed-in
+   Clerk user as the `authenticated` role the RLS policies check for.
+
+   Item, movement (tx) and plan ids are assigned client-side by per-
+   department counters (state.nextId / txSeq / planSeq), exactly like the
+   original design —this lets every mutator in this file stay synchronous
+   and "just call save()" instead of awaiting a server-assigned id. save()
+   debounces, then diffs the in-memory state against the last-persisted
+   snapshot and upserts/deletes only the rows that actually changed.
+   ============================================================ */
+const CFG_KEY = "qf_cfg_v1";
+function loadCfg(){ try{ return JSON.parse(localStorage.getItem(CFG_KEY)||"null"); }catch(e){ return null; } }
+function saveCfg(c){ try{ localStorage.setItem(CFG_KEY, JSON.stringify(c)); }catch(e){} }
+function cfgComplete(c){ return !!(c && c.supabaseUrl && c.supabaseAnonKey && c.clerkKey); }
+
+let sb = null;
+let clerk = null;
+let DB_READY = false;
+let syncMode = "starting";
+let syncNote = "";
+
+const cache = { items:new Map(), tx:new Map(), plan:new Map(), bills:new Map(), settings:null };
+let persisted = null, dirty=false, flushing=false, needRebuild=false, flushErrorShown=false;
+let flushTimer=null, dataTimer=null, firstLoad=false, applying=false;
+let deptChannel=null, deptRosterChannel=null;
+
+let depts = [];
+let dept = null;
+const DKEY = "qf_active_dept";
+function readDeptPref(){ try{ return localStorage.getItem(DKEY)||null; }catch(e){ return null; } }
+function writeDeptPref(){ try{ localStorage.setItem(DKEY, dept); }catch(e){} }
+function activeDept(){ return depts.find(d=>d.id===dept) || {id:dept, code:dept||"—", name:"", company:""}; }
+function dkey(){ return "qf0428_mirror_v1_"+(dept||"none"); }
+/* A read-through local mirror, purely for instant paint / resilience if the
+   connection drops —Supabase is always the source of truth once reachable. */
+function mirrorLocal(){ try{ localStorage.setItem(dkey(), JSON.stringify(state)); }catch(e){} }
+function readMirror(){ try{ const r=localStorage.getItem(dkey()); const o=r?JSON.parse(r):null; return (o&&o.items&&o.tx)?o:null; }catch(e){ return null; } }
+
+/* ---------- row <-> state field mapping ---------- */
+function itemRow(i){ return {id:i.id, dept_id:dept, name:i.name, uom:i.uom||"", code:i.code||"", store:i.store||"",
+  cat:i.cat||"Uncategorised", stock:i.stock||0, min:i.min||0, base_daily:i.baseDaily||0,
+  preorder:!!i.preorder, stopped:!!i.stopped, watch:!!i.watch, counted:!!i.counted}; }
+function rowItem(r){ return {id:Number(r.id), name:r.name, uom:r.uom, code:r.code, store:r.store, cat:r.cat,
+  stock:Number(r.stock), min:Number(r.min), baseDaily:Number(r.base_daily),
+  preorder:!!r.preorder, stopped:!!r.stopped, watch:!!r.watch, counted:!!r.counted}; }
+
+function txRow(t){ return {id:t.id, dept_id:dept, ts:t.ts, date:t.date, item_id:t.itemId, type:t.type,
+  qty:t.qty, note:t.note||"", batch:t.b??null, planned:(t.planned??null), hist:!!t.h}; }
+function rowTx(r){ const t={id:Number(r.id), ts:Number(r.ts), date:r.date, itemId:r.item_id==null?null:Number(r.item_id),
+  type:r.type, qty:Number(r.qty), note:r.note||"", b:r.batch==null?undefined:Number(r.batch)};
+  if(r.planned!=null) t.planned=Number(r.planned); if(r.hist) t.h=1; return t; }
+
+function planRow(p){ return {id:p.id, dept_id:dept, date:p.date, item_id:p.itemId, qty:p.qty, done:!!p.done}; }
+function rowPlan(r){ return {id:Number(r.id), date:r.date, itemId:Number(r.item_id), qty:Number(r.qty), done:!!r.done}; }
+
+function settingsRow(x){ return {dept_id:dept, capacity:x.capacity, cover_target:x.coverTarget, prod_head:x.prodHead||"",
+  stocktake:(x.stocktake||[]).slice(), demo:!!x.demo, next_id:x.nextId, plan_seq:x.planSeq, batch_seq:x.batchSeq,
+  tx_seq:x.txSeq||1, last_batch:x.lastBatch??null, last_batch_bills:x.lastBatchBills??null}; }
+function rowSettings(r){ return {capacity:Number(r.capacity), coverTarget:Number(r.cover_target), prodHead:r.prod_head||"",
+  stocktake:r.stocktake||[], demo:!!r.demo, nextId:Number(r.next_id), planSeq:Number(r.plan_seq), batchSeq:Number(r.batch_seq),
+  txSeq:Number(r.tx_seq||1), lastBatch:r.last_batch, lastBatchBills:r.last_batch_bills}; }
+
+/* state.bills is {billKey: qty, "billKey@d": dateString} —the "@d" entries
+   are an internal convenience, never persisted as their own row. */
+function billRowsFromState(b){
+  const out=[];
+  for(const k of Object.keys(b||{})){
+    if(k.endsWith("@d")) continue;
+    out.push({dept_id:dept, bill_key:k, qty:b[k], date:b[k+"@d"]||null});
+  }
+  return out;
+}
+
+/* stable serialiser so key order never fakes a change */
+function ser(v){ return JSON.stringify(v, (k,val)=> (val&&typeof val==="object"&&!Array.isArray(val))
+  ? Object.fromEntries(Object.keys(val).sort().map(k2=>[k2,val[k2]])) : val); }
+
+function snapshotOf(x){
+  return {
+    items: new Map(x.items.map(i=>[i.id, ser(itemRow(i))])),
+    tx:    new Map(x.tx.map(t=>[t.id, ser(txRow(t))])),
+    plan:  new Map(x.plan.map(p=>[p.id, ser(planRow(p))])),
+    bills: new Map(billRowsFromState(x.bills).map(r=>[r.bill_key, ser(r)])),
+    settings: ser(settingsRow(x))
+  };
+}
+function baselineFromCache(){
+  return {
+    items: new Map([...cache.items].map(([id,r])=>[Number(id), ser(r)])),
+    tx:    new Map([...cache.tx].map(([id,r])=>[Number(id), ser(r)])),
+    plan:  new Map([...cache.plan].map(([id,r])=>[Number(id), ser(r)])),
+    bills: new Map([...cache.bills].map(([k,r])=>[k, ser(r)])),
+    settings: cache.settings ? ser(cache.settings) : ser(settingsRow(defaultState()))
+  };
+}
+function stateFromCache(){
+  const s = defaultState();
+  if(cache.settings) Object.assign(s, rowSettings(cache.settings));
+  s.items = [...cache.items.values()].map(rowItem);
+  s.tx    = [...cache.tx.values()].map(rowTx);
+  s.plan  = [...cache.plan.values()].map(rowPlan);
+  s.bills = {};
+  for(const r of cache.bills.values()){ s.bills[r.bill_key]=Number(r.qty); if(r.date) s.bills[r.bill_key+"@d"]=r.date; }
+  return s;
+}
+
+function save(){
+  mirrorLocal();
+  if(!DB_READY) return;
+  dirty = true;
+  clearTimeout(flushTimer);
+  flushTimer = setTimeout(runFlush, 250);
+}
+
+async function runFlush(){
+  if(!DB_READY) return;
+  if(flushing){ clearTimeout(flushTimer); flushTimer=setTimeout(runFlush,200); return; }
+  flushing = true;
+  try{
+    const now = snapshotOf(state), jobs=[];
+
+    const itemsUp=[], itemsDel=[];
+    for(const i of state.items){ if(persisted.items.get(i.id)!==now.items.get(i.id)) itemsUp.push(itemRow(i)); }
+    for(const id of persisted.items.keys()) if(!now.items.has(id)) itemsDel.push(id);
+    if(itemsUp.length) jobs.push(sb.from("items").upsert(itemsUp, {onConflict:"dept_id,id"}));
+    if(itemsDel.length) jobs.push(sb.from("items").delete().eq("dept_id",dept).in("id",itemsDel));
+
+    const txUp=[], txDel=[];
+    for(const t of state.tx){ if(persisted.tx.get(t.id)!==now.tx.get(t.id)) txUp.push(txRow(t)); }
+    for(const id of persisted.tx.keys()) if(!now.tx.has(id)) txDel.push(id);
+    if(txUp.length) jobs.push(sb.from("tx").upsert(txUp, {onConflict:"dept_id,id"}));
+    if(txDel.length) jobs.push(sb.from("tx").delete().eq("dept_id",dept).in("id",txDel));
+
+    const planUp=[], planDel=[];
+    for(const p of state.plan){ if(persisted.plan.get(p.id)!==now.plan.get(p.id)) planUp.push(planRow(p)); }
+    for(const id of persisted.plan.keys()) if(!now.plan.has(id)) planDel.push(id);
+    if(planUp.length) jobs.push(sb.from("plan").upsert(planUp, {onConflict:"dept_id,id"}));
+    if(planDel.length) jobs.push(sb.from("plan").delete().eq("dept_id",dept).in("id",planDel));
+
+    const billRows = billRowsFromState(state.bills);
+    const billsUp=[], billsDel=[];
+    for(const r of billRows){ if(persisted.bills.get(r.bill_key)!==now.bills.get(r.bill_key)) billsUp.push(r); }
+    for(const k of persisted.bills.keys()) if(!now.bills.has(k)) billsDel.push(k);
+    if(billsUp.length) jobs.push(sb.from("bills").upsert(billsUp, {onConflict:"dept_id,bill_key"}));
+    if(billsDel.length) jobs.push(sb.from("bills").delete().eq("dept_id",dept).in("bill_key",billsDel));
+
+    if(persisted.settings !== now.settings) jobs.push(sb.from("settings").upsert(settingsRow(state), {onConflict:"dept_id"}));
+
+    if(jobs.length){
+      const results = await Promise.all(jobs);
+      const bad = results.find(r=>r && r.error);
+      if(bad) throw bad.error;
+    }
+    persisted = now;
+    dirty = false;
+    flushErrorShown = false;
+    setSync("shared");
+  }catch(e){
+    // Leave `dirty` and `persisted` untouched —the change is still only local
+    // (mirrored to this browser, not confirmed on the server), so the next
+    // flush attempt must see it as unsaved and retry, not silently drop it.
+    setSync("error", (e && e.message) || "write failed");
+    if(!flushErrorShown){ flushErrorShown = true; toast("Could not save —retrying— "+((e&&e.message)||"connection problem")); }
+    clearTimeout(flushTimer);
+    flushTimer = setTimeout(runFlush, 4000);
+  }finally{
+    flushing = false;
+    if(needRebuild){ needRebuild=false; applyStore(); }
+  }
+}
+
+function onStoreData(){
+  clearTimeout(dataTimer);
+  dataTimer = setTimeout(()=>{
+    if(dirty||flushing){ needRebuild=true; return; }   // never clobber an unsaved edit
+    applyStore();
+  }, 60);
+}
+function applyStore(){
+  applying = true;
+  state = stateFromCache();
+  persisted = snapshotOf(state);
+  applying = false;
+  mirrorLocal();
+  setSync("shared");
+  firstLoad = true;
+  render();
+}
+function setSync(mode, note){
+  syncMode = mode; syncNote = note||"";
+  const rf = $("#rail-foot");
+  if(rf) rf.textContent = mode==="shared"
+    ? "Shared with everyone signed in —changes appear on every open tab within a moment."
+    : mode==="error" ? "Connection problem —"+(note||"")+". The last-seen figures are shown below."
+    : "Connecting to Supabase—";
+  const el = $("#tb-sync"); if(!el) return;
+  el.textContent = mode==="shared" ? "all devices" : mode==="error" ? (syncNote||"error") : "connecting—";
+  el.parentElement.classList.toggle("warnread", mode!=="shared");
+}
+
+async function initStorage(){
+  dept = readDeptPref() || "0428";
+  const mirror = readMirror();
+  state = mirror ? Object.assign(defaultState(), mirror) : defaultState();
+  render();
+  setSync("starting");
+
+  const { data: deptRows, error: deptErr } = await sb.from("departments").select("*").order("sort_order").order("id");
+  if(deptErr){ setSync("error", deptErr.message); toast("Could not reach Supabase: "+deptErr.message); return; }
+  depts = (deptRows||[]).map(d=>({id:d.id, code:d.code, name:d.name, company:d.company, order:d.sort_order}));
+  if(!depts.length){ await createDept("0428","Sauce Production","Quan Feng Food Supply"); return; }
+  if(!dept || !depts.some(d=>d.id===dept)){ dept = depts[0].id; writeDeptPref(); }
+  subscribeDeptRoster();
+  await subscribeDept();
+}
+
+function subscribeDeptRoster(){
+  if(deptRosterChannel) return;
+  deptRosterChannel = sb.channel("departments-roster")
+    .on("postgres_changes", {event:"*", schema:"public", table:"departments"}, async ()=>{
+      const { data } = await sb.from("departments").select("*").order("sort_order").order("id");
+      depts = (data||[]).map(d=>({id:d.id, code:d.code, name:d.name, company:d.company, order:d.sort_order}));
+      renderTopbar(); renderSetup();
+    })
+    .subscribe();
+}
+
+/* PostgREST caps a single select at 1000 rows by default, so any table that
+   can grow past that (bills especially —one row per imported invoice line)
+   needs to be paged in, or rows beyond the cap silently vanish from state. */
+async function fetchAllRows(table, deptId, orderCol){
+  const PAGE = 1000;
+  let rows = [], from = 0;
+  while(true){
+    const { data, error } = await sb.from(table).select("*").eq("dept_id",deptId).order(orderCol).range(from, from+PAGE-1);
+    if(error) return { data: null, error };
+    rows = rows.concat(data||[]);
+    if(!data || data.length < PAGE) break;
+    from += PAGE;
+  }
+  return { data: rows, error: null };
+}
+
+async function subscribeDept(){
+  if(deptChannel){ try{ await sb.removeChannel(deptChannel); }catch(e){} deptChannel=null; }
+  cache.items=new Map(); cache.tx=new Map(); cache.plan=new Map(); cache.bills=new Map(); cache.settings=null;
+  firstLoad=false; persisted=null; dirty=false; DB_READY=false; flushErrorShown=false;
+  setSync("starting");
+
+  const mirror = readMirror();
+
+  const [itemsRes, txRes, planRes, billsRes, setRes] = await Promise.all([
+    fetchAllRows("items", dept, "id"),
+    fetchAllRows("tx", dept, "id"),
+    fetchAllRows("plan", dept, "id"),
+    fetchAllRows("bills", dept, "bill_key"),
+    sb.from("settings").select("*").eq("dept_id",dept).maybeSingle()
+  ]);
+  const firstErr = itemsRes.error || txRes.error || planRes.error || billsRes.error || setRes.error;
+  if(firstErr){ setSync("error", firstErr.message); toast("Could not load this department: "+firstErr.message); return; }
+
+  // Never turn a transient empty read into an apparent wipe. Keep the last
+  // known local state visible and require a successful non-empty read before
+  // enabling writes again.
+  const remoteHasNoItems = !(itemsRes.data||[]).length;
+  const mirrorHasData = mirror && (mirror.items||[]).length + (mirror.tx||[]).length
+    + (mirror.plan||[]).length + Object.keys(mirror.bills||{}).length > 0;
+  if(remoteHasNoItems && mirrorHasData && (mirror.items||[]).length){
+    state = Object.assign(defaultState(), mirror);
+    render();
+    setSync("error", "server returned an empty dataset; local copy retained");
+    toast("Server returned no data —your last local copy is still shown; nothing was saved");
+    return;
+  }
+
+  for(const r of itemsRes.data||[]) cache.items.set(Number(r.id), r);
+  for(const r of txRes.data||[]) cache.tx.set(Number(r.id), r);
+  for(const r of planRes.data||[]) cache.plan.set(Number(r.id), r);
+  for(const r of billsRes.data||[]) cache.bills.set(r.bill_key, r);
+  cache.settings = setRes.data || null;
+  if(!cache.settings){
+    const fresh = settingsRow(defaultState());
+    await sb.from("settings").insert(fresh);
+    cache.settings = fresh;
+  }
+
+  applyStore();
+  DB_READY = true;
+
+  const filt = "dept_id=eq."+dept;
+  deptChannel = sb.channel("dept-"+dept)
+    .on("postgres_changes", {event:"*", schema:"public", table:"items", filter:filt}, p=>{
+      if(p.eventType==="DELETE") cache.items.delete(Number(p.old.id)); else cache.items.set(Number(p.new.id), p.new);
+      onStoreData();
+    })
+    .on("postgres_changes", {event:"*", schema:"public", table:"tx", filter:filt}, p=>{
+      if(p.eventType==="DELETE") cache.tx.delete(Number(p.old.id)); else cache.tx.set(Number(p.new.id), p.new);
+      onStoreData();
+    })
+    .on("postgres_changes", {event:"*", schema:"public", table:"plan", filter:filt}, p=>{
+      if(p.eventType==="DELETE") cache.plan.delete(Number(p.old.id)); else cache.plan.set(Number(p.new.id), p.new);
+      onStoreData();
+    })
+    .on("postgres_changes", {event:"*", schema:"public", table:"bills", filter:filt}, p=>{
+      if(p.eventType==="DELETE") cache.bills.delete(p.old.bill_key); else cache.bills.set(p.new.bill_key, p.new);
+      onStoreData();
+    })
+    .on("postgres_changes", {event:"*", schema:"public", table:"settings", filter:filt}, p=>{
+      cache.settings = p.eventType==="DELETE" ? null : p.new;
+      onStoreData();
+    })
+    .subscribe();
+}
+
+async function switchDept(id){
+  closeDeptMenu();
+  if(!id || id===dept) return;
+  if(DB_READY && dirty){
+    clearTimeout(flushTimer); await runFlush();   // never leave an edit behind
+    if(dirty){   // still unsaved —the write really is failing, not just slow
+      const proceed = await askConfirm("Unsaved changes could not be saved",
+        "The last change on this department has not reached the server yet (connection problem). Switching now leaves it unsaved on this device only.",
+        "Switch anyway", true);
+      if(!proceed) return;
+      clearTimeout(flushTimer);   // don't let a stale retry fire against the department we're switching to
+    }
+  }
+  dept = id; writeDeptPref();
+  countDraft = {}; cookLines = []; pending = null; stockView = [];
+  const mirror = readMirror();
+  state = mirror ? Object.assign(defaultState(), mirror) : defaultState();
+  setSync("starting"); render();
+  await subscribeDept();
+  const d = depts.find(x=>x.id===id);
+  toast("Switched to " + (d ? d.code + " " + (d.name||"") : id));
+}
+async function createDept(code, name, company){
+  code = String(code||"").trim(); if(!code){ toast("A department code is required"); return; }
+  if(depts.some(d=>d.id===code)){ toast("Department "+code+" already exists"); return; }
+  const order = (depts.length?Math.max(...depts.map(d=>d.order||0)):0)+1;
+  const { error } = await sb.from("departments").insert({id:code, code, name:String(name||"").trim(),
+    company:String(company||"").trim(), sort_order:order});
+  if(error){ toast("Could not create department: "+error.message); return; }
+  toast("Department "+code+" created");
+  const { data } = await sb.from("departments").select("*").order("sort_order").order("id");
+  depts = (data||[]).map(d=>({id:d.id, code:d.code, name:d.name, company:d.company, order:d.sort_order}));
+  subscribeDeptRoster();
+  dept = code; writeDeptPref();
+  await subscribeDept();
+}
+async function renameDept(id){
+  const d = depts.find(x=>x.id===id); if(!d) return;
+  modal(`<h3>Edit department ${esc(d.code)}</h3>
+    <div class="field"><label>Name</label><input id="m-dname" value="${esc(d.name||"")}"></div>
+    <div class="field"><label>Company printed on the sheets</label><input id="m-dco" value="${esc(d.company||"")}"></div>
+    <div class="mfoot"><button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn primary" onclick="saveDept('${esc(id)}')">Save</button></div>`);
+}
+async function saveDept(id){
+  const name = $("#m-dname").value.trim(), co = $("#m-dco").value.trim();
+  closeModal();
+  const { error } = await sb.from("departments").update({name, company:co}).eq("id", id);
+  if(error){ toast("Could not save: "+error.message); return; }
+  toast("Department updated");
+}
+async function removeDept(id){
+  const d = depts.find(x=>x.id===id); if(!d) return;
+  if(depts.length<2){ toast("At least one department has to remain"); return; }
+  if(!await askConfirm("Remove department "+d.code+"?",
+      "This permanently deletes its items, history, plan and settings for everyone. Export a backup first if you need one.",
+      "Remove it", true)) return;
+  const { error } = await sb.from("departments").delete().eq("id", id);
+  if(error){ toast("Could not remove: "+error.message); return; }
+  if(dept===id){ const next = depts.filter(x=>x.id!==id)[0]; if(next) switchDept(next.id); }
+  toast("Department "+d.code+" removed");
+}
+function openDeptMenu(){
+  const m = $("#deptmenu"); if(!m) return;
+  m.innerHTML = `<div class="dm-h">Departments</div>`
+    + depts.map(d=>`<button onclick="switchDept('${esc(d.id)}')">
+         <span class="mk">${d.id===dept?"●":""}</span><b>${esc(d.code)}</b><span>${esc(d.name||"")}</span></button>`).join("")
+    + `<div class="sep"></div><button onclick="closeDeptMenu();go('setup')"><span class="mk"></span><span>Add or edit departments—</span></button>`;
+  m.classList.add("open"); $("#deptbtn").classList.add("open");
+}
+function closeDeptMenu(){ const m=$("#deptmenu"); if(m) m.classList.remove("open"); const b=$("#deptbtn"); if(b) b.classList.remove("open"); }
+function toggleDeptMenu(e){
+  if(e) e.stopPropagation();
+  const m = $("#deptmenu");
+  if(m && m.classList.contains("open")) closeDeptMenu(); else openDeptMenu();
+}
+
+/* ============================================================
+   PANEL
+   ============================================================ */
+function renderTopbar(){
+  const ad = activeDept();
+  const c = $("#tb-code"), nm = $("#tb-name"), co = $("#tb-co");
+  if(c) c.textContent = ad.code || ad.id || "—";
+  if(nm) nm.textContent = (ad.name || "").toUpperCase();
+  if(co) co.textContent = ad.company || "";
+  const d = new Date();
+  $("#tb-date").textContent = d.toLocaleDateString("en-SG",{weekday:"short",day:"numeric",month:"short",year:"numeric"});
+  const di = dataIssues();
+  $("#tb-fresh").textContent = di.lastSale ? (di.stale===0?"today":di.stale===1?"1 day behind":di.stale+" days behind") : "none imported";
+  const mk = makeList(), crit = mk.filter(m=>m.s==="crit").length;
+  const lamps = [
+    {k:"CRITICAL", v:crit, cls:crit?"on":"", lamp:crit?"crit":"off"},
+    {k:"TO COOK",  v:mk.length, cls:mk.length&&!crit?"warn":"", lamp:mk.length?"warn":"off"},
+    {k:"PLANNED",  v:planFor(todayStr()).filter(p=>!p.done).length, cls:"", lamp:"ok"}
+  ];
+  $("#tb-lamps").innerHTML = lamps.map(l=>
+    `<span class="tb-lamp ${l.cls}"><i class="lamp ${l.lamp}"></i>${l.k} <b>${l.v}</b></span>`).join("");
+  const stN = (state.stocktake||[]).length;
+  $$("#rail button").forEach(b=>b.classList.toggle("alarm",
+    (b.dataset.page==="panel" && crit>0) || (b.dataset.page==="stocktake" && stN>0)));
+  $("#demo-bar").innerHTML = state.demo
+    ? `<div class="demo-bar"><b>Example data</b> These are invented items, not your figures. Setup —Erase everything clears them before you load the real 0428 list.</div>` : "";
+}
+
+function renderPanel(){
+  fillCats($("#panel-cat")); fillStores($("#sheet-store"));
+  const body = $("#panel-body");
+  if(!state.items.length){ body.innerHTML = emptyPanel(); return; }
+
+  const mk = makeList(), rise = risingList(), di = dataIssues();
+  const crit = mk.filter(m=>m.s==="crit");
+  const plan = planFor(todayStr());
+  const planKg = plan.reduce((s,p)=>s+kgOf(item(p.itemId), p.qty), 0);
+
+  /* ---- alarm strip: four DIFFERENT facts, not four views of one ---- */
+  const al = [
+    {cls: crit.length?"crit":"quiet", k:"Critical", ic:"i-alert", v:crit.length,
+     d: crit.length ? `First out: <b>${esc(shortName(crit[0].it.name))}</b> · ${crit[0].it.stock<=0?"already out":fmt1(crit[0].cover)+" days"}`
+        : (active().filter(i=>uncounted(i)).length ? `<b>${active().filter(i=>uncounted(i)).length}</b> balances still uncounted —alarms start once they are keyed in` : "Nothing runs out inside 24 hours")},
+    {cls: mk.length?"warn":"ok", k:"To cook", ic:"i-cook", v:mk.length,
+     d: mk.length ? `<b>${fmt(mk.reduce((s,m)=>s+kgOf(m.it,m.need),0))} kg</b> to bring every item back to minimum` : "Every item is at or above minimum"},
+    {cls: rise.length?"info":"quiet", k:"Accelerating", ic:"i-up", v:rise.length,
+     d: rise.length ? `Selling faster than last week and not short yet —<b>${esc(shortName(rise[0].it.name))}</b> leads` : "Nothing is speeding up"},
+    {cls: (di.neg.length||(di.stale!=null&&di.stale>2))?"warn":"quiet", k:"Data check", ic:"i-alert",
+     v: di.neg.length + (di.stale!=null&&di.stale>2?1:0),
+     d: di.neg.length ? `<b>${di.neg.length}</b> negative balance${di.neg.length>1?"s":""} —recount needed`
+        : di.stale==null ? "No sales imported yet —cover figures use baseline rates"
+        : di.stale>2 ? `Sales <b>${di.stale} days</b> behind —cover figures drifting` : "Balances and imports look clean"}
+  ];
+  let html = setupProgress() + `<div class="alarms">${al.map(a=>`
+    <div class="al ${a.cls}">
+      <div class="k"><svg class="ic" style="width:13px;height:13px"><use href="#${a.ic}"/></svg>${a.k}</div>
+      <div class="v">${a.v}</div><div class="d">${a.d}</div>
+    </div>`).join("")}</div>`;
+
+  /* ---- MAKE TODAY: the decision, with quantities ---- */
+  html += `<div class="panel">
+    <div class="panel-h"><h2><svg class="ic" style="width:14px;height:14px"><use href="#i-cook"/></svg>Make today</h2>
+      <span class="meta">Sorted by days of cover · quantity closes the gap to minimum</span></div>`;
+  if(!mk.length){
+    html += `<div class="empty"><b>Nothing to cook</b>Every moving item is at or above its minimum.</div>`;
+  } else {
+    html += `<div class="scroll"><table><thead><tr>
+      <th>Item</th><th class="num">Stock</th><th class="num">Min</th><th class="num">Cover</th>
+      <th class="num">Use / day</th><th class="num">Make</th><th class="num">kg</th><th class="num">Status</th><th></th>
+      </tr></thead><tbody>`;
+    for(const m of mk.slice(0,40)){
+      const kg = kgOf(m.it, m.need);
+      html += `<tr class="sev-${m.s==="crit"?"crit":"warn"}">
+        <td class="name">${esc(m.it.name)}<span class="sub">${esc(m.it.uom)} · ${esc(m.it.cat||"Uncategorised")}</span></td>
+        <td class="num">${fmt(m.it.stock)}</td>
+        <td class="num dim">${fmt(m.it.min)}</td>
+        <td class="num">${coverCell(m.it)}</td>
+        <td class="num dim">${fmt1(usageRate(m.it))}</td>
+        <td class="num"><b>${fmt(m.need)}</b></td>
+        <td class="num dim">${kg?fmt(kg):"—"}</td>
+        <td class="num">${sevTag(m.it)}</td>
+        <td class="num"><button class="btn sm" onclick="planAdd(${m.it.id},${m.need})">+ Plan</button></td>
+      </tr>`;
+    }
+    html += `</tbody></table></div>
+      <div class="panel-b" style="border-top:1px solid var(--rule);display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn primary" onclick="planFillFromShort()">Fill today's schedule from this list</button>
+        <span class="dim" style="font-size:12px">Adds every row above to the cook schedule, capped at capacity.</span>
+      </div>`;
+  }
+  html += `</div>`;
+
+  /* ---- today's schedule + capacity ---- */
+  html += `<div class="panel">
+    <div class="panel-h"><h2>Today's schedule</h2><span class="meta">${plan.length} batch${plan.length===1?"":"es"} planned</span></div>`;
+  if(!plan.length){
+    html += `<div class="empty"><b>Nothing scheduled for today</b>Plan batches from the make list above, or on station 05.</div>`;
+  } else {
+    const pct = state.capacity>0 ? Math.min(planKg/state.capacity*100, 100) : 0;
+    const over = state.capacity>0 && planKg>state.capacity;
+    html += `<div class="panel-b" style="padding-bottom:6px">
+      <div class="meter"><div class="mf ${over?"over":""}" style="width:${pct}%"></div>
+        <div class="mt"><span>Line load</span><b>${fmt(planKg)} / ${fmt(state.capacity)} kg${over?" —over capacity":""}</b></div></div>
+    </div>
+    <div class="scroll"><table><thead><tr><th>Item</th><th class="num">Planned</th><th class="num">kg</th><th class="num">Done</th><th></th></tr></thead><tbody>`;
+    for(const p of plan){
+      const it = item(p.itemId); if(!it) continue;
+      html += `<tr class="${p.done?"sev-ok":""}">
+        <td class="name">${esc(it.name)}<span class="sub">${esc(it.uom)}</span></td>
+        <td class="num"><b>${fmt(p.qty)}</b></td>
+        <td class="num dim">${kgOf(it,p.qty)?fmt(kgOf(it,p.qty)):"—"}</td>
+        <td class="num">${p.done?'<span class="tag t-ok">Cooked</span>':'<span class="tag t-info">Waiting</span>'}</td>
+        <td class="num"><button class="btn sm" onclick="go('cook')">Open</button></td>
+      </tr>`;
+    }
+    html += `</tbody></table></div>`;
+  }
+  html += `</div>`;
+
+  /* ---- accelerating ---- */
+  if(rise.length){
+    html += `<div class="panel"><div class="panel-h"><h2><svg class="ic" style="width:14px;height:14px"><use href="#i-up"/></svg>Accelerating —not short yet</h2>
+      <span class="meta">This week's pace against last week's</span></div>
+      <div class="scroll"><table><thead><tr><th>Item</th><th class="num">This week</th><th class="num">Last week</th><th class="num">Change</th><th class="num">Cover</th><th class="num">Stock</th></tr></thead><tbody>`;
+    for(const r of rise.slice(0,10)){
+      html += `<tr class="sev-info">
+        <td class="name">${esc(r.it.name)}<span class="sub">${esc(r.it.uom)}</span></td>
+        <td class="num">${fmt1(r.t.now)}/d</td>
+        <td class="num dim">${r.t.prev>0?fmt1(r.t.prev)+"/d":"—"}</td>
+        <td class="num"><span class="tag t-info">${r.t.r===Infinity?"new":"×"+fmt1(r.t.r)}</span></td>
+        <td class="num">${fmt1(r.cover)}</td>
+        <td class="num dim">${fmt(r.it.stock)}</td>
+      </tr>`;
+    }
+    html += `</tbody></table></div></div>`;
+  }
+
+  /* ---- pre-order: watched by eye, not by minimum ---- */
+  const pre = state.items.filter(i=>i.preorder && !i.stopped && inCat(i,panelCat()));
+  if(pre.length){
+    const lastSale = id => { let d=null; for(const t of state.tx){ if(t.itemId===id&&t.type==="sale"&&(!d||t.date>d)) d=t.date; } return d; };
+    const sold90 = id => { const c=dayAdd(todayStr(),-90); let q=0;
+      for(const t of state.tx){ if(t.itemId===id&&t.type==="sale"&&t.date>=c) q+=-t.qty; } return q; };
+    const rws = pre.map(i=>({i, last:lastSale(i.id), q:sold90(i.id)}))
+                   .sort((a,b)=>(b.last||"").localeCompare(a.last||""));
+    html += `<div class="panel"><div class="panel-h"><h2>Pre-order —made to order</h2>
+      <span class="meta">No minimum held · cook these against a confirmed order</span></div>
+      <div class="scroll"><table><thead><tr><th>Item</th><th class="num">Location</th><th class="num">Stock</th><th class="num">Sold, 90 days</th><th class="num">Last order</th><th></th></tr></thead><tbody>`
+      + rws.map(r=>`<tr class="sev-info">
+          <td class="name">${esc(r.i.name)}<span class="sub">${esc(r.i.uom)}</span></td>
+          <td class="num mono dim" style="font-size:11.5px">${esc(r.i.store||"—")}</td>
+          <td class="num">${uncounted(r.i)?'<span class="faint">—</span>':fmt(r.i.stock)}</td>
+          <td class="num dim">${r.q?fmt(r.q):"—"}</td>
+          <td class="num mono dim" style="font-size:11.5px">${r.last||"—"}</td>
+          <td class="num"><button class="btn sm" onclick="planAdd(${r.i.id},1)">+ Plan</button></td>
+        </tr>`).join("")
+      + `</tbody></table></div></div>`;
+  }
+
+  /* ---- stock against minimum ---- */
+  const bars = active().filter(i=>inCat(i,panelCat()) && i.min>0)
+    .map(i=>({i, ratio: i.stock/i.min})).sort((a,b)=>a.ratio-b.ratio).slice(0,14);
+  html += `<div class="panel"><div class="panel-h"><h2>Stock against minimum</h2>
+    <span class="meta">Bar = balance · marker = minimum · lowest 14</span></div>`;
+  if(!bars.length){ html += `<div class="empty">No minimums set yet —station 02 —Set minimums.</div>`; }
+  else{
+    const scale = Math.max(...bars.map(b=>Math.max(b.i.min, Math.max(b.i.stock,0))))*1.15 || 1;
+    html += `<div style="padding:10px 0 12px">` + bars.map(b=>{
+      const s = sev(b.i);
+      const col = s==="crit"?"var(--crit)" : s==="warn"?"var(--warn)" : "var(--ok)";
+      const w = Math.max(Math.min(Math.max(b.i.stock,0)/scale*100,100),0);
+      const mw = Math.min(b.i.min/scale*100,100);
+      return `<div class="hrow">
+        <div class="nm" title="${esc(b.i.name)}">${esc(b.i.name)}</div>
+        <div class="track"><div class="fill" style="width:${w}%;background:${col}"></div><div class="tick" style="left:${mw}%"></div></div>
+        <div class="num" style="font-size:12px">${fmt(b.i.stock)} <span class="faint">/ ${fmt(b.i.min)}</span></div>
+      </div>`;
+    }).join("") + `</div>`;
+  }
+  html += `</div>`;
+
+  /* ---- throughput + yield, side by side ---- */
+  html += `<div class="grid2">
+    <div class="panel"><div class="panel-h"><h2><svg class="ic" style="width:14px;height:14px"><use href="#i-chart"/></svg>Throughput —14 days</h2>
+      <span class="meta">Kilograms, so pack sizes compare</span></div>
+      <div class="chart" id="chart-flow"></div>
+      <div class="legend"><span><i style="background:var(--series-in)"></i>Cooked</span><span><i style="background:var(--series-out)"></i>Shipped out</span></div>
+    </div>
+    <div class="panel"><div class="panel-h"><h2><svg class="ic" style="width:14px;height:14px"><use href="#i-scale"/></svg>Yield —actual against planned</h2>
+      <span class="meta">Last 30 days of logged cooks</span></div>
+      <div id="yield-body"></div>
+    </div>
+  </div>`;
+
+  body.innerHTML = html;
+  drawFlow();
+  drawYield();
+}
+
+/* While the line is still being set up, say plainly what is left to do. */
+function setupProgress(){
+  const a = active();
+  const counted = a.filter(i=>!uncounted(i)).length;
+  const stocked = a.filter(i=>!i.preorder);
+  const withMin = stocked.filter(i=>i.min>0).length;
+  const sales   = state.tx.some(t=>t.type==="sale");
+  const steps = [
+    {ok:a.length>0, t:"Item list loaded", d:`${state.items.length} items · ${allStores().length} storage locations`, b:null},
+    {ok:counted===a.length && a.length>0, t:"Opening counts entered", d:`${counted} of ${a.length} counted`, b:["Count stock","go('count')"]},
+    {ok:sales, t:"Sales history imported", d: sales?"Usage is coming from real invoices":"Without it, cover and minimums cannot be worked out", b:["Import sales","go('sales')"]},
+    {ok:withMin>=stocked.length && stocked.length>0, t:"Minimums set", d: withMin?`${withMin} of ${stocked.length} stocked items have a minimum`:"Build them from usage once sales are in", b:["Set minimums","go('stock');openMinTool()"]}
+  ];
+  if(steps.every(x=>x.ok)) return "";
+  const done = steps.filter(x=>x.ok).length;
+  return `<div class="panel" style="border-top:3px solid var(--accent)">
+    <div class="panel-h"><h2>Bringing the line online</h2><span class="meta">${done} of ${steps.length} done</span></div>
+    <div class="panel-b" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px">
+      ${steps.map((x,i)=>`<div style="display:flex;gap:10px;align-items:flex-start">
+        <span style="flex:none;width:19px;height:19px;border:1px solid ${x.ok?"var(--ok)":"var(--rule-2)"};background:${x.ok?"var(--ok)":"var(--panel)"};color:#fff;display:grid;place-items:center;font:600 11px var(--f-mono);margin-top:1px">${x.ok?"✓":i+1}</span>
+        <div style="min-width:0">
+          <div style="font-weight:600;font-size:12.5px">${x.t}</div>
+          <div class="dim" style="font-size:11.5px;line-height:1.4">${x.d}</div>
+          ${x.ok||!x.b?"":`<button class="btn sm" style="margin-top:6px" onclick="${x.b[1]}">${x.b[0]}</button>`}
+        </div></div>`).join("")}
+    </div></div>`;
+}
+function emptyPanel(){
+  return `<div class="panel"><div class="empty" style="padding:52px 20px">
+    <b style="font-size:17px">No items loaded yet</b>
+    <p style="max-width:52ch;margin:0 auto 18px">The line is empty. Load your item list on station 08 and the panel fills in —stock, minimums, cook schedule and yield all run off it.</p>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+      <button class="btn primary" onclick="go('setup')">Load the item list</button>
+      <button class="btn" onclick="loadDemo()">Load example data</button>
+    </div>
+  </div></div>`;
+}
+
+/* ---------- throughput chart: grouped bars, kg, hover ---------- */
+let flowData = [];
+function drawFlow(){
+  const host = $("#chart-flow"); if(!host) return;
+  const cat = panelCat();
+  const days=[]; for(let d=13;d>=0;d--) days.push(dayAdd(todayStr(),-d));
+  const inK={}, outK={}, inU={}, outU={};
+  days.forEach(d=>{inK[d]=0;outK[d]=0;inU[d]=0;outU[d]=0;});
+  for(const t of state.tx){
+    if(!(t.date in inK)) continue;
+    const it = item(t.itemId); if(!it || !inCat(it,cat)) continue;
+    if(t.type==="production"){ inK[t.date]+=kgOf(it,t.qty); inU[t.date]+=t.qty; }
+    else if(t.type==="sale"){ outK[t.date]+=kgOf(it,-t.qty); outU[t.date]+=-t.qty; }
+  }
+  flowData = days.map(d=>({d, ink:inK[d], outk:outK[d], inu:inU[d], outu:outU[d]}));
+  const max = Math.max(...days.map(d=>Math.max(inK[d],outK[d])), 1);
+  if(!days.some(d=>inK[d]>0||outK[d]>0)){
+    host.innerHTML = `<div class="empty" style="padding:34px 12px">No cooks or shipments in the last 14 days.</div>`;
+    return;
+  }
+  const W=560,H=200,L=42,R=8,T=14,B=26;
+  const pw=(W-L-R)/14, bw=Math.min(pw/2-2, 13);
+  const y = v => T+(H-T-B)*(1-v/max);
+  let g="";
+  for(let k=0;k<=4;k++){
+    const v=max*k/4, yy=y(v);
+    g+=`<line x1="${L}" y1="${yy.toFixed(1)}" x2="${W-R}" y2="${yy.toFixed(1)}" stroke="#D6DBD5" stroke-width="1"/>`;
+    g+=`<text x="${L-7}" y="${(yy+3.2).toFixed(1)}" text-anchor="end" class="axl">${fmt(Math.round(v))}</text>`;
+  }
+  let bars="";
+  flowData.forEach((r,i)=>{
+    const cx = L+i*pw+pw/2;
+    const x1 = cx-bw-1, x2 = cx+1;              // 2px surface gap between the pair
+    const h1 = Math.max((H-T-B)*(r.ink/max), r.ink>0?2:0);
+    const h2 = Math.max((H-T-B)*(r.outk/max), r.outk>0?2:0);
+    if(r.ink>0)  bars+=`<rect x="${x1.toFixed(1)}" y="${(H-B-h1).toFixed(1)}" width="${bw}" height="${h1.toFixed(1)}" rx="2" fill="var(--series-in)" data-i="${i}"/>`;
+    if(r.outk>0) bars+=`<rect x="${x2.toFixed(1)}" y="${(H-B-h2).toFixed(1)}" width="${bw}" height="${h2.toFixed(1)}" rx="2" fill="var(--series-out)" data-i="${i}"/>`;
+    bars+=`<rect x="${(cx-pw/2).toFixed(1)}" y="${T}" width="${pw.toFixed(1)}" height="${H-T-B}" fill="transparent" data-i="${i}"/>`;
+    if(i%2===0) bars+=`<text x="${cx.toFixed(1)}" y="${H-8}" text-anchor="middle" class="axl">${r.d.slice(5).replace("-","/")}</text>`;
+  });
+  host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Kilograms cooked and shipped out, last 14 days">
+    ${g}<line x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}" stroke="#8B948F" stroke-width="1"/>${bars}</svg>`;
+  host.querySelectorAll("rect[data-i]").forEach(el=>{
+    el.addEventListener("mousemove", e=>{
+      const r = flowData[+el.dataset.i];
+      showTip(e, `<b>${r.d}</b>Cooked ${fmt(r.ink)} kg (${fmt(r.inu)} u)<br>Shipped ${fmt(r.outk)} kg (${fmt(r.outu)} u)`);
+    });
+    el.addEventListener("mouseleave", hideTip);
+  });
+}
+function showTip(e, html){
+  const t=$("#tip"); t.innerHTML=html; t.classList.add("show");
+  const w=t.offsetWidth, h=t.offsetHeight;
+  t.style.left = Math.min(e.clientX+14, innerWidth-w-10)+"px";
+  t.style.top  = Math.max(e.clientY-h-12, 8)+"px";
+}
+function hideTip(){ $("#tip").classList.remove("show"); }
+
+/* ---------- yield ---------- */
+function yieldRows(){
+  const cut = Date.now()-30*86400000, agg = new Map();
+  for(const t of state.tx){
+    if(t.type!=="production" || !t.planned || t.planned<=0) continue;
+    if(new Date(t.date+"T12:00").getTime() < cut) continue;
+    const a = agg.get(t.itemId) || {planned:0, actual:0, n:0};
+    a.planned += t.planned; a.actual += t.qty; a.n++;
+    agg.set(t.itemId, a);
+  }
+  return [...agg.entries()].map(([id,a])=>({it:item(id), ...a, pct:a.actual/a.planned*100}))
+    .filter(r=>r.it).sort((a,b)=>a.pct-b.pct);
+}
+function drawYield(){
+  const host = $("#yield-body"); if(!host) return;
+  const rows = yieldRows();
+  if(!rows.length){
+    host.innerHTML = `<div class="empty" style="padding:34px 14px"><b>No yield data yet</b>Log a cook on station 05 with both a planned and an actual quantity, and the comparison appears here.</div>`;
+    return;
+  }
+  host.innerHTML = `<div class="scroll" style="max-height:322px;overflow-y:auto"><table><thead><tr><th>Item</th><th class="num">Cooks</th><th class="num">Planned</th><th class="num">Actual</th><th class="num">Yield</th></tr></thead><tbody>`
+    + rows.map(r=>{
+        const s = r.pct<90 ? "crit" : r.pct<98 ? "warn" : "ok";
+        return `<tr class="sev-${s}">
+          <td class="name">${esc(r.it.name)}<span class="sub">${esc(r.it.uom)}</span></td>
+          <td class="num dim">${r.n}</td>
+          <td class="num dim">${fmt(r.planned)}</td>
+          <td class="num">${fmt(r.actual)}</td>
+          <td class="num"><span class="tag t-${s}">${fmt1(r.pct)}%</span></td>
+        </tr>`;
+      }).join("") + `</tbody></table></div>`;
+}
+
+/* ============================================================
+   STOCK
+   ============================================================ */
+function allCats(){ return [...new Set(state.items.map(i=>i.cat||"Uncategorised"))].sort(); }
+function fillStores(sel){
+  if(!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="all">All locations</option>' + allStores().map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("");
+  if([...sel.options].some(o=>o.value===cur)) sel.value = cur;
+}
+function fillCats(sel){
+  if(!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="all">All categories</option>' + allCats().map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join("");
+  if([...sel.options].some(o=>o.value===cur)) sel.value = cur;
+}
+function renderStock(){
+  fillCats($("#s-cat")); fillStores($("#s-store"));
+  const q = norm($("#s-q").value), f = $("#s-filter").value, cat = $("#s-cat").value;
+  const sv = $("#s-store").value;
+  const hide = $("#s-hide").getAttribute("aria-pressed")==="true";
+  let list = state.items.slice().sort((a,b)=>
+    (a.cat||"Uncategorised").localeCompare(b.cat||"Uncategorised") || a.name.localeCompare(b.name));
+  if(q) list = list.filter(i=>norm(i.name).includes(q)||norm(i.code).includes(q)||norm(i.uom).includes(q));
+  if(cat!=="all") list = list.filter(i=>inCat(i,cat));
+  if(sv!=="all") list = list.filter(i=>inStore(i,sv));
+  if(f==="short") list = list.filter(i=>i.min>0 && i.stock<i.min);
+  else if(f==="out") list = list.filter(i=>i.stock<=0);
+  else if(f==="watch") list = list.filter(i=>i.watch);
+  else if(f==="preorder") list = list.filter(i=>i.preorder);
+  else if(f==="idle") list = list.filter(i=>usageRate(i)===0);
+  else if(f==="stopped") list = list.filter(i=>i.stopped);
+  else if(hide) list = list.filter(i=>!i.stopped);
+
+  if(!state.items.length){
+    stockView = [];
+    const l0 = $("#copy-label"); if(l0) l0.textContent = "Copy codes";
+    $("#stock-table").innerHTML = `<div class="empty" style="padding:44px 18px"><b>No items yet</b>
+      Load the item list on station 08, or add one by hand.
+      <div style="margin-top:14px"><button class="btn primary" onclick="go('setup')">Go to Setup</button></div></div>`;
+    return;
+  }
+  stockView = list;
+  const lbl = $("#copy-label");
+  if(lbl){
+    const nCodes = new Set(list.map(i=>(i.code||"").trim()).filter(Boolean)).size;
+    lbl.textContent = "Copy " + nCodes + " code" + (nCodes===1?"":"s");
+  }
+  if(!list.length){ $("#stock-table").innerHTML = '<div class="empty">Nothing matches that filter.</div>'; return; }
+
+  $("#stock-table").innerHTML = `<table><thead><tr>
+    <th></th><th>Item</th><th class="num">Location</th><th class="num">Stock</th><th class="num">Min</th>
+    <th class="num">Min in days</th><th class="num">Cover</th><th class="num">Use / day</th>
+    <th class="num">Status</th><th class="num">Actions</th></tr></thead><tbody>`
+    + list.map(i=>{
+        const s = sev(i), u = usageRate(i);
+        const minDays = u>0 && i.min>0 ? fmt1(i.min/u) : "—";
+        return `<tr class="sev-${s==="data"?"crit":s==="off"?"":s}">
+          <td style="width:30px"><button class="star ${i.watch?"on":""}" onclick="toggleWatch(${i.id})" title="${i.watch?"Stop watching":"Watch this sauce"}"><svg class="ic"><use href="#i-star"/></svg></button></td>
+          <td class="name"><span style="${i.stopped?"text-decoration:line-through;color:var(--ink-3)":""}">${esc(i.name)}</span>
+            <span class="sub">${esc(i.uom)}${i.code?" · "+esc(i.code):""} · ${esc(i.cat||"Uncategorised")}</span></td>
+          <td class="num mono dim" style="font-size:11.5px">${esc(i.store||"—")}</td>
+          <td class="num" style="${i.stock<0?"color:var(--crit);font-weight:600":""}">${uncounted(i)?'<span class="faint">—</span>':fmt(i.stock)}</td>
+          <td class="num dim">${fmt(i.min)}</td>
+          <td class="num dim">${minDays}</td>
+          <td class="num">${coverCell(i)}</td>
+          <td class="num dim">${u>0?fmt1(u):"—"}</td>
+          <td class="num">${sevTag(i)}</td>
+          <td class="num" style="white-space:nowrap">
+            <button class="btn sm" onclick="openAdjust(${i.id})">± Count</button>
+            <button class="btn sm ${i.preorder?"on":""}" onclick="togglePreorder(${i.id})" title="${i.preorder?"Stock this item normally":"Make to order —no minimum, never on the cook list"}">Pre-order</button>
+            <button class="btn sm" onclick="openEdit(${i.id})">Edit</button>
+            <button class="btn sm" onclick="toggleStopped(${i.id})">${i.stopped?"Resume":"Stop"}</button>
+            <button class="btn sm danger" onclick="delItem(${i.id})">✕</button>
+          </td></tr>`;
+      }).join("") + `</tbody></table>`;
+}
+
+/* ---------- clipboard ---------- */
+async function copyText(text, done){
+  try{
+    const ta = document.createElement("textarea");
+    ta.value = text; ta.setAttribute("readonly","");
+    ta.style.cssText = "position:fixed;top:0;left:-9999px;opacity:0";
+    document.body.appendChild(ta);
+    ta.select(); ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    if(ok){ toast(done); return true; }
+  }catch(e){}
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(text); toast(done); return true;
+    }
+  }catch(e){}
+  showCopyBox(text);
+  return false;
+}
+function showCopyBox(text){
+  modal(`<h3>Copy these codes</h3>
+    <p class="dim" style="font-size:12.5px;margin-bottom:8px">The browser blocked copying here. The text is selected —press Ctrl+C (⌘C).</p>
+    <textarea id="m-copy" readonly style="height:190px">${esc(text)}</textarea>
+    <div class="mfoot"><button class="btn" onclick="closeModal()">Close</button></div>`);
+  const t = $("#m-copy"); if(t){ t.focus(); t.select(); }
+}
+/* Material codes for the rows the register is currently showing, de-duplicated
+   (two codes cover two pack sizes each). Rebuilt on every render, so it always
+   reflects what is on the line today. */
+let stockView = [];
+function copyCodes(){
+  const codes = [...new Set(stockView.map(i=>(i.code||"").trim()).filter(Boolean))];
+  if(!codes.length){ toast("No material codes in the rows being shown"); return; }
+  const blank = stockView.length - stockView.filter(i=>(i.code||"").trim()).length;
+  const filtered = stockView.length !== state.items.length;
+  copyText(codes.join(", "),
+    "Copied "+codes.length+" material code"+(codes.length===1?"":"s")
+    + (filtered ? " (the rows currently filtered)" : "")
+    + (blank ? " · "+blank+" row"+(blank===1?"":"s")+" have no code" : ""));
+}
+
+/* ============================================================
+   COOK —schedule + log actual
+   ============================================================ */
+function cookDate(){ return $("#cook-date").value || todayStr(); }
+function planFor(d){ return state.plan.filter(p=>p.date===d); }
+function planAdd(itemId, qty, d){
+  const date = d || todayStr();
+  const ex = state.plan.find(p=>p.date===date && p.itemId===itemId && !p.done);
+  if(ex){ ex.qty = Math.round((ex.qty+qty)*100)/100; }
+  else state.plan.push({id:state.planSeq++, date, itemId, qty:Math.round(qty*100)/100, done:false});
+  save(); render();
+  const it = item(itemId);
+  toast("Scheduled " + fmt(qty) + " —" + (it?it.name:"item"));
+}
+function planFillFromShort(){
+  const mk = makeList();
+  if(!mk.length){ toast("Nothing to schedule"); return; }
+  const d = todayStr();
+  let kg = planFor(d).reduce((s,p)=>s+kgOf(item(p.itemId),p.qty),0), added=0, skipped=0;
+  for(const m of mk){
+    const k = kgOf(m.it, m.need);
+    if(state.capacity>0 && k>0 && kg+k > state.capacity){ skipped++; continue; }
+    const ex = state.plan.find(p=>p.date===d && p.itemId===m.it.id && !p.done);
+    if(ex) ex.qty = Math.max(ex.qty, m.need);
+    else state.plan.push({id:state.planSeq++, date:d, itemId:m.it.id, qty:m.need, done:false});
+    kg += k; added++;
+  }
+  save(); render();
+  toast("Scheduled "+added+" batch"+(added===1?"":"es")+" ("+fmt(kg)+" kg)"+(skipped?" · "+skipped+" left off —capacity full":""));
+}
+function planRemove(id){ state.plan = state.plan.filter(p=>p.id!==id); save(); render(); }
+
+function renderCook(){
+  const d = cookDate(), plan = planFor(d), body = $("#cook-body");
+  if(!state.items.length){
+    body.innerHTML = `<div class="panel"><div class="empty" style="padding:44px 18px"><b>No items yet</b>Load the item list on station 08 first.
+      <div style="margin-top:14px"><button class="btn primary" onclick="go('setup')">Go to Setup</button></div></div></div>`;
+    return;
+  }
+  const kg = plan.reduce((s,p)=>s+kgOf(item(p.itemId),p.qty),0);
+  const pct = state.capacity>0 ? Math.min(kg/state.capacity*100,100) : 0;
+  const over = state.capacity>0 && kg>state.capacity;
+  const opts = active().sort((a,b)=>a.name.localeCompare(b.name))
+    .map(i=>`<option value="${i.id}">${esc(i.name)} · ${esc(i.uom)}</option>`).join("");
+
+  let html = `<div class="panel">
+    <div class="panel-h"><h2>Schedule —${esc(d)}</h2><span class="meta">${plan.length} batch${plan.length===1?"":"es"} · ${fmt(kg)} kg</span></div>
+    <div class="panel-b" style="padding-bottom:8px">
+      <div class="meter"><div class="mf ${over?"over":""}" style="width:${pct}%"></div>
+        <div class="mt"><span>Line load</span><b>${fmt(kg)} / ${fmt(state.capacity)} kg${over?" —OVER":""}</b></div></div>
+    </div>`;
+  if(!plan.length){
+    html += `<div class="empty">Nothing scheduled for ${esc(d)}.
+      <div style="margin-top:12px"><button class="btn" onclick="planFillFromShort()">Fill from the make list</button></div></div>`;
+  } else {
+    html += `<div class="scroll"><table><thead><tr><th>Item</th><th class="num">Planned</th><th class="num">kg</th><th class="num">Stock now</th><th class="num">Status</th><th></th></tr></thead><tbody>`
+      + plan.map(p=>{ const it=item(p.itemId); if(!it) return "";
+        return `<tr class="${p.done?"sev-ok":"sev-info"}">
+          <td class="name">${esc(it.name)}<span class="sub">${esc(it.uom)}</span></td>
+          <td class="num"><b>${fmt(p.qty)}</b></td>
+          <td class="num dim">${kgOf(it,p.qty)?fmt(kgOf(it,p.qty)):"—"}</td>
+          <td class="num dim">${fmt(it.stock)}</td>
+          <td class="num">${p.done?'<span class="tag t-ok">Cooked</span>':'<span class="tag t-info">Waiting</span>'}</td>
+          <td class="num">${p.done?"":`<button class="btn sm danger" onclick="planRemove(${p.id})">✕</button>`}</td>
+        </tr>`; }).join("")
+      + `</tbody></table></div>`;
+  }
+  html += `<div class="panel-b" style="border-top:1px solid var(--rule);display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <select id="pl-item" style="min-width:200px"><option value="">—add a batch —</option>${opts}</select>
+      <input type="number" id="pl-qty" step="any" min="0" placeholder="Qty">
+      <button class="btn" onclick="planManual()">Add to schedule</button>
+      <button class="btn" onclick="planFillFromShort()">Fill from make list</button>
+    </div></div>`;
+
+  /* ---- log the cook ---- */
+  html += `<div class="panel">
+    <div class="panel-h"><h2>Log completed cooks</h2><span class="meta">Actual against planned gives yield · balances update on save</span></div>
+    <div class="panel-b">
+      <div class="cookline" style="font-family:var(--f-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)">
+        <div>Item</div><div style="text-align:right">Planned</div><div style="text-align:right">Actual out</div><div style="text-align:right">Yield</div><div></div>
+      </div>
+      <div id="cook-lines"></div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn" onclick="cookAddLine()">+ Add line</button>
+        <button class="btn" onclick="cookFromPlan()">Load today's schedule</button>
+        <button class="btn primary" style="margin-left:auto" onclick="cookSave()">Save cooks to stock</button>
+      </div>
+    </div></div>`;
+  body.innerHTML = html;
+  renderCookLines();
+}
+function planManual(){
+  const id = parseInt($("#pl-item").value), q = parseFloat($("#pl-qty").value);
+  if(!id || !q || q<=0){ toast("Choose an item and a quantity"); return; }
+  planAdd(id, q, cookDate());
+}
+let cookLines = [];
+function cookAddLine(o){ cookLines.push(o || {itemId:null, planned:"", actual:""}); renderCookLines(); }
+function cookFromPlan(){
+  const plan = planFor(cookDate()).filter(p=>!p.done);
+  if(!plan.length){ toast("Nothing waiting on the schedule for "+cookDate()); return; }
+  cookLines = plan.map(p=>({itemId:p.itemId, planned:String(p.qty), actual:"", planId:p.id}));
+  renderCookLines();
+  toast("Loaded "+plan.length+" scheduled batch"+(plan.length===1?"":"es"));
+}
+const cookItemLabel = i => i ? `${i.name} · ${i.uom}${i.code?" · "+i.code:""}` : "";
+function cookFindByLabel(label){
+  return active().find(i=>cookItemLabel(i)===label);
+}
+function cookLineSearch(i, val){
+  const it = cookFindByLabel(val);
+  cookLines[i].itemId = it ? it.id : null;
+  const el = $("#cook-item-"+i);
+  if(el) el.style.borderColor = (!it && val.trim()!=="") ? "var(--crit)" : "";
+}
+function renderCookLines(){
+  const host = $("#cook-lines"); if(!host) return;
+  const dl = `<datalist id="dl-cook-items">${active().sort((a,b)=>a.name.localeCompare(b.name))
+    .map(i=>`<option value="${esc(cookItemLabel(i))}">`).join("")}</datalist>`;
+  if(!cookLines.length){
+    host.innerHTML = dl + `<div class="empty" style="padding:20px 10px">No lines yet —add one, or load today's schedule.</div>`;
+    return;
+  }
+  host.innerHTML = dl + cookLines.map((l,i)=>{
+    const p = parseFloat(l.planned), a = parseFloat(l.actual);
+    const y = (p>0 && a>0) ? a/p*100 : null;
+    const cls = y==null ? "faint" : y<90 ? "" : y<98 ? "" : "";
+    const col = y==null ? "var(--ink-3)" : y<90 ? "var(--crit)" : y<98 ? "var(--warn)" : "var(--ok)";
+    const label = l.itemId!=null ? cookItemLabel(item(l.itemId)) : "";
+    return `<div class="cookline">
+      <input type="text" list="dl-cook-items" id="cook-item-${i}" placeholder="Search item, 名称, or code…" value="${esc(label)}" oninput="cookLineSearch(${i}, this.value)">
+      <input type="number" step="any" min="0" placeholder="Planned" value="${esc(l.planned)}" oninput="cookLines[${i}].planned=this.value;cookYield(${i})">
+      <input type="number" step="any" min="0" placeholder="Actual" value="${esc(l.actual)}" oninput="cookLines[${i}].actual=this.value;cookYield(${i})">
+      <div class="yld ${cls}" id="yld-${i}" style="color:${col}">${y==null?"—":fmt1(y)+"%"}</div>
+      <button class="xbtn" onclick="cookLines.splice(${i},1);renderCookLines()">✕</button>
+    </div>`;
+  }).join("");
+}
+function cookYield(i){
+  const l = cookLines[i], el = $("#yld-"+i); if(!el) return;
+  const p = parseFloat(l.planned), a = parseFloat(l.actual);
+  if(!(p>0 && a>0)){ el.textContent="—"; el.style.color="var(--ink-3)"; return; }
+  const y = a/p*100;
+  el.textContent = fmt1(y)+"%";
+  el.style.color = y<90?"var(--crit)":y<98?"var(--warn)":"var(--ok)";
+}
+function cookSave(){
+  const d = cookDate(), b = state.batchSeq++;
+  let n=0, tot=0, low=[];
+  for(const l of cookLines){
+    const a = parseFloat(l.actual), p = parseFloat(l.planned);
+    if(l.itemId==null || !(a>0)) continue;
+    const it = item(l.itemId); if(!it) continue;
+    it.stock = Math.round((it.stock + a)*100)/100;
+    const t = newTx({ts:Date.now(), date:d, itemId:it.id, type:"production", qty:a, note:"", b});
+    if(p>0){ t.planned = p; if(a/p < 0.9) low.push(it.name); }
+    state.tx.push(t);
+    if(l.planId){ const pl = state.plan.find(x=>x.id===l.planId); if(pl) pl.done = true; }
+    n++; tot+=a;
+  }
+  if(!n){ toast("Nothing to save —enter an actual quantity"); return; }
+  state.lastBatch = b; state.lastBatchBills = null;
+  save(); cookLines=[]; render();
+  toast("Logged "+n+" cook"+(n===1?"":"s")+", "+fmt(tot)+" units added"
+        + (low.length ? " · low yield on "+low.length+" batch"+(low.length===1?"":"es") : "")
+        + " · Undo available on the panel");
+}
+
+/* ============================================================
+   STOCKTAKE —choose what to count, then print the paper
+   ============================================================ */
+const stList = () => (state.stocktake||[]).map(id=>item(id)).filter(Boolean);
+function stHas(id){ return (state.stocktake||[]).includes(id); }
+function stAdd(id){
+  if(!state.stocktake) state.stocktake = [];
+  if(!stHas(id)) state.stocktake.push(id);
+  save(); render();
+}
+function stRemove(id){
+  state.stocktake = (state.stocktake||[]).filter(x=>x!==id);
+  save(); render();
+}
+function stAddMany(which){
+  if(!state.stocktake) state.stocktake = [];
+  const q = norm($("#st-q") ? $("#st-q").value : ""), sv = $("#st-store") ? $("#st-store").value : "all";
+  let pool = active().filter(i=>inStore(i,sv));
+  if(q) pool = pool.filter(i=>norm(i.name).includes(q)||norm(i.code).includes(q)||norm(i.uom).includes(q));
+  if(which==="short") pool = pool.filter(i=>!i.preorder && i.min>0 && i.stock<i.min);
+  if(which==="uncounted") pool = pool.filter(i=>uncounted(i));
+  let n=0;
+  for(const i of pool) if(!stHas(i.id)){ state.stocktake.push(i.id); n++; }
+  save(); render();
+  toast(n ? "Added "+n+" item"+(n===1?"":"s")+" to the stocktake list" : "Those are already on the list");
+}
+async function stClear(){
+  if(!(state.stocktake||[]).length) return;
+  if(!await askConfirm("Clear the stocktake list?", (state.stocktake||[]).length+" item"+((state.stocktake||[]).length===1?"":"s")+" will be removed from the list. Balances are not affected.", "Clear list", true)) return;
+  state.stocktake = []; save(); render(); toast("Stocktake list cleared");
+}
+function renderStocktake(){
+  const host = $("#stocktake-body"); if(!host) return;
+  fillStores($("#st-store"));
+  const chosen = stList();
+  const q = norm($("#st-q") ? $("#st-q").value : ""), sv = $("#st-store") ? $("#st-store").value : "all";
+  let pool = active().filter(i=>inStore(i,sv) && !stHas(i.id));
+  if(q) pool = pool.filter(i=>norm(i.name).includes(q)||norm(i.code).includes(q)||norm(i.uom).includes(q));
+  pool.sort((a,b)=>(a.store||"").localeCompare(b.store||"") || a.name.localeCompare(b.name));
+
+  const byStore = {};
+  for(const i of chosen) byStore[i.store||"—"] = (byStore[i.store||"—"]||0)+1;
+  const summary = Object.keys(byStore).sort().map(k=>esc(k)+" "+byStore[k]).join(" · ") || "nothing selected";
+
+  let picked;
+  if(!chosen.length){
+    picked = `<div class="empty"><b>The stocktake list is empty</b>Pick items on the right, or use one of the quick adds.</div>`;
+  } else {
+    const rows = chosen.slice().sort((a,b)=>(a.store||"").localeCompare(b.store||"") || a.name.localeCompare(b.name));
+    let out="", last=null;
+    for(const i of rows){
+      const st = i.store||"—";
+      if(st!==last){ last=st;
+        out += `<tr class="grp"><td colspan="5"><b class="mono">${esc(st)}</b><span>${byStore[st]} item${byStore[st]===1?"":"s"}</span></td></tr>`; }
+      out += `<tr>
+        <td class="name">${esc(i.name)}<span class="sub">${esc(i.uom)}${i.code?" · "+esc(i.code):""}</span></td>
+        <td class="num">${uncounted(i)?'<span class="faint">—</span>':fmt(i.stock)}</td>
+        <td class="num dim">${i.preorder?"—":fmt(i.min)}</td>
+        <td class="num">${sevTag(i)}</td>
+        <td class="num"><button class="btn sm danger" onclick="stRemove(${i.id})">Remove</button></td>
+      </tr>`;
+    }
+    picked = `<div class="scroll"><table><thead><tr><th>Item</th><th class="num">System</th><th class="num">Min</th><th class="num">Status</th><th></th></tr></thead><tbody>${out}</tbody></table></div>`;
+  }
+
+  const addRows = pool.length
+    ? `<div class="scroll" style="max-height:430px;overflow-y:auto"><table><thead><tr><th>Item</th><th class="num">Location</th><th class="num">System</th><th></th></tr></thead><tbody>`
+      + pool.map(i=>`<tr>
+          <td class="name">${esc(i.name)}<span class="sub">${esc(i.uom)}${i.code?" · "+esc(i.code):""}</span></td>
+          <td class="num mono dim" style="font-size:11.5px">${esc(i.store||"—")}</td>
+          <td class="num dim">${uncounted(i)?"—":fmt(i.stock)}</td>
+          <td class="num"><button class="btn sm" onclick="stAdd(${i.id})">+ Add</button></td>
+        </tr>`).join("") + `</tbody></table></div>`
+    : `<div class="empty">Everything matching is already on the list.</div>`;
+
+  host.innerHTML = `<div class="grid2">
+    <div class="panel">
+      <div class="panel-h"><h2><svg class="ic" style="width:14px;height:14px"><use href="#i-clip"/></svg>Stocktake list</h2>
+        <span class="meta">${chosen.length} item${chosen.length===1?"":"s"} · ${summary}</span></div>
+      ${picked}
+      <div class="panel-b" style="border-top:1px solid var(--rule);display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn primary" onclick="printStocktakePaper()" ${chosen.length?"":"disabled"}><svg class="ic"><use href="#i-print"/></svg>Export paper</button>
+        <button class="btn" onclick="go('count')" ${chosen.length?"":"disabled"}>Key the figures in</button>
+        <button class="btn danger" onclick="stClear()" ${chosen.length?"":"disabled"}>Clear list</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><h2>Add items</h2><span class="meta">${pool.length} not yet on the list</span></div>
+      <div class="panel-b" style="padding-bottom:10px">
+        <div class="bar" style="margin-bottom:8px">
+          <input type="search" id="st-q" placeholder="Search name / 名称 / code— value="${esc($("#st-q")?$("#st-q").value:"")}">
+          <select id="st-store"><option value="all">All locations</option></select>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn sm" onclick="stAddMany('all')">Add all shown</button>
+          <button class="btn sm" onclick="stAddMany('short')">Add below minimum</button>
+          <button class="btn sm" onclick="stAddMany('uncounted')">Add never counted</button>
+        </div>
+      </div>
+      ${addRows}
+    </div>
+  </div>`;
+  const sel = $("#st-store"); if(sel){ fillStores(sel); sel.value = sv; }
+  $("#st-q").addEventListener("input", e=>{
+    const pos = e.target.selectionStart;
+    renderStocktake();
+    const el = $("#st-q"); if(el){ el.focus(); el.setSelectionRange(pos,pos); }
+  });
+  $("#st-store").addEventListener("change", renderStocktake);
+}
+
+function printStocktakePaper(){
+  const chosen = stList();
+  if(!chosen.length){ toast("Add some items to the stocktake list first"); return; }
+  const title = ($("#st-name") && $("#st-name").value.trim()) || "";
+  const rows0 = chosen.slice().sort((a,b)=>(a.store||"").localeCompare(b.store||"")
+                || (a.cat||"").localeCompare(b.cat||"") || a.name.localeCompare(b.name));
+  const dl = new Date().toLocaleDateString("en-SG",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+  let rows="", last=null, n=0;
+  const locs = {};
+  for(const i of rows0) locs[i.store||"—"] = (locs[i.store||"—"]||0)+1;
+  for(const i of rows0){
+    const st = i.store||"—";
+    if(st!==last){ last=st; rows += `<tr class="grp"><td colspan="6">${esc(st)}<span>${locs[st]} 项 items</span></td></tr>`; }
+    n++;
+    rows += `<tr><td class="rk">${n}</td>
+      <td><b>${esc(i.name)}</b><span class="u">${esc(i.uom)} · ${esc(i.code||"")}</span></td>
+      <td class="c">${uncounted(i)?"":fmt(i.stock)}</td>
+      <td class="bl"></td><td class="bl"></td><td class="bl w"></td></tr>`;
+  }
+  const doc = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${esc(activeDept().code)} Stocktake ${todayStr()}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#12171A;--dim:#586268;--rule:#D6DBD5;--petrol:#0B4F4A}
+*{box-sizing:border-box}body{margin:0;background:#fff;color:var(--ink);font:12.5px/1.4 "IBM Plex Sans","Noto Sans SC",sans-serif;padding:24px 28px}
+.head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid var(--petrol);padding-bottom:9px;gap:16px;flex-wrap:wrap}
+h1{font-family:"Barlow Condensed",sans-serif;font-size:25px;margin:0}
+h1 span{font-size:15px;color:var(--dim);font-weight:600;margin-left:8px}
+.co{font:600 10px "IBM Plex Mono",monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.meta{font:11.5px "IBM Plex Mono",monospace;color:var(--dim);text-align:right;line-height:1.8}
+.meta b{color:var(--ink)}
+.sign{margin:11px 0 13px;font-size:12px;color:var(--dim)}
+.sign b{display:inline-block;border-bottom:1.5px solid var(--ink);min-width:165px;height:14px;margin-right:22px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;font:600 9.5px "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);padding:6px;border-bottom:2px solid var(--ink)}
+td{padding:6px;border-bottom:1px solid var(--rule)}
+tr.grp td{background:#EDF1EE;font:600 11px "IBM Plex Mono",monospace;letter-spacing:.08em;border-bottom:1.5px solid #B8C2BB}
+tr.grp span{font-weight:400;color:var(--dim);margin-left:10px;letter-spacing:0}
+.rk{width:24px;color:#8B948F;font-family:"IBM Plex Mono",monospace}
+.u{display:block;font:9.5px "IBM Plex Mono",monospace;color:var(--dim)}
+.c{text-align:right;width:74px;font-family:"IBM Plex Mono",monospace;color:var(--dim)}
+.bl{border-left:1px solid var(--rule);width:86px;height:26px}.bl.w{width:150px}
+.foot{margin-top:14px;padding-top:9px;border-top:1px solid var(--rule);font-size:10.5px;color:var(--dim);display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.pb{position:fixed;top:12px;right:12px;background:var(--petrol);color:#fff;border:none;padding:9px 17px;font:600 13px "IBM Plex Sans",sans-serif;cursor:pointer;z-index:5}
+@media screen{.meta{margin-right:124px}}
+@media print{.pb{display:none}body{padding:8px}tr{break-inside:avoid}tr.grp td{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style></head><body>
+<button class="pb" onclick="window.print()">Print / Save PDF</button>
+<div class="head">
+  <div><div class="co">${esc(activeDept().company||"")}${activeDept().company?" · ":""}${esc(activeDept().code)}</div>
+  <h1>Stocktake 盘点表${title?`<span>${esc(title)}</span>`:""}</h1></div>
+  <div class="meta"><b>${dl}</b><br>${n} items · ${Object.keys(locs).sort().map(k=>esc(k)+" "+locs[k]).join(" · ")}</div>
+</div>
+<div class="sign">盘点人 Counted by <b></b> 复核 Checked by <b></b> 日期 Date <b></b></div>
+<table><thead><tr><th></th><th>货品 Item</th><th class="c">系统 System</th><th>实数 Counted</th><th>差异 Diff</th><th>备注 Remarks</th></tr></thead><tbody>${rows}</tbody></table>
+<p class="foot"><span>Key the counted figures into station 04 and press Apply —every difference is written to the log.</span><span>${esc(activeDept().code)} ${esc(activeDept().name||"")}</span></p>
+</body></html>`;
+  openOrSave(doc, activeDept().code+"-stocktake-"+todayStr()+".html");
+}
+
+/* ============================================================
+   STOCK COUNT —bulk opening / stock-take entry
+   ============================================================ */
+let countDraft = {};
+function renderCount(){
+  const host = $("#count-body"); if(!host) return;
+  fillStores($("#c-store"));
+  const sv = $("#c-store").value, scope = $("#c-scope") ? $("#c-scope").value : "all";
+  const list = state.items.filter(i=>!i.stopped && inStore(i,sv) && (scope!=="list" || stHas(i.id)))
+    .sort((a,b)=>(a.store||"").localeCompare(b.store||"") ||
+                 (a.cat||"").localeCompare(b.cat||"") || a.name.localeCompare(b.name));
+  if(!list.length){ host.innerHTML = `<div class="panel"><div class="empty">${scope==="list"?"Nothing on the stocktake list matches that location —build the list on station 03.":"No items in that location."}</div></div>`; return; }
+
+  let typed=0, diffs=0;
+  for(const it of list){
+    const v = countDraft[it.id];
+    if(v===undefined || v==="") continue;
+    typed++;
+    if(Math.abs(parseFloat(v) - it.stock) > 0.001) diffs++;
+  }
+  let rows="", lastStore=null;
+  for(const it of list){
+    const st = it.store||"—";
+    if(st!==lastStore){
+      lastStore = st;
+      const n = list.filter(x=>(x.store||"—")===st).length;
+      rows += `<tr class="grp"><td colspan="6"><b class="mono">${esc(st)}</b><span>${n} item${n===1?"":"s"}</span></td></tr>`;
+    }
+    const v = countDraft[it.id];
+    const has = v!==undefined && v!=="" && !isNaN(parseFloat(v));
+    const d = has ? Math.round((parseFloat(v)-it.stock)*100)/100 : null;
+    rows += `<tr>
+      <td class="name">${esc(it.name)}<span class="sub">${esc(it.uom)}${it.code?" · "+esc(it.code):""}</span></td>
+      <td class="num dim">${uncounted(it)?'<span class="faint">—</span>':fmt(it.stock)}</td>
+      <td class="num"><input type="number" step="any" class="cin" data-id="${it.id}" value="${esc(v??"")}" placeholder="count" style="width:96px"></td>
+      <td class="num" style="${d?(d<0?"color:var(--crit)":"color:var(--ok)"):"color:var(--ink-3)"};font-weight:${d?600:400}">${d==null?"—":(d>0?"+":"")+fmt(d)}</td>
+      <td class="num dim">${kgPerUnit(it.uom)&&has?fmt(kgPerUnit(it.uom)*parseFloat(v))+" kg":""}</td>
+      <td class="num">${sevTag(it)}</td>
+    </tr>`;
+  }
+  host.innerHTML = `<div class="panel">
+    <div class="panel-h"><h2>Count sheet${scope==="list"?" —stocktake list":""}</h2><span class="meta">${list.length} item${list.length===1?"":"s"} · ${typed} keyed · ${diffs} differ from the system</span></div>
+    <div class="scroll"><table><thead><tr>
+      <th>Item</th><th class="num">System</th><th class="num">Counted</th><th class="num">Difference</th><th class="num">kg</th><th class="num">Status</th>
+    </tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="panel-b" style="border-top:1px solid var(--rule);display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn primary" onclick="applyCounts()" ${typed?"":"disabled"}>Apply ${typed} count${typed===1?"":"s"}</button>
+      <button class="btn" onclick="countDraft={};renderCount()" ${typed?"":"disabled"}>Clear entries</button>
+      <span class="dim" style="font-size:12px">Enter moves to the next line. Blank lines are left alone.</span>
+    </div></div>`;
+  host.querySelectorAll(".cin").forEach((el,i,all)=>{
+    el.addEventListener("input", e=>{ countDraft[+el.dataset.id] = el.value; });
+    el.addEventListener("change", ()=>{ const a=document.activeElement; renderCount();
+      const again=$("#count-body").querySelectorAll(".cin")[i]; if(a===el&&again) again.focus(); });
+    el.addEventListener("keydown", e=>{
+      if(e.key!=="Enter") return;
+      e.preventDefault();
+      countDraft[+el.dataset.id] = el.value;
+      renderCount();
+      const next = $("#count-body").querySelectorAll(".cin")[i+1];
+      if(next){ next.focus(); next.select(); }
+    });
+  });
+}
+function applyCounts(){
+  const b = state.batchSeq++;
+  let n=0, up=0, down=0;
+  for(const [id,v] of Object.entries(countDraft)){
+    if(v===""||v===undefined) continue;
+    const c = parseFloat(v); if(isNaN(c)) continue;
+    const it = item(+id); if(!it) continue;
+    const d = Math.round((c-it.stock)*100)/100;
+    it.counted = true;
+    if(!d) continue;
+    it.stock = c;
+    state.tx.push(newTx({ts:Date.now(), date:todayStr(), itemId:it.id, type:"adjust", qty:d, note:"stock count", b}));
+    n++; if(d>0) up++; else down++;
+  }
+  state.lastBatch = n?b:state.lastBatch; state.lastBatchBills = null;
+  countDraft = {};
+  save(); render();
+  toast(n ? "Count applied —"+n+" balance"+(n===1?"":"s")+" changed ("+up+" up, "+down+" down) · Undo available"
+          : "Counts saved —everything already matched the system");
+}
+function printCountSheet(){
+  const sv = $("#c-store").value, scope = $("#c-scope") ? $("#c-scope").value : "all";
+  const list = state.items.filter(i=>!i.stopped && inStore(i,sv) && (scope!=="list" || stHas(i.id)))
+    .sort((a,b)=>(a.store||"").localeCompare(b.store||"") || (a.cat||"").localeCompare(b.cat||"") || a.name.localeCompare(b.name));
+  const dl = new Date().toLocaleDateString("en-SG",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+  let rows="", last=null, n=0;
+  for(const it of list){
+    const st = it.store||"—";
+    if(st!==last){ last=st; rows += `<tr class="grp"><td colspan="6">${esc(st)}</td></tr>`; }
+    n++;
+    rows += `<tr><td class="rk">${n}</td><td><b>${esc(it.name)}</b><span class="u">${esc(it.uom)} · ${esc(it.code||"")}</span></td>
+      <td class="c">${uncounted(it)?"":fmt(it.stock)}</td><td class="bl"></td><td class="bl"></td><td class="bl w"></td></tr>`;
+  }
+  const doc = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${esc(activeDept().code)} Count Sheet ${todayStr()}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#12171A;--dim:#586268;--rule:#D6DBD5;--petrol:#0B4F4A}
+*{box-sizing:border-box}body{margin:0;background:#fff;color:var(--ink);font:12.5px/1.4 "IBM Plex Sans","Noto Sans SC",sans-serif;padding:24px 28px}
+.head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid var(--petrol);padding-bottom:9px}
+h1{font-family:"Barlow Condensed",sans-serif;font-size:24px;margin:0}
+.co{font:600 10px "IBM Plex Mono",monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.meta{font:11.5px "IBM Plex Mono",monospace;color:var(--dim);text-align:right;line-height:1.8}
+.sign{margin:10px 0 12px;font-size:12px;color:var(--dim)}
+.sign b{display:inline-block;border-bottom:1.5px solid var(--ink);min-width:170px;height:14px;margin-right:22px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;font:600 9.5px "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);padding:6px;border-bottom:2px solid var(--ink)}
+td{padding:5px 6px;border-bottom:1px solid var(--rule)}
+tr.grp td{background:#F2F4F1;font:600 11px "IBM Plex Mono",monospace;letter-spacing:.08em;border-bottom:1.5px solid #C0C7BF}
+.rk{width:24px;color:#8B948F;font-family:"IBM Plex Mono",monospace}
+.u{display:block;font:9.5px "IBM Plex Mono",monospace;color:var(--dim)}
+.c{text-align:right;width:74px;font-family:"IBM Plex Mono",monospace;color:var(--dim)}
+.bl{border-left:1px solid var(--rule);width:84px}.bl.w{width:150px}
+.pb{position:fixed;top:12px;right:12px;background:var(--petrol);color:#fff;border:none;padding:9px 17px;font:600 13px "IBM Plex Sans",sans-serif;cursor:pointer}
+@media print{.pb{display:none}body{padding:6px}tr{break-inside:avoid}tr.grp td{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style></head><body>
+<button class="pb" onclick="window.print()">Print / Save PDF</button>
+<div class="head"><div><div class="co">${esc(activeDept().company||"")}</div><h1>${esc(activeDept().code)} Stock Count 盘点表</h1></div>
+<div class="meta"><b>${dl}</b><br>${n} items${sv==="all"?"":" · "+esc(sv)}</div></div>
+<div class="sign">Counted by 盘点表$<b></b> Checked by 复核 <b></b></div>
+<table><thead><tr><th></th><th>Item 货品</th><th class="c">System 系统</th><th>Counted 实数</th><th>Diff 差异</th><th>Remarks 备注</th></tr></thead><tbody>${rows}</tbody></table>
+<p style="margin-top:12px;font-size:10.5px;color:var(--dim)">Key the counted figures into station 04 and press Apply —differences are written to the log automatically.</p>
+</body></html>`;
+  openOrSave(doc, activeDept().code+"-count-sheet-"+todayStr()+".html");
+}
+
+/* ============================================================
+   ITEM EDITING
+   ============================================================ */
+function modal(html){ $("#modal-root").innerHTML = `<div class="mbg" onclick="if(event.target===this)closeModal()"><div class="modal">${html}</div></div>`; }
+function closeModal(){ $("#modal-root").innerHTML=""; }
+function askConfirm(title, body, ok, danger){
+  return new Promise(res=>{
+    let done=false;
+    const fin = v => { if(done) return; done=true; document.removeEventListener("keydown",key); closeModal(); res(v); };
+    const key = e => { if(e.key==="Escape") fin(false); };
+    window._aY=()=>fin(true); window._aN=()=>fin(false);
+    modal(`<h3>${esc(title)}</h3><p class="dim" style="font-size:13px">${esc(body||"")}</p>
+      <div class="mfoot"><button class="btn" onclick="_aN()">Cancel</button>
+      <button class="btn ${danger?"danger":"primary"}" onclick="_aY()">${esc(ok||"Confirm")}</button></div>`);
+    const bg = $(".mbg"); if(bg) bg.onclick = e => { if(e.target===bg) fin(false); };
+    document.addEventListener("keydown", key);
+    const btn = document.querySelector(".modal .mfoot .btn:last-child"); if(btn) btn.focus();
+  });
+}
+function catField(v){
+  return `<div class="field"><label>Category</label><input id="m-cat" list="catlist" value="${esc(v||"")}" placeholder="e.g. Chilli &amp; Sambal">
+    <datalist id="catlist">${allCats().map(c=>`<option value="${esc(c)}">`).join("")}</datalist></div>`;
+}
+function openAdd(){
+  modal(`<h3>Add an item</h3>
+    <div class="field"><label>Name 名称</label><input id="m-name" placeholder="e.g. QF Mango Sauce 芒果酱"></div>
+    <div class="field"><label>Pack size (UOM)</label><input id="m-uom" placeholder="e.g. 2kg/pkt"></div>
+    <div class="field"><label>Code</label><input id="m-code" placeholder="optional"></div>
+    <div class="field"><label>Storage location</label><input id="m-store" list="storelist" placeholder="e.g. 0434FR">
+      <datalist id="storelist">${allStores().map(v=>`<option value="${esc(v)}">`).join("")}</datalist></div>
+    ${catField("")}
+    <div class="field"><label>Opening balance</label><input type="number" id="m-stock" step="any" value="0" style="width:100%"></div>
+    <div class="field"><label>Minimum</label><input type="number" id="m-min" step="any" value="0" style="width:100%"></div>
+    <div class="mfoot"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="doAdd()">Add item</button></div>`);
+  $("#m-name").focus();
+}
+function doAdd(){
+  const name = $("#m-name").value.trim();
+  if(!name){ toast("A name is required"); return; }
+  state.items.push({id:state.nextId++, name, uom:$("#m-uom").value.trim(), code:$("#m-code").value.trim(),
+    store:$("#m-store").value.trim(), cat:$("#m-cat").value.trim()||"Uncategorised", preorder:false,
+    stock:parseFloat($("#m-stock").value)||0, counted:true,
+    min:parseFloat($("#m-min").value)||0, baseDaily:0, stopped:false});
+  save(); closeModal(); render(); toast("Added —"+name);
+}
+function openEdit(id){
+  const it = item(id); if(!it) return;
+  modal(`<h3>Edit item</h3>
+    <div class="field"><label>Name 名称</label><input id="m-name" value="${esc(it.name)}"></div>
+    <div class="field"><label>Pack size (UOM)</label><input id="m-uom" value="${esc(it.uom)}"></div>
+    <div class="field"><label>Code</label><input id="m-code" value="${esc(it.code||"")}"></div>
+    <div class="field"><label>Storage location</label><input id="m-store" list="storelist" value="${esc(it.store||"")}">
+      <datalist id="storelist">${allStores().map(v=>`<option value="${esc(v)}">`).join("")}</datalist></div>
+    ${catField(it.cat)}
+    <div class="field"><label>Minimum</label><input type="number" id="m-min" step="any" value="${it.min}" style="width:100%"></div>
+    <div class="field"><label>Baseline usage per day (used until sales are imported)</label><input type="number" id="m-base" step="any" value="${it.baseDaily||0}" style="width:100%"></div>
+    <div class="field"><label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-family:var(--f-ui);font-size:13px;color:var(--ink);cursor:pointer">
+      <input type="checkbox" id="m-pre" ${it.preorder?"checked":""}> Pre-order —made only when ordered, so no minimum is held and it never joins the cook list</label></div>
+    <div class="field"><label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-family:var(--f-ui);font-size:13px;color:var(--ink);cursor:pointer">
+      <input type="checkbox" id="m-stop" ${it.stopped?"checked":""}> Stopped —no longer made at all</label></div>
+    <div class="mfoot"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="doEdit(${id})">Save</button></div>`);
+}
+function doEdit(id){
+  const it = item(id), name = $("#m-name").value.trim();
+  if(!name){ toast("A name is required"); return; }
+  it.name=name; it.uom=$("#m-uom").value.trim(); it.code=$("#m-code").value.trim();
+  it.store=$("#m-store").value.trim();
+  it.cat=$("#m-cat").value.trim()||"Uncategorised";
+  it.min=parseFloat($("#m-min").value)||0;
+  it.baseDaily=parseFloat($("#m-base").value)||0;
+  it.preorder=$("#m-pre").checked;
+  if(it.preorder) it.min=0;
+  it.stopped=$("#m-stop").checked;
+  save(); closeModal(); render(); toast("Saved —"+it.name);
+}
+function openAdjust(id){
+  const it = item(id); if(!it) return;
+  modal(`<h3>Correct the count</h3>
+    <p class="dim" style="font-size:12.5px;margin-bottom:12px">${esc(it.name)} —system says <b class="mono">${fmt(it.stock)} ${esc(it.uom)}</b></p>
+    <div class="field"><label>Counted balance</label><input type="number" id="m-count" step="any" placeholder="what you actually counted" style="width:100%"></div>
+    <div class="field"><label>or change by</label><input type="number" id="m-delta" step="any" placeholder="+10 / -5" style="width:100%"></div>
+    <div class="field"><label>Note</label><input id="m-note" placeholder="e.g. weekly stock-take"></div>
+    <div class="mfoot"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="doAdjust(${id})">Apply</button></div>`);
+  $("#m-count").focus();
+}
+function doAdjust(id){
+  const it = item(id);
+  const c = parseFloat($("#m-count").value), dl = parseFloat($("#m-delta").value);
+  let q;
+  if(!isNaN(c)) q = Math.round((c - it.stock)*100)/100;
+  else if(!isNaN(dl)) q = dl;
+  else { toast("Enter a counted balance or a change"); return; }
+  if(!q){ toast("That leaves the balance unchanged"); return; }
+  it.stock = Math.round((it.stock+q)*100)/100;
+  const b = state.batchSeq++;
+  state.tx.push(newTx({ts:Date.now(), date:todayStr(), itemId:id, type:"adjust", qty:q, note:$("#m-note").value||"", b}));
+  state.lastBatch=b; state.lastBatchBills=null;
+  save(); closeModal(); render();
+  toast((q>0?"Added ":"Removed ")+fmt(Math.abs(q))+" —"+it.name+" now "+fmt(it.stock)+" · Undo available");
+}
+function toggleWatch(id){ const it=item(id); it.watch=!it.watch; save(); render(); }
+function togglePreorder(id){
+  const it = item(id); if(!it) return;
+  it.preorder = !it.preorder;
+  if(it.preorder) it.min = 0;
+  save(); render();
+  toast(it.preorder ? "Pre-order —"+it.name+" is now made to order, no minimum held"
+                    : "Stocked —"+it.name+" is back on the cook list; set a minimum for it");
+}
+function toggleStopped(id){ const it=item(id); it.stopped=!it.stopped; save(); render();
+  toast(it.stopped?"Stopped —"+it.name:"Resumed —"+it.name); }
+async function delItem(id){
+  const it = item(id); if(!it) return;
+  if(!await askConfirm("Remove “"+it.name+"”", "Its movement history stays in the log.", "Remove", true)) return;
+  state.items = state.items.filter(i=>i.id!==id);
+  state.plan = state.plan.filter(p=>p.itemId!==id);
+  save(); render(); toast("Removed —"+it.name);
+}
+
+/* ---------- minimums from real sales ----------
+   The minimum is the 90th percentile of rolling N-day demand —enough for a bad
+   week, in 9 weeks out of 10. It assumes nothing about the shape of demand and
+   copes with lumpy items. Under 4×N days of history it falls back to mean × N. */
+function salesSeries(id, days){
+  const map = {};
+  for(const t of state.tx){ if(t.itemId!==id || t.type!=="sale") continue; map[t.date]=(map[t.date]||0)+(-t.qty); }
+  const asOf = latestSaleDate(), out=[];
+  for(let d=days-1; d>=0; d--) out.push(map[dayAdd(asOf,-d)]||0);
+  return out;
+}
+function historyDays(){
+  let lo=null, hi=null;
+  for(const t of state.tx){ if(t.type!=="sale") continue;
+    if(lo===null||t.date<lo) lo=t.date; if(hi===null||t.date>hi) hi=t.date; }
+  if(lo===null) return 0;
+  return Math.round((new Date(hi+"T12:00")-new Date(lo+"T12:00"))/86400000)+1;
+}
+function rollingP90(series, w){
+  if(series.length < w) return null;
+  const sums=[];
+  for(let i=0; i+w<=series.length; i++){ let t=0; for(let j=i;j<i+w;j++) t+=series[j]; sums.push(t); }
+  sums.sort((a,b)=>a-b);
+  const k=(sums.length-1)*0.9, f=Math.floor(k);
+  return f+1>=sums.length ? sums[f] : sums[f]+(sums[f+1]-sums[f])*(k-f);
+}
+/* p90 needs enough independent-ish rolling windows to trust, not just enough
+   calendar days —at small `days` the old flat ×4 rule let through as few as
+   4-7 windows, too thin a sample for a percentile. Requiring the same
+   window count (3×days+1) but never fewer than 12 windows keeps short cover
+   settings from getting a noisy estimate while leaving longer ones unchanged. */
+function minMethod(days){
+  const windows = historyDays() - days + 1;
+  return windows >= Math.max(3*days+1, 12) ? "p90" : "mean";
+}
+function recommendMin(it, days){
+  if(it.preorder || it.stopped) return 0;
+  if(minMethod(days)==="p90"){
+    const p = rollingP90(salesSeries(it.id, Math.min(Math.max(historyDays(),days*4), 180)), days);
+    if(p!==null) return p>0 ? Math.max(1, Math.ceil(p)) : 0;
+  }
+  const u = usageRate(it);
+  return u>0 ? Math.max(1, Math.ceil(u*days)) : 0;
+}
+function openMinTool(){
+  const n = state.coverTarget || 7;
+  const stocked = active().filter(i=>!i.preorder);
+  const moving = stocked.filter(i=>usageRate(i)>0).length;
+  const hist = historyDays(), method = minMethod(n), asOf = latestSaleDate();
+  const stale = asOf < todayStr() ? Math.round((new Date(todayStr()+"T12:00")-new Date(asOf+"T12:00"))/86400000) : 0;
+  modal(`<h3>Rebuild minimums from sales</h3>
+    <p class="dim" style="font-size:12.5px;margin-bottom:12px">${method==="p90"
+      ? `Each minimum becomes the <b>90th percentile of rolling ${n}-day demand</b> —enough to cover a bad week, in 9 weeks out of 10. Measured across the ${hist} days of sales in the log.`
+      : `The log holds only <b>${hist} days</b> of sales, so minimums use <b>mean daily usage × days of cover</b>. Import more history and the tool switches to the percentile method, which handles lumpy demand far better.`}
+      Items with no recorded sales have their minimum cleared, which takes them out of the alerts instead of sitting permanently red. Pre-order items are left alone.</p>
+    ${stale>0?`<p style="font-size:12.5px;margin-bottom:12px;color:var(--warn)">Sales are only current through <b>${asOf}</b> (${stale} day${stale===1?"":"s"} ago) —import the latest report first so nothing is measured against empty recent days.</p>`:""}
+    <div class="field"><label>Days of cover a minimum should represent</label>
+      <input type="number" id="m-days" step="1" min="1" value="${n}" style="width:100%"></div>
+    <div class="kv"><span>Method</span><b>${method==="p90"?"90th percentile of rolling demand":"mean usage × days"}</b></div>
+    <div class="kv"><span>Stocked items with recorded sales</span><b>${moving}</b></div>
+    <div class="kv"><span>Pre-order items skipped</span><b>${active().length-stocked.length}</b></div>
+    <div class="mfoot"><button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn" onclick="applyMins(true)">Preview</button>
+      <button class="btn primary" onclick="applyMins(false)">Apply to all</button></div>`);
+}
+function applyMins(preview){
+  const days = parseFloat($("#m-days").value)||7;
+  const rows = active().filter(i=>!i.preorder)
+    .map(i=>({i, from:i.min, to:recommendMin(i,days)}))
+    .filter(r=>r.from!==r.to);
+  if(!rows.length){ toast("Every minimum already matches "+days+" days"); closeModal(); return; }
+  if(preview){
+    modal(`<h3>${rows.length} minimum${rows.length===1?"":"s"} would change</h3>
+      <div style="max-height:44vh;overflow:auto;border:1px solid var(--rule)">
+      <table><thead><tr><th>Item</th><th class="num">Now</th><th class="num">—${days}d</th></tr></thead><tbody>
+      ${rows.slice(0,80).map(r=>`<tr><td class="name">${esc(r.i.name)}<span class="sub">${esc(r.i.uom)}</span></td>
+        <td class="num dim">${fmt(r.from)}</td><td class="num"><b>${r.to?fmt(r.to):'<span class="faint">cleared</span>'}</b></td></tr>`).join("")}
+      </tbody></table></div>
+      <div class="mfoot"><button class="btn" onclick="openMinTool()">Back</button>
+        <button class="btn primary" onclick="commitMins(${days})">Apply these ${rows.length}</button></div>`);
+    return;
+  }
+  commitMins(days);
+}
+function commitMins(days){
+  let n=0;
+  for(const i of active()){
+    if(i.preorder) continue;
+    const to = recommendMin(i, days);
+    if(i.min!==to){ i.min=to; n++; }
+  }
+  state.coverTarget = days;
+  save(); closeModal(); render();
+  toast("Rebuilt "+n+" minimum"+(n===1?"":"s")+" at "+days+" days of cover ("+(minMethod(days)==="p90"?"90th percentile":"mean usage")+")");
+}
+
+/* ============================================================
+   SALES IMPORT  (SI_Item export, Bill No duplicate protection)
+   ============================================================ */
+let pending = null;
+function bindDrop(zone, input, fn){
+  zone.addEventListener("click", ()=>input.click());
+  zone.addEventListener("dragover", e=>{e.preventDefault(); zone.classList.add("over");});
+  zone.addEventListener("dragleave", ()=>zone.classList.remove("over"));
+  zone.addEventListener("drop", e=>{e.preventDefault(); zone.classList.remove("over"); if(e.dataTransfer.files[0]) fn(e.dataTransfer.files[0]);});
+  input.addEventListener("change", e=>{ if(e.target.files[0]) fn(e.target.files[0]); e.target.value=""; });
+}
+function readGrid(file, cb){
+  if(typeof XLSX === "undefined"){ toast("The spreadsheet reader did not load —check the connection and reopen the page"); return; }
+  const r = new FileReader();
+  r.onload = e => {
+    try{
+      const wb = XLSX.read(e.target.result, {type:"array"});
+      cb(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:null}), file.name);
+    }catch(err){ toast("Could not read that file: "+err.message); }
+  };
+  r.readAsArrayBuffer(file);
+}
+function pickCol(row, priority, generic, exclude){
+  let best=-1;
+  row.forEach((cell,c)=>{
+    const v = norm(cell); if(!v) return;
+    if(exclude && exclude.some(k=>v.includes(k))) return;
+    if(best<0 && priority.some(k=>v===k||v.includes(k))) best=c;
+  });
+  if(best>=0) return best;
+  row.forEach((cell,c)=>{
+    const v = norm(cell); if(!v) return;
+    if(exclude && exclude.some(k=>v.includes(k))) return;
+    if(best<0 && generic.some(k=>v.includes(k))) best=c;
+  });
+  return best;
+}
+const isJunk = v => { const s=String(v??""); return s.includes("小计")||s.includes("总计")||s.includes("合计")||/total/i.test(s); };
+function toISO(v){
+  if(v==null) return null;
+  if(v instanceof Date) return v.toISOString().slice(0,10);
+  const s = String(v).trim();
+  let m = s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+  if(m) return m[3]+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0");
+  m = s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+  if(m) return m[1]+"-"+m[2].padStart(2,"0")+"-"+m[3].padStart(2,"0");
+  if(/^\d{5}$/.test(s)) return new Date(Date.UTC(1899,11,30)+parseInt(s)*86400000).toISOString().slice(0,10);
+  return null;
+}
+function parseSales(grid, fname){
+  let hr=-1,nc=-1,qc=-1,uc=-1,dc=-1,bc=-1,cc=-1;
+  for(let r=0;r<Math.min(grid.length,10);r++){
+    const row = grid[r]||[];
+    const n = pickCol(row,["material"],["product","name","item","货品","商品","名称","产品"],["type","类型","cat","code","编码"]);
+    const q = pickCol(row,["totalqty"],["qty","quantity","sold","数量","销量"],["price","amt","amount","金额","单价"]);
+    if(n>=0&&q>=0){ hr=r; nc=n; qc=q;
+      uc = pickCol(row,["uom"],["单位","规格","packing"],null);
+      dc = pickCol(row,["invoicedate"],["date","日期"],null);
+      bc = pickCol(row,["billno"],["invoiceno","invoice","单号","发票"],["billtype","type"]);
+      cc = pickCol(row,["matcode"],["itemcode","sku","编码","货号"],["custcode","billno","matcat"]);
+      break; }
+  }
+  if(hr<0){ hr=-1; nc=0; qc=1; }
+  const raw=[];
+  for(let r=hr+1;r<grid.length;r++){
+    const row = grid[r]||[]; const nm = row[nc];
+    if(nm==null || String(nm).trim()==="") continue;
+    if(isJunk(nm) || (dc>=0 && isJunk(row[dc]))) continue;
+    const q = parseFloat(row[qc]);
+    if(isNaN(q)||q===0) continue;
+    raw.push({name:String(nm).trim(), uom: uc>=0?String(row[uc]??"").trim():"", date: dc>=0?toISO(row[dc]):null,
+              bill: bc>=0?String(row[bc]??"").trim():"", code: cc>=0?String(row[cc]??"").trim():"", qty:Math.abs(q)});
+  }
+  if(!raw.length){ toast("No product and quantity rows found in that file"); return; }
+  /* Matching is strict on pack size. A line matches only an item whose UOM is
+     identical. A product we stock in a different pack size is NOT a match —it is
+     reported and left out, never deducted from the wrong pack. */
+  const byCU=new Map(), byNU=new Map(), uomsByCode=new Map(), uomsByName=new Map();
+  for(const it of state.items){
+    if(it.code) byCU.set(norm(it.code)+"|"+normUom(it.uom), it.id);
+    byNU.set(keyNU(it.name, it.uom), it.id);
+    if(it.code){ if(!uomsByCode.has(norm(it.code))) uomsByCode.set(norm(it.code),[]); uomsByCode.get(norm(it.code)).push(it.uom); }
+    if(!uomsByName.has(norm(it.name))) uomsByName.set(norm(it.name),[]);
+    uomsByName.get(norm(it.name)).push(it.uom);
+  }
+  const match = l => {
+    if(l.code){ const id = byCU.get(norm(l.code)+"|"+normUom(l.uom)); if(id!=null) return id; }
+    const id2 = byNU.get(keyNU(l.name, l.uom)); if(id2!=null) return id2;
+    for(const it of state.items){                       // looser on the name, never on the pack
+      if(normUom(it.uom) !== normUom(l.uom)) continue;
+      const k = norm(it.name);
+      if(k.length>=4 && (norm(l.name).includes(k) || k.includes(norm(l.name)))) return it.id;
+    }
+    return null;
+  };
+  for(const l of raw){
+    l.itemId = match(l);
+    if(l.itemId!=null){ l.reason="ok"; continue; }
+    const known = (l.code && uomsByCode.get(norm(l.code))) || uomsByName.get(norm(l.name));
+    l.reason = (known && known.length) ? "uom" : "new";
+    l.known  = known ? [...new Set(known)] : [];
+  }
+  const dates = dc>=0 ? [...new Set(raw.map(l=>l.date).filter(Boolean))].sort() : [];
+  let sel = $("#sales-date").value || todayStr();
+  if(dates.length && !dates.includes(sel)){ sel = dates[dates.length-1]; $("#sales-date").value = sel; }
+  pending = {raw, fname, dates, sel, hasBills: bc>=0 && raw.some(l=>l.bill), duplicateProtection: bc>=0 && raw.some(l=>l.bill), mode: dates.length>1?"all":"single", remap:{}};
+  renderPreview();
+}
+function scoped(){ const p=pending; return (!p.dates.length||p.mode==="all") ? p.raw : p.raw.filter(l=>l.date===p.sel); }
+function aggregate(){
+  const p = pending, agg = new Map(), useBillProtection = !!p.hasBills && !!p.duplicateProtection;
+  for(const l of scoped()){
+    const rk = "r"+keyNU(l.name, l.uom);
+    const mapped = p.remap[rk]!==undefined ? p.remap[rk]
+                 : (l.itemId!=null && p.remap["i"+l.itemId]!==undefined) ? p.remap["i"+l.itemId] : l.itemId;
+    const key = mapped!=null ? "i"+mapped : rk;
+    if(!agg.has(key)) agg.set(key,{key, raw:l.name, uom:l.uom, code:l.code||"", reason:l.reason, known:l.known||[],
+                                   qty:0, delta:0, dup:0, rev:0, itemId:mapped, days:{}, bills:{}});
+    const a = agg.get(key), d = l.date || p.sel || todayStr();
+    a.qty = Math.round((a.qty+l.qty)*100)/100;
+    if(useBillProtection && l.bill){
+      const bk = l.bill+"§"+key;
+      a.bills[bk] = Math.round(((a.bills[bk]||0)+l.qty)*100)/100;
+      a.bills[bk+"@d"] = d;
+    } else {
+      a.delta = Math.round((a.delta+l.qty)*100)/100;
+      a.days[d] = Math.round(((a.days[d]||0)+l.qty)*100)/100;
+    }
+  }
+  if(useBillProtection){
+    for(const a of agg.values()){
+      for(const bk of Object.keys(a.bills)){
+        if(bk.endsWith("@d")) continue;
+        const fq = a.bills[bk], prev = state.bills[bk], d = a.bills[bk+"@d"];
+        if(prev===undefined){ a.delta=Math.round((a.delta+fq)*100)/100; a.days[d]=Math.round(((a.days[d]||0)+fq)*100)/100; }
+        else if(Math.abs(prev-fq)<0.001){ a.dup++; }
+        else { const diff=Math.round((fq-prev)*100)/100; a.delta=Math.round((a.delta+diff)*100)/100;
+               a.days[d]=Math.round(((a.days[d]||0)+diff)*100)/100; a.rev++; }
+      }
+    }
+  }
+  return [...agg.values()];
+}
+function setMode(m){ pending.mode=m; renderPreview(); }
+function renderPreview(){
+  if(!pending){ $("#import-preview").innerHTML=""; return; }
+  const p = pending, lines = aggregate();
+  const matched = lines.filter(l=>l.itemId!=null).length;
+  const dups = lines.reduce((s,l)=>s+l.dup,0), revs = lines.reduce((s,l)=>s+l.rev,0);
+  const total = lines.filter(l=>l.itemId!=null).reduce((s,l)=>s+l.delta,0);
+  const billProtectionOn = !!p.hasBills && !!p.duplicateProtection;
+  const nothing = billProtectionOn && Math.abs(total)<0.001 && dups>0;
+  const sorted = state.items.slice().sort((a,b)=>a.name.localeCompare(b.name));
+  const matchOpts = uom => {
+    const same=[], diff=[];
+    for(const i of sorted){
+      const o = `<option value="${i.id}">${esc(i.name)} · ${esc(i.uom)}</option>`;
+      (normUom(i.uom)===normUom(uom) ? same : diff).push(o);
+    }
+    return (same.length ? `<optgroup label="Same pack size —${esc(uom||"no UOM")}">${same.join("")}</optgroup>` : "")
+         + (diff.length ? `<optgroup label="Different pack size —not matched automatically">${diff.join("")}</optgroup>` : "");
+  };
+  const scopeBar = p.dates.length>1 ? `<div class="panel-b" style="border-bottom:1px solid var(--rule);display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12.5px">
+      <span class="dim">Covers <b class="mono">${p.dates[0]} —${p.dates[p.dates.length-1]}</b> (${p.dates.length} days)</span>
+      <button class="btn sm ${p.mode==="all"?"on":""}" onclick="setMode('all')">All ${p.dates.length} days</button>
+      <button class="btn sm ${p.mode==="single"?"on":""}" onclick="setMode('single')">Only ${p.sel}</button>
+    </div>` : "";
+  const unmatched = lines.filter(l=>l.itemId==null);
+  const uomMiss = unmatched.filter(l=>l.reason==="uom");
+  const newMiss = unmatched.filter(l=>l.reason==="new");
+  const missQty = unmatched.reduce((a,l)=>a+l.qty,0);
+  const uomBar = unmatched.length ? `
+    <div class="panel-b" style="border-bottom:1px solid var(--rule);font-size:12.5px;background:var(--warn-bg);color:var(--warn)">
+      <b>${unmatched.length} line${unmatched.length===1?"":"s"} left out —${fmt(missQty)} units.</b>
+      Pack size has to match exactly, so nothing here is deducted.
+      ${uomMiss.length?`<div style="margin-top:6px"><b>${uomMiss.length}</b> pack size${uomMiss.length===1?"":"s"} you do not stock:<ul style="margin:4px 0 0 18px">`
+        + uomMiss.slice(0,8).map(l=>`<li>${esc(l.raw)} —invoice says <b class="mono">${esc(l.uom||"no UOM")}</b>, stocked as <span class="mono">${esc(l.known.join(", "))}</span></li>`).join("")
+        + (uomMiss.length>8?`<li>…and ${uomMiss.length-8} more</li>`:"") + `</ul></div>`:""}
+      ${newMiss.length?`<div style="margin-top:6px"><b>${newMiss.length}</b> not on the item list at all: ${newMiss.slice(0,6).map(l=>esc(l.raw)+" "+esc(l.uom)).join(" · ")}${newMiss.length>6?` …and ${newMiss.length-6} more`:""}</div>`:""}
+      <div style="margin-top:6px">Add the missing pack size on station 02, or map a line by hand below.</div>
+    </div>` : "";
+  const billBar = p.hasBills
+    ? `<div class="panel-b" style="border-bottom:1px solid var(--rule);font-size:12.5px;${billProtectionOn?"background:var(--ok-bg);color:var(--ok)":"background:var(--warn-bg);color:var(--warn)"}">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <span>Duplicate protection by Bill No is <b>${billProtectionOn?"on":"off"}</b>${billProtectionOn?(dups||revs)?` —${dups} line${dups===1?"":"s"} already imported${revs?`, ${revs} revised (difference only)`:""}.`:" —nothing in this file has been imported before." : " —importing this file twice will double-count it."}</span>
+          <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-weight:600">
+            <input type="checkbox" ${billProtectionOn?"checked":""} onchange="pending.duplicateProtection=this.checked; renderPreview()">
+            Protect by bill
+          </label>
+        </div>
+      </div>`
+    : `<div class="panel-b" style="border-bottom:1px solid var(--rule);font-size:12.5px;background:var(--warn-bg);color:var(--warn)">
+        No Bill No column —duplicate protection is off. Importing this file twice will double-count it.</div>`;
+  $("#import-preview").innerHTML = `<div class="panel">
+    <div class="panel-h"><h2>${esc(p.fname)}</h2><span class="meta">${matched} of ${lines.length} matched</span></div>
+    ${scopeBar}${uomBar}${billBar}
+    <div class="scroll"><table><thead><tr><th>In the file</th><th>Matched item</th><th class="num">Qty</th><th class="num">Apply</th><th class="num">Balance after</th></tr></thead><tbody>
+    ${lines.map(l=>{
+      const it = l.itemId!=null?item(l.itemId):null;
+      const skip = l.delta===0 && l.dup>0;
+      const after = it ? Math.round((it.stock-l.delta)*100)/100 : null;
+      const tag = !it && l.reason==="uom" ? '<span class="tag t-warn">pack size not stocked</span>'
+                : !it && l.reason==="new" ? '<span class="tag t-warn">not on the list</span>'
+                : skip ? '<span class="tag t-off">already in</span>' : l.rev>0 ? '<span class="tag t-warn">revised</span>'
+                : l.dup>0 ? '<span class="tag t-off">'+l.dup+' skipped</span>' : "";
+      const mism = it && normUom(it.uom)!==normUom(l.uom)
+                 ? ' <span class="tag t-crit">pack differs</span>' : "";
+      return `<tr style="${skip?"opacity:.5":""}" class="${!it?"sev-warn":""}">
+        <td class="name">${esc(l.raw)} ${tag}${mism}
+          <span class="sub">${esc(l.uom||"no UOM")}${l.code?" · "+esc(l.code):""}${!it&&l.known&&l.known.length?" · stocked as "+esc(l.known.join(", ")):""}</span></td>
+        <td><select onchange="pending.remap['${l.key}']=this.value?parseInt(this.value):null;renderPreview()">
+          <option value="">—skip —</option>${matchOpts(l.uom)}</select></td>
+        <td class="num dim">${fmt(l.qty)}</td>
+        <td class="num"><b>${fmt(l.delta)}</b></td>
+        <td class="num" style="${after!=null&&after<0?"color:var(--crit);font-weight:600":""}">${it?(l.delta?fmt(it.stock)+" —"+fmt(after):fmt(it.stock)):"—"}</td>
+      </tr>`; }).join("")}
+    </tbody></table></div></div>
+    <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center">
+      <label style="display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--ink-2);cursor:pointer">
+        <input type="checkbox" ${pending.hist?"checked":""} onchange="pending.hist=this.checked;renderPreview()">
+        Record for trends only —do not change balances</label>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="pending=null;renderPreview()">Cancel</button>
+        <button class="btn primary" onclick="applyImport()" ${nothing?"disabled":""}>${nothing?"Nothing new":(pending.hist?"Record ":"Deduct ")+fmt(total)+" units"}</button>
+      </div></div>`;
+  const sels = $("#import-preview").querySelectorAll("select");
+  lines.forEach((l,i)=>{ if(l.itemId!=null && sels[i]) sels[i].value = String(l.itemId); });
+}
+function applyImport(){
+  if(!pending) return;
+  const hist = !!pending.hist, hasBills = !!pending.hasBills && !!pending.duplicateProtection;
+  const lines = aggregate(), b = state.batchSeq++, roll = {};
+  let n=0, tot=0, dups=0, neg=[];
+  for(const l of lines){
+    dups += l.dup;
+    if(l.itemId==null) continue;
+    const it = item(l.itemId); if(!it) continue;
+    if(hasBills) for(const bk of Object.keys(l.bills)){
+      if(bk.endsWith("@d")) continue;
+      const rk = bk.split("§")[0]+"§i"+l.itemId;
+      if(!(rk in roll)) roll[rk] = state.bills[rk]===undefined ? null : state.bills[rk];
+      state.bills[rk] = l.bills[bk];
+    }
+    if(l.delta===0) continue;
+    for(const [d,q] of Object.entries(l.days)){
+      if(!q) continue;
+      if(!hist) it.stock = Math.round((it.stock-q)*100)/100;
+      const t = newTx({ts:Date.now(), date:d, itemId:it.id, type:"sale", qty:-q, note:pending.fname, b});
+      if(hist) t.h=1;
+      state.tx.push(t); tot+=q;
+    }
+    n++;
+    if(!hist && it.stock<0) neg.push(it.name);
+  }
+  if(!n && !Object.keys(roll).length){ toast("Nothing matched —map the rows first"); return; }
+  state.lastBatch=b; state.lastBatchBills=roll;
+  save(); pending=null; renderPreview(); render();
+  toast((hist?"Recorded ":"Deducted ")+fmt(tot)+" units across "+n+" items"
+    +(dups?" · "+dups+" duplicate line"+(dups===1?"":"s")+" skipped":"")
+    +(neg.length?" · "+neg.length+" now negative, recount":"")+" · Undo available");
+}
+
+/* ---------- item master import ---------- */
+function importItems(grid, fname){
+  let hr=-1, c={};
+  for(let r=0;r<Math.min(grid.length,12);r++){
+    const row = grid[r]||[];
+    const n = pickCol(row,["name"],["product","item","sauce","货品","商品","名称"],["category","cat","类别"]);
+    if(n<0) continue;
+    hr=r; c.name=n;
+    c.uom   = pickCol(row,["uom"],["unit","pack","单位","规格"],null);
+    c.stock = pickCol(row,["stock"],["balance","qty","onhand","库存","结存"],["min","最低"]);
+    c.min   = pickCol(row,["min"],["minimum","reorder","safety","最低","安全"],null);
+    c.code  = pickCol(row,["code"],["sku","编码","货号"],null);
+    c.cat   = pickCol(row,["category"],["cat","group","类别","分类"],null);
+    c.store = pickCol(row,["storage"],["location","store","warehouse","仓","位置"],null);
+    c.base  = pickCol(row,["baseline"],["perday","usage","daily","日均"],null);
+    break;
+  }
+  if(hr<0){ toast("Could not find a name column in that file"); return; }
+  const get = (row,i) => i>=0 ? row[i] : null;
+  const num = v => { const n=parseFloat(v); return isNaN(n)?0:n; };
+  let added=0, updated=0;
+  const byNU = new Map(state.items.map(i=>[keyNU(i.name, i.uom), i]));
+  for(let r=hr+1;r<grid.length;r++){
+    const row = grid[r]||[]; const nm = get(row,c.name);
+    if(nm==null || String(nm).trim()==="" || isJunk(nm)) continue;
+    const name = String(nm).trim(), uom = String(get(row,c.uom)??"").trim();
+    const ex = byNU.get(keyNU(name, uom));
+    if(ex){
+      if(c.stock>=0) ex.stock = num(get(row,c.stock));
+      if(c.min>=0)   ex.min   = num(get(row,c.min));
+      if(c.code>=0)  ex.code  = String(get(row,c.code)??"").trim();
+      if(c.cat>=0)   ex.cat   = String(get(row,c.cat)??"").trim() || ex.cat;
+      if(c.store>=0) ex.store = String(get(row,c.store)??"").trim() || ex.store;
+      if(c.base>=0)  ex.baseDaily = num(get(row,c.base));
+      updated++;
+    } else {
+      const code = String(get(row,c.code)??"").trim();
+      const it = {id:state.nextId++, name, uom, code,
+        store:String(get(row,c.store)??"").trim(),
+        cat:String(get(row,c.cat)??"").trim() || CODE_CAT[code.slice(0,2)] || "Uncategorised",
+        stock:num(get(row,c.stock)), min:num(get(row,c.min)), counted:c.stock>=0,
+        baseDaily:num(get(row,c.base)), stopped:false};
+      state.items.push(it); byNU.set(keyNU(name, uom), it); added++;
+    }
+  }
+  if(!added && !updated){ toast("No item rows found in that file"); return; }
+  state.demo = false;
+  save(); render(); go("stock");
+  toast("Loaded "+fname+" —"+added+" added, "+updated+" updated");
+}
+function reloadBase(){
+  const r = seedBase();
+  save(); render();
+  const bits=[];
+  if(r.added) bits.push(r.added+" item"+(r.added===1?"":"s")+" added");
+  if(r.touched) bits.push(r.touched+" updated");
+  toast(bits.length ? "0428 list reloaded —"+bits.join(", ") : "The 0428 list is already fully loaded");
+}
+function exportItemTemplate(){
+  const csv = "Code,Name,UOM,Storage,Stock,Min,Baseline per day\n"
+    + "62MS0G1ZQF00272,QF Mango Sauce 芒果酱,2kg/pkt,0434CH,,,\n"
+    + "46PS0R1ZVT00976,Pure Salt 盐,1kg/pkt,CENTER,,,\n";
+  saveFile("0428-item-template.csv", "﻿"+csv, "text/csv;charset=utf-8");
+}
+
+/* ============================================================
+   LOG / UNDO
+   ============================================================ */
+function renderLog(){
+  const f = $("#log-filter").value;
+  let tx = state.tx.slice().sort((a,b)=>b.ts-a.ts);
+  if(f!=="all") tx = tx.filter(t=>t.type===f);
+  if(!tx.length){ $("#log-table").innerHTML='<div class="empty">Nothing recorded yet.</div>'; return; }
+  const tag = {sale:'<span class="tag t-warn">Sale out</span>', production:'<span class="tag t-ok">Cook</span>', adjust:'<span class="tag t-info">Correction</span>'};
+  $("#log-table").innerHTML = `<table><thead><tr><th>Date</th><th>Type</th><th>Item</th><th class="num">Qty</th><th class="num">Yield</th><th>Note</th></tr></thead><tbody>`
+    + tx.slice(0,600).map(t=>{
+        const it = item(t.itemId);
+        const y = (t.type==="production"&&t.planned>0) ? fmt1(t.qty/t.planned*100)+"%" : "";
+        return `<tr><td class="mono dim" style="white-space:nowrap">${esc(t.date)}</td>
+          <td>${tag[t.type]||esc(t.type)}${t.h?' <span class="tag t-off">trend only</span>':""}</td>
+          <td>${it?esc(it.name):'<span class="faint">(removed)</span>'}</td>
+          <td class="num" style="color:${t.qty<0?"var(--series-out)":"var(--series-in)"};font-weight:600">${t.qty>0?"+":""}${fmt(t.qty)}</td>
+          <td class="num dim">${y}</td>
+          <td class="dim" style="font-size:12px">${esc(t.note||"")}</td></tr>`;
+      }).join("") + `</tbody></table>`;
+}
+async function clearLog(){
+  if(!await askConfirm("Clear the movement log?", "Balances stay exactly as they are, but trends reset and every invoice can be imported again.", "Clear log", true)) return;
+  state.tx=[]; state.bills={}; state.lastBatch=null; state.lastBatchBills=null;
+  save(); render(); toast("Log and invoice registry cleared —balances untouched");
+}
+async function undoLast(){
+  const b = state.lastBatch;
+  const batch = b!=null ? state.tx.filter(t=>t.b===b) : [];
+  if(!batch.length){ toast("Nothing to undo —only the most recent action can be reversed"); return; }
+  const label = {sale:"sales import", production:"cook log", adjust:"count correction"}[batch[0].type] || "action";
+  const tot = batch.reduce((s,t)=>s+Math.abs(t.qty),0), n = new Set(batch.map(t=>t.itemId)).size;
+  if(!await askConfirm("Undo the last "+label+"?", fmt(tot)+" units across "+n+" item"+(n===1?"":"s")+" go back the way they were.", "Undo")) return;
+  for(const t of batch){
+    if(t.h) continue;
+    const it = item(t.itemId);
+    if(it) it.stock = Math.round((it.stock - t.qty)*100)/100;
+    if(t.type==="production"){
+      const pl = state.plan.find(p=>p.date===t.date && p.itemId===t.itemId && p.done);
+      if(pl) pl.done = false;
+    }
+  }
+  state.tx = state.tx.filter(t=>t.b!==b);
+  if(state.lastBatchBills) for(const [k,v] of Object.entries(state.lastBatchBills)){
+    if(v===null) delete state.bills[k]; else state.bills[k]=v;
+  }
+  state.lastBatch=null; state.lastBatchBills=null;
+  save(); render(); toast("Undone —"+label+" reversed ("+fmt(tot)+" units)");
+}
+
+/* ============================================================
+   SAVING FILES
+   ============================================================ */
+function saveFile(filename, data, mime){
+  try{
+    const blob = data instanceof Blob ? data : new Blob([data],{type:mime||"application/octet-stream"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+    toast("Saved —"+filename); return true;
+  }catch(e){ toast("Could not save "+filename); return false; }
+}
+/* Printable sheets: try to open a real window (so Print / Save PDF works
+   immediately from a user gesture); if the browser blocks the popup, fall
+   back to downloading the sheet as an .html file instead. */
+function openOrSave(doc, filename){
+  let w=null; try{ w=window.open("","_blank"); }catch(e){}
+  if(w){ try{ w.document.write(doc); w.document.close(); return; }catch(e){} }
+  saveFile(filename, doc, "text/html");
+}
+function doBackup(){ saveFile(activeDept().code+"-backup-"+todayStr()+".json", JSON.stringify(state,null,1), "application/json"); }
+function exportStockCsv(){
+  let csv = "Code,Name,UOM,Storage,Category,Stock,Min,Use per day,Days cover,Pre-order\n";
+  for(const i of state.items){
+    const c = coverDays(i);
+    csv += `"${i.code||""}","${i.name.replace(/"/g,'""')}","${i.uom}","${i.store||""}","${(i.cat||"").replace(/"/g,'""')}",${i.stock},${i.min},${fmt1(usageRate(i))},${c==null?"":fmt1(c)},${i.preorder?"Y":""}\n`;
+  }
+  saveFile(activeDept().code+"-stock-"+todayStr()+".csv", "﻿"+csv, "text/csv;charset=utf-8");
+}
+
+/* ---------- printable cook sheet ---------- */
+function printCookSheet(){
+  const sv  = $("#sheet-store") ? $("#sheet-store").value : "all";
+  const mk  = makeList().filter(m => inStore(m.it, sv));
+  const plan = planFor(todayStr()).filter(pl => { const it=item(pl.itemId); return it && inStore(it, sv); });
+  const dl  = new Date().toLocaleDateString("en-SG",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+  const head = state.prodHead || "____________";
+
+  /* ---- section 1: what to make ---- */
+  const buckets = [[],[],[]];
+  for(const m of mk){ buckets[m.s==="crit" ? 0 : (m.cover!=null && m.cover<=8) ? 1 : 2].push(m); }
+  const meta = [
+    {t:"优先 MAKE FIRST", s:"缺货或剩余1 天内"},
+    {t:"本周 THIS WEEK",  s:"剩余 1—7 天"},
+    {t:"计划 PLAN AHEAD", s:"低于最低库存，但还有超过8 天"}
+  ];
+  let rows="", n=0;
+  buckets.forEach((bk,bi)=>{
+    if(!bk.length) return;
+    rows += `<tr class="sec s${bi}"><td colspan="6"><b>${meta[bi].t}</b><span>${meta[bi].s} · ${bk.length} 项</span></td></tr>`;
+    for(const m of bk){
+      n++;
+      rows += `<tr><td class="rk">${n}</td>
+        <td><b>${esc(m.it.name)}</b><span class="u">${esc(m.it.uom)} · ${esc(m.it.store||"")}</span></td>
+        <td class="c">${fmt(m.it.stock)}</td><td class="c g">${fmt(m.it.min)}</td>
+        <td class="c d${bi}">${m.it.stock<=0?"缺货":(m.cover!=null?fmt1(m.cover)+" 天":"—")}</td>
+        <td class="mk">${fmt(m.need)}</td></tr>`;
+    }
+  });
+
+  /* ---- section 2: the balance of every item, grouped by storage location ---- */
+  const bal = state.items.filter(i=>!i.stopped && inStore(i,sv))
+    .sort((a,b)=>(a.store||"").localeCompare(b.store||"")
+              || (a.cat||"").localeCompare(b.cat||"")
+              || a.name.localeCompare(b.name));
+  let brows="", last=null, bn=0, locTot={};
+  for(const i of bal){
+    const st = i.store||"—";
+    if(st!==last){
+      last = st;
+      const cnt = bal.filter(x=>(x.store||"—")===st).length;
+      brows += `<tr class="grp"><td colspan="6"><b>${esc(st)}</b><span>${cnt} 项 items</span></td></tr>`;
+    }
+    bn++;
+    const c = coverDays(i);
+    const tag = i.preorder ? '<span class="pill p-pre">预订 PRE-ORDER</span>'
+      : uncounted(i)      ? '<span class="pill p-non">未盘点NOT COUNTED</span>'
+      : i.stock<0         ? '<span class="pill p-out">负数 NEGATIVE</span>'
+      : i.stock<=0        ? '<span class="pill p-out">缺货 OUT</span>'
+      : (i.min>0 && i.stock<i.min) ? '<span class="pill p-low">低LOW</span>'
+      : '<span class="pill p-ok">OK</span>';
+    locTot[st] = (locTot[st]||0) + kgOf(i, Math.max(i.stock,0));
+    brows += `<tr><td class="rk">${bn}</td>
+      <td><b>${esc(i.name)}</b><span class="u">${esc(i.uom)} · ${esc(i.code||"")}</span></td>
+      <td class="c ${i.stock<0?"d0":""}">${uncounted(i)?"—":fmt(i.stock)}</td>
+      <td class="c g">${i.preorder?"—":fmt(i.min)}</td>
+      <td class="c">${i.preorder||c==null?"—":fmt1(c)+" 天"}</td>
+      <td class="c">${tag}</td></tr>`;
+  }
+  const kgTot = Object.values(locTot).reduce((a,b)=>a+b,0);
+
+  const doc = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${esc(activeDept().code)} Cook Sheet ${todayStr()}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#12171A;--dim:#586268;--rule:#D6DBD5;--crit:#B8241A;--warn:#8F6304;--ok:#1F6B45;--info:#1B4F8C;--petrol:#0B4F4A}
+*{box-sizing:border-box}body{margin:0;background:#fff;color:var(--ink);font:13px/1.45 "IBM Plex Sans","Noto Sans SC",sans-serif}
+.band{background:var(--petrol);color:#EAF2F0;padding:18px 30px;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.band h1{font-family:"Barlow Condensed",sans-serif;font-size:26px;font-weight:700;margin:0;letter-spacing:.01em}
+.band .co{font:600 10.5px "IBM Plex Mono",monospace;letter-spacing:.16em;text-transform:uppercase;color:#93B8B3;margin-bottom:3px}
+.band .d{font:11.5px "IBM Plex Mono",monospace;color:#A7C6C2;text-align:right;line-height:1.8}
+.band .d b{color:#fff;font-weight:600}
+.stats{display:flex;border-bottom:2px solid var(--ink)}
+.stat{flex:1;padding:11px 30px;border-right:1px solid var(--rule)}.stat:last-child{border:none}
+.stat .v{font-family:"Barlow Condensed",sans-serif;font-size:27px;font-weight:700;line-height:1}
+.stat .l{font:600 9.5px "IBM Plex Mono",monospace;letter-spacing:.11em;text-transform:uppercase;color:var(--dim)}
+.stat.r .v{color:var(--crit)}
+.wrap{padding:14px 30px 26px}
+.lede{color:var(--dim);font-size:11.5px;margin:0 0 12px}
+h2.sh{font-family:"Barlow Condensed",sans-serif;font-size:19px;margin:22px 0 3px;padding-top:12px;border-top:2px solid var(--ink);page-break-before:auto}
+h2.sh span{font:400 11px "IBM Plex Mono",monospace;color:var(--dim);margin-left:10px;letter-spacing:.06em}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;font:600 9.5px "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);padding:7px;border-bottom:2px solid var(--ink)}
+td{padding:6px 7px;border-bottom:1px solid var(--rule);vertical-align:middle}
+tr.sec td{padding:9px 7px 5px;background:#F2F4F1;border-bottom:2px solid currentColor}
+tr.sec b{font:700 12px "IBM Plex Sans",sans-serif;margin-right:10px}
+tr.sec span{font-size:10.5px;color:var(--dim)}
+tr.sec.s0 td{color:var(--crit)}tr.sec.s1 td{color:var(--warn)}tr.sec.s2 td{color:var(--ok)}
+tr.grp td{background:#EDF1EE;border-bottom:1.5px solid #B8C2BB;padding:7px}
+tr.grp b{font:600 12px "IBM Plex Mono",monospace;letter-spacing:.08em}
+tr.grp span{font-size:10.5px;color:var(--dim);margin-left:10px}
+.rk{width:26px;color:#8B948F;font-family:"IBM Plex Mono",monospace}
+.u{display:block;font:10px "IBM Plex Mono",monospace;color:var(--dim)}
+.c{text-align:center;font-family:"IBM Plex Mono",monospace;width:78px}.g{color:var(--dim)}
+.d0{color:var(--crit);font-weight:600}.d1{color:var(--warn);font-weight:600}.d2{color:var(--ok)}
+.mk{text-align:right;font-family:"Barlow Condensed",sans-serif;font-size:20px;font-weight:700;width:86px}
+.pill{display:inline-block;font:600 8.5px "IBM Plex Mono",monospace;letter-spacing:.06em;padding:2px 6px;border:1px solid;white-space:nowrap}
+.p-ok{color:var(--ok);border-color:#B3D5C1;background:#E7F2EB}
+.p-low{color:var(--warn);border-color:#E4CE96;background:#FCF3DE}
+.p-out{color:var(--crit);border-color:#E9B7B2;background:#FBEAE8}
+.p-pre{color:var(--info);border-color:#B6C9E2;background:#E9F0F9}
+.p-non{color:var(--dim);border-color:var(--rule);background:#F2F4F1}
+.sign{margin-top:18px;padding-top:10px;border-top:1px solid var(--rule);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:10.5px;color:var(--dim)}
+.pb{position:fixed;top:12px;right:12px;background:var(--petrol);color:#fff;border:none;padding:9px 17px;font:600 13px "IBM Plex Sans",sans-serif;cursor:pointer;z-index:5}
+@media screen{.band .d{margin-right:124px}}
+@media print{.pb{display:none}.band,tr.sec td,tr.grp td,.pill{-webkit-print-color-adjust:exact;print-color-adjust:exact}tr{break-inside:avoid}h2.sh{break-after:avoid}}
+</style></head><body>
+<button class="pb" onclick="window.print()">Print / Save PDF</button>
+<div class="band"><div><div class="co">${esc(activeDept().company||"")}</div><h1>${esc(activeDept().code)} Cook Sheet 生产计划</h1></div>
+<div class="d">日期 Date <b>${dl}</b><br>生产负责人 Production head <b>${esc(head)}</b><br>仓位 Location <b>${sv==="all"?"全部 All":esc(sv)}</b></div></div>
+<div class="stats">
+  <div class="stat r"><div class="v">${buckets[0].length}</div><div class="l">优先 Make first</div></div>
+  <div class="stat"><div class="v">${mk.length}</div><div class="l">低于最低 Below minimum</div></div>
+  <div class="stat"><div class="v">${fmt(Math.round(mk.reduce((a,m)=>a+kgOf(m.it,m.need),0)))}</div><div class="l">要做公斤 Kg to make</div></div>
+  <div class="stat"><div class="v">${bal.length}</div><div class="l">在仓货品 Items on hand</div></div>
+  <div class="stat"><div class="v">${fmt(Math.round(kgTot))}</div><div class="l">现有公斤 Kg in stock</div></div>
+</div>
+<div class="wrap">
+<h2 class="sh">生产 To make<span>剩余天数 = 现有量除以近期用量每天· 要做 = 补到最低库存的数量</span></h2>
+${mk.length?`<table><thead><tr><th></th><th>货品 Item</th><th class="c">库存 Stock</th><th class="c">最低 Min</th><th class="c">剩余 Days</th><th style="text-align:right">要做 Make</th></tr></thead><tbody>${rows}</tbody></table>`
+ :`<p style="padding:18px 0;color:var(--dim)">全部库存都在最低量以上 —今天不需要生产。</p>`}
+
+<h2 class="sh">库存结存 Stock balance<span>按仓位 by storage location · ${bal.length} 项 · ${fmt(Math.round(kgTot))} kg</span></h2>
+${bal.length?`<table><thead><tr><th></th><th>货品 Item</th><th class="c">库存 Stock</th><th class="c">最低 Min</th><th class="c">剩余 Days</th><th class="c">状态 Status</th></tr></thead><tbody>${brows}</tbody></table>`
+ :`<p style="padding:18px 0;color:var(--dim)">此仓位没有货品。</p>`}
+
+<div class="sign"><span>${esc(activeDept().code)} ${esc(activeDept().name||"")} · ${dl}</span><span>制表 Prepared ____________ &nbsp; 签收 Received ____________</span></div>
+</div></body></html>`;
+  openOrSave(doc, activeDept().code+"-cook-sheet-"+todayStr()+(sv==="all"?"":"-"+sv)+".html");
+}
+
+/* ============================================================
+   SETUP
+   ============================================================ */
+function saveSettings(){
+  state.capacity = Math.max(0, parseFloat($("#set-cap").value)||0);
+  state.coverTarget = Math.max(1, parseInt($("#set-cover").value)||7);
+  state.prodHead = $("#set-head").value.trim();
+  save(); render(); toast("Settings saved");
+}
+function renderSetup(){
+  const only0428 = (dept==="0428");
+  const rb = $("#btn-reload-base"), rn = $("#reload-note");
+  if(rb) rb.hidden = !only0428;
+  if(rn) rn.hidden = !only0428;
+  const dep = $("#setup-depts");
+  if(dep) dep.innerHTML = depts.map(d=>`<div class="kv" style="align-items:center">
+        <span>${d.id===dept?'<b style="color:var(--accent)">●</b>':'<span style="color:var(--rule-2)">●</span>'}<b class="mono">${esc(d.code)}</b>
+          <span class="dim" style="margin-left:8px">${esc(d.name||"")}${d.company?" · "+esc(d.company):""}</span></span>
+        <span style="display:flex;gap:6px;white-space:nowrap">
+          ${d.id===dept?'<span class="tag t-ok">active</span>':`<button class="btn sm" onclick="switchDept('${esc(d.id)}')">Open</button>`}
+          <button class="btn sm" onclick="renameDept('${esc(d.id)}')">Edit</button>
+          <button class="btn sm danger" onclick="removeDept('${esc(d.id)}')">✕</button>
+        </span></div>`).join("")
+      + `<div style="margin-top:12px;padding-top:11px;border-top:1px solid var(--rule)">
+          <div class="bar" style="margin-bottom:0">
+            <input id="nd-code" placeholder="Code e.g. 0227" style="width:130px">
+            <input id="nd-name" placeholder="Name e.g. Production" style="flex:1;min-width:130px">
+            <input id="nd-co" placeholder="Company" style="flex:1;min-width:130px">
+            <button class="btn primary" onclick="createDept($('#nd-code').value,$('#nd-name').value,$('#nd-co').value)">Add department</button>
+          </div>
+          <p class="dim" style="font-size:11.5px;margin-top:8px">A new department starts empty —load its item list on this page, or add items by hand on station 02.</p>
+        </div>`;
+  $("#set-cap").value = state.capacity;
+  $("#set-cover").value = state.coverTarget;
+  $("#set-head").value = state.prodHead || "";
+  const a = active(), moving = a.filter(i=>usageRate(i)>0).length;
+  const kg = a.reduce((s,i)=>s+kgOf(i,Math.max(i.stock,0)),0);
+  const di = dataIssues();
+  $("#setup-summary").innerHTML = `
+    <div class="kv"><span>Items on the line</span><b>${state.items.length}</b></div>
+    <div class="kv"><span>Active (not stopped)</span><b>${a.length}</b></div>
+    <div class="kv"><span>With recorded movement</span><b>${moving}</b></div>
+    <div class="kv"><span>Stock on hand</span><b>${fmt(kg)} kg</b></div>
+    <div class="kv"><span>Movements logged</span><b>${state.tx.length}</b></div>
+    <div class="kv"><span>Invoice lines remembered</span><b>${Object.keys(state.bills).filter(k=>!k.endsWith("@d")).length}</b></div>
+    <div class="kv"><span>Last sales import</span><b>${di.lastSale||"—"}</b></div>`;
+  const email = clerk && clerk.user ? (clerk.user.primaryEmailAddress?.emailAddress || clerk.user.username || clerk.user.fullName || clerk.user.id) : "—";
+  $("#setup-storage").innerHTML = `
+    <div class="kv"><span>Storage</span><b style="color:var(--ok)">Supabase —shared with everyone signed in</b></div>
+    <div class="kv"><span>Connection</span><b style="color:${syncMode==="shared"?"var(--ok)":"var(--warn)"}">${syncMode==="shared"?"live":esc(syncNote||syncMode)}</b></div>
+    <div class="kv"><span>Signed in as</span><b>${esc(email)}</b></div>
+    <div class="kv"><span>Held for this department</span><b>${cache.items.size} items · ${cache.tx.size} log entries · ${cache.plan.size} planned batches</b></div>
+    <p class="dim" style="font-size:12px;margin-top:10px">Every signed-in user reads and writes this same data live. A copy is also mirrored into this browser so the page still shows the last-seen numbers if the connection drops.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+      <button class="btn" onclick="clerk.signOut()">Sign out</button>
+      <button class="btn" onclick="localStorage.removeItem(CFG_KEY);location.reload()">Change Supabase / Clerk keys</button>
+    </div>`;
+}
+async function wipeAll(){
+  if(!await askConfirm("Erase everything on this line?",
+      "Every item, movement, plan and invoice record is removed from the shared database, for everyone signed in. Download a backup first if you need one.", "Erase everything", true)) return;
+  state = defaultState(); save(); render(); go("setup");
+  toast("Erased —the line is empty for everyone signed in");
+}
+
+/* ---------- example data ---------- */
+async function loadDemo(){
+  if(state.items.length && (state.tx.length || state.items.some(i=>i.counted))){
+    if(!await askConfirm("Replace the line with example data?",
+        "This wipes the real figures for everyone signed in to this line. Download a backup first if you need one.",
+        "Load example data", true)) return;
+  }
+  const D = [
+    ["Signature Chilli Sauce 特制辣椒酱","2kg/pkt","QF-CHL-001","Chilli & Sambal",34,6.8],
+    ["Garlic Chilli Paste 蒜蓉辣椒酱","2kg/pkt","QF-CHL-002","Chilli & Sambal",0,2.9],
+    ["Prawn Paste Sambal 虾酱沙巴","2kg/pkt","QF-CHL-003","Chilli & Sambal",0,2.3],
+    ["Sichuan Mala Oil 麻辣红油","1.8kg/pkt","QF-CHL-004","Chilli & Sambal",26,2.2],
+    ["Black Bean Sauce 豆豉酱","2kg/pkt","QF-BEA-001","Bean & Soy",62,5.1],
+    ["Fermented Bean Curd Sauce 腐乳酱","1kg/pkt","QF-BEA-002","Bean & Soy",21,1.4],
+    ["Dark Soy Reduction 老抽浓缩","5kg/pkt","QF-BEA-003","Bean & Soy",15,1.1],
+    ["Sweet & Sour Sauce 糖醋酱","1kg/pkt","QF-GLZ-001","Sweet & Glaze",18,4.4],
+    ["Hoisin Glaze 海鲜酱","2kg/pkt","QF-GLZ-002","Sweet & Glaze",44,3.0],
+    ["Satay Peanut Sauce 沙嗲花生酱","2kg/pkt","QF-GLZ-003","Sweet & Glaze",51,4.2],
+    ["XO Sauce XO酱","0.5kg/pkt","QF-SEA-001","Seafood",9,3.1],
+    ["Oyster Sauce Base 蚝油底","5kg/pkt","QF-SEA-002","Seafood",12,2.6],
+    ["Ginger Scallion Paste 姜葱酱","1kg/pkt","QF-ARO-001","Oil & Aromatics",7,2.4],
+    ["Curry Base Paste 咖喱底酱","2kg/pkt","QF-ARO-002","Oil & Aromatics",3,3.9]
+  ];
+  state = defaultState();
+  state.demo = true;
+  state.capacity = 420;
+  D.forEach(([name,uom,code,cat,stock,base])=>{
+    state.items.push({id:state.nextId++, name, uom, code, cat, stock, min:Math.max(1,Math.ceil(base*7)),
+      baseDaily:base, stopped:false, watch:false});
+  });
+  /* 14 days of plausible movement so the charts and yield have something to show */
+  let seed = 20260428;
+  const rnd = () => { seed = (seed*1103515245 + 12345) & 0x7fffffff; return seed/0x7fffffff; };
+  for(let d=13; d>=1; d--){
+    const date = dayAdd(todayStr(), -d);
+    const dow = new Date(date+"T12:00").getDay();
+    if(dow===0) continue;                                  // no Sunday shipments
+    const b1 = state.batchSeq++;
+    for(const it of state.items){
+      const q = Math.round(it.baseDaily * (0.55 + rnd()*0.95));
+      if(q>0) state.tx.push(newTx({ts:Date.now()-d*86400000, date, itemId:it.id, type:"sale", qty:-q, note:"example", b:b1}));
+    }
+    if(dow===2 || dow===5){                                 // cook days
+      const b2 = state.batchSeq++;
+      for(const it of state.items){
+        if(rnd()<0.55) continue;
+        const planned = Math.max(4, Math.round(it.baseDaily*4));
+        const actual  = Math.max(1, Math.round(planned*(0.88 + rnd()*0.16)));
+        state.tx.push(newTx({ts:Date.now()-d*86400000+3600e3, date, itemId:it.id, type:"production", qty:actual, planned, note:"", b:b2}));
+      }
+    }
+  }
+  save(); render(); go("panel");
+  toast("Example data loaded —14 invented items with two weeks of movement. Erase it from Setup before loading the real list.");
+}
+
+/* ============================================================
+   NAVIGATION
+   ============================================================ */
+function go(page){
+  $$("#rail button").forEach(b=>b.classList.toggle("active", b.dataset.page===page));
+  $$("main > section").forEach(s=>s.classList.add("hidden"));
+  const el = $("#page-"+page); if(el) el.classList.remove("hidden");
+  window.scrollTo({top:0, behavior:"instant"});
+  render();
+}
+$$("#rail button").forEach(b=>b.addEventListener("click", ()=>go(b.dataset.page)));
+
+function render(){
+  renderTopbar();
+  renderPanel();
+  renderStock();
+  renderStocktake();
+  renderCount();
+  renderCook();
+  renderLog();
+  renderSetup();
+}
+
+/* listeners */
+$("#panel-cat").addEventListener("change", ()=>{ renderPanel(); renderTopbar(); });
+$("#deptbtn").addEventListener("click", toggleDeptMenu);
+$("#deptbtn").addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); toggleDeptMenu(e); } });
+document.addEventListener("click", e=>{ if(!e.target.closest("#deptbtn")) closeDeptMenu(); });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeDeptMenu(); });
+$("#c-store").addEventListener("change", renderCount);
+$("#c-scope").addEventListener("change", renderCount);
+["#s-q","#s-filter","#s-cat","#s-store"].forEach(s=>{
+  $(s).addEventListener(s==="#s-q"?"input":"change", renderStock);
+});
+$("#s-hide").addEventListener("click", ()=>{
+  const b = $("#s-hide"), on = b.getAttribute("aria-pressed")!=="true";
+  b.setAttribute("aria-pressed", on?"true":"false");
+  b.classList.toggle("on", on);
+  b.textContent = on ? "Stopped hidden" : "Hide stopped";
+  renderStock();
+});
+$("#log-filter").addEventListener("change", renderLog);
+$("#cook-date").addEventListener("change", renderCook);
+$("#restore-file").addEventListener("change", e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    try{
+      const s = JSON.parse(ev.target.result);
+      if(!s.items || !s.tx) throw new Error("that is not a backup for this app");
+      state = Object.assign(defaultState(), s);
+      save(); render(); go("panel");
+      toast("Backup restored —"+s.items.length+" items");
+    }catch(err){ toast("Restore failed: "+err.message); }
+  };
+  r.readAsText(f); e.target.value="";
+});
+bindDrop($("#drop"), $("#sales-file"), f=>readGrid(f, parseSales));
+bindDrop($("#drop-items"), $("#items-file"), f=>readGrid(f, importItems));
+
+/* ============================================================
+   BOOT — config gate → Clerk sign-in gate → Supabase storage
+   ============================================================ */
+function showGateSetup(prefill){
+  $("#gate-setup").classList.remove("hidden");
+  $("#gate-auth").classList.add("hidden");
+  $("#app-root").classList.add("hidden");
+  if(prefill){
+    $("#cfg-url").value = prefill.supabaseUrl||"";
+    $("#cfg-key").value = prefill.supabaseAnonKey||"";
+    $("#cfg-clerk").value = prefill.clerkKey||"";
+  }
+}
+function showGateAuth(){
+  $("#gate-setup").classList.add("hidden");
+  $("#gate-auth").classList.remove("hidden");
+  $("#app-root").classList.add("hidden");
+}
+function showApp(){
+  $("#gate-setup").classList.add("hidden");
+  $("#gate-auth").classList.add("hidden");
+  $("#app-root").classList.remove("hidden");
+}
+
+$("#cfg-save").addEventListener("click", async ()=>{
+  const c = { supabaseUrl: $("#cfg-url").value.trim().replace(/\/+$/,""),
+              supabaseAnonKey: $("#cfg-key").value.trim(),
+              clerkKey: $("#cfg-clerk").value.trim() };
+  if(!cfgComplete(c)){ toast("All three fields are required"); return; }
+  saveCfg(c);
+  boot();
+});
+
+/* Clerk's browser bundle has to be fetched from *your* Clerk instance's own
+   Frontend API domain (not a generic CDN path) —that domain is encoded
+   inside the publishable key itself: the 3rd "_"-separated segment,
+   base64-decoded, is "<frontend-api-host>$". This is the same decoding
+   Clerk's own SDKs use internally, so a key pasted into the setup screen is
+   enough to load the right script with no build step. */
+function clerkFrontendApi(pubKey){
+  try{
+    const seg = String(pubKey||"").split("_")[2];
+    if(!seg) return null;
+    const decoded = atob(seg);
+    if(!decoded.endsWith("$") || decoded.slice(0,-1).includes("$")) return null;
+    return decoded.slice(0,-1);
+  }catch(e){ return null; }
+}
+function loadClerkScript(pubKey){
+  return new Promise((resolve, reject)=>{
+    const domain = clerkFrontendApi(pubKey);
+    if(!domain){ reject(new Error("that doesn't look like a Clerk publishable key")); return; }
+    if(window.Clerk){ resolve(); return; }
+    let s = document.getElementById("clerk-script");
+    if(!s){
+      s = document.createElement("script");
+      s.id = "clerk-script";
+      s.async = true;
+      s.crossOrigin = "anonymous";
+      s.setAttribute("data-clerk-publishable-key", pubKey);
+      s.src = "https://"+domain+"/npm/@clerk/clerk-js@5/dist/clerk.browser.js";
+      document.head.appendChild(s);
+    }
+    s.addEventListener("load", ()=>resolve());
+    s.addEventListener("error", ()=>reject(new Error("the Clerk script failed to load —check the publishable key")));
+  });
+}
+
+async function boot(){
+  const cfg = loadCfg();
+  if(!cfgComplete(cfg)){ showGateSetup(cfg); return; }
+
+  if(typeof window.supabase === "undefined"){
+    showGateSetup(cfg);
+    toast("Supabase failed to load from the CDN —check your connection and reload");
+    return;
+  }
+
+  sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
+    auth: { persistSession:false },
+    accessToken: async () => { try{ return (await clerk?.session?.getToken()) ?? null; }catch(e){ return null; } }
+  });
+
+  try{
+    await loadClerkScript(cfg.clerkKey);
+    clerk = window.Clerk;
+    await clerk.load();
+  }catch(e){
+    showGateSetup(cfg);
+    toast("Could not start Clerk —"+(e.message||"check the publishable key"));
+    return;
+  }
+
+  /* One listener drives both directions: sign in while the gate is showing
+     opens the app, sign out while the app is showing tears everything down
+     by simply reloading —far more reliable than hand-unwinding every
+     realtime subscription and in-memory cache by hand. */
+  clerk.addListener(({user})=>{
+    const appHidden = $("#app-root").classList.contains("hidden");
+    if(user && appHidden) startApp();
+    else if(!user && !appHidden) location.reload();
+  });
+
+  if(!clerk.user){
+    showGateAuth();
+    const mountEl = $("#clerk-mount");
+    mountEl.innerHTML = "";
+    clerk.mountSignIn(mountEl);
+    return;
+  }
+  startApp();
+}
+function startApp(){
+  showApp();
+  mountUserButton();
+  $("#sales-date").value = todayStr();
+  $("#cook-date").value = todayStr();
+  initStorage();
+}
+function mountUserButton(){
+  const el = $("#clerk-user"); if(!el || !clerk) return;
+  el.innerHTML = "";
+  clerk.mountUserButton(el);
+}
+
+boot();
+</script>
+
+</body></html>

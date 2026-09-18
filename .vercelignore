@@ -1,0 +1,7 @@
+# Vercel serves every tracked file as a public static asset, not just
+# index.html. This app is a single file, so only ship that one — everything
+# else here (schema, historical fix scripts, stock-correction data, dev
+# server) stays out of the public deployment even though it's fine to keep
+# in the git repo for reference.
+*
+!index.html
