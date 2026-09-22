@@ -493,7 +493,8 @@ textarea{width:100%;resize:vertical;font-family:var(--f-mono);font-size:12px;lin
 
   <!-- ======== 07 SALES (analysis) ======== -->
   <section id="page-salesview" class="hidden">
-    <div class="phead"><div><h1>Sales</h1><div class="psub">Units and revenue actually sold, by item, for this department.</div></div></div>
+    <div class="phead"><div><h1>Sales</h1><div class="psub">Units and revenue actually sold, by item, for this department.</div></div>
+      <button class="btn danger" onclick="clearSales()">Clear sales data</button></div>
     <div class="bar">
       <span class="lbl">Range</span>
       <button class="btn sm" data-range="7" onclick="setSalesRange(7)">7 days</button>
@@ -2941,6 +2942,24 @@ async function clearLog(){
   if(!await askConfirm("Clear the movement log?", "Balances stay exactly as they are, but trends reset and every invoice can be imported again.", "Clear log", true)) return;
   state.tx=[]; state.bills={}; state.lastBatch=null; state.lastBatchBills=null;
   save(); render(); toast("Log and invoice registry cleared —balances untouched");
+}
+async function clearSales(){
+  const n = state.tx.filter(t=>t.type==="sale").length;
+  if(!n){ toast("No sales recorded yet"); return; }
+  if(!await askConfirm("Clear all sales data?",
+      `Removes ${fmt(n)} sale line${n===1?"":"s"} and the invoice registry, so every file can be re-imported from scratch. Stock balances stay exactly as they are —cook records and count corrections in the log are not touched.`,
+      "Clear sales data", true)) return;
+  /* Sale-type tx rows already deducted stock at import time, but we are
+     deliberately NOT reversing that here (unlike undoLast()) —the point of
+     this action is "wipe the record so it can be re-imported", not "undo the
+     stock effect of every sale ever logged". Only the log rows and the bill
+     registry go; balances stay put, exactly as asked. */
+  state.tx = state.tx.filter(t=>t.type!=="sale");
+  state.bills = {};
+  if(state.lastBatch!=null && !state.tx.some(t=>t.b===state.lastBatch)){
+    state.lastBatch = null; state.lastBatchBills = null;
+  }
+  save(); render(); toast(`Cleared ${fmt(n)} sale line${n===1?"":"s"} and the invoice registry —stock and other history untouched`);
 }
 async function undoLast(){
   const b = state.lastBatch;
