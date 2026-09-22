@@ -58,6 +58,11 @@ create table if not exists tx (
   hist        boolean not null default false,
   primary key (dept_id, id)
 );
+-- amount: revenue for this line, from an import's price/amount column; null if not
+-- present or the row predates revenue capture. Added via alter so re-running this
+-- file against an existing database (create table if not exists skips the table
+-- entirely) still picks it up.
+alter table tx add column if not exists amount numeric;
 create index if not exists tx_dept_date_idx on tx(dept_id, date);
 
 create table if not exists plan (

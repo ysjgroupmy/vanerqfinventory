@@ -100,6 +100,15 @@ Supabase / Clerk keys** inside the app, or the equivalent link on the sign-in sc
   so the page still shows the last-seen numbers if the connection drops — Supabase
   is always the source of truth once reachable, there's no "which copy wins"
   reconciliation flow to worry about like the original artifact version had.
+- A sale's `tx` row carries an optional `amount` (revenue for that line), captured
+  from a sales import only when the file has a recognisable total/amount column
+  (TOTALAMT / AMOUNT / 金额 — a per-unit price column is deliberately not picked up,
+  since it would need multiplying by quantity first rather than summed as-is).
+  Rows imported before this existed, or from a file with no such column, just have
+  `amount = null` — the **Sales** station (station 07) still counts their units
+  normally and says plainly when a period's revenue total is partial. Revenue is
+  scoped to the department you're in, same as everything else; it isn't rolled up
+  across departments.
 
 ## Troubleshooting
 
@@ -113,3 +122,7 @@ Supabase / Clerk keys** inside the app, or the equivalent link on the sign-in sc
   supabase_realtime add table ...` line at the bottom of `supabase-schema.sql`
   actually ran (check **Database → Replication** in the Supabase dashboard — all
   six tables should be listed).
+- **A department created before this version has no `amount` on old `tx` rows**:
+  expected, not a bug — re-running `supabase-schema.sql` adds the column with
+  `alter table ... add column if not exists`, but it can't retroactively know the
+  revenue on sales imported before the column existed.

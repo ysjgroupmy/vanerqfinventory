@@ -392,8 +392,9 @@ textarea{width:100%;resize:vertical;font-family:var(--f-mono);font-size:12px;lin
     <button data-page="count"><span class="st">04</span><svg class="ic"><use href="#i-count"/></svg>Count</button>
     <button data-page="cook"><span class="st">05</span><svg class="ic"><use href="#i-cook"/></svg>Cook</button>
     <button data-page="sales"><span class="st">06</span><svg class="ic"><use href="#i-sales"/></svg>Sales In</button>
-    <button data-page="log"><span class="st">07</span><svg class="ic"><use href="#i-log"/></svg>Log</button>
-    <button data-page="setup"><span class="st">08</span><svg class="ic"><use href="#i-setup"/></svg>Setup</button>
+    <button data-page="salesview"><span class="st">07</span><svg class="ic"><use href="#i-chart"/></svg>Sales</button>
+    <button data-page="log"><span class="st">08</span><svg class="ic"><use href="#i-log"/></svg>Log</button>
+    <button data-page="setup"><span class="st">09</span><svg class="ic"><use href="#i-setup"/></svg>Setup</button>
     <div class="rail-foot" id="rail-foot">Export a backup from Setup regularly.</div>
   </nav>
 
@@ -480,7 +481,7 @@ textarea{width:100%;resize:vertical;font-family:var(--f-mono);font-size:12px;lin
   <!-- ======== 04 SALES IN ======== -->
   <section id="page-sales" class="hidden">
     <div class="phead"><div><h1>Sales Import</h1>
-      <div class="psub">Drop the SI_Item export (or any sheet with a product and a quantity column). The system reads INVOICEDATE / MATERIAL / UOM / TOTALQTY, skips 合计小计 subtotal rows, and combines invoice lines per item. Every line is remembered by Bill No, so re-importing the same file skips duplicates and a revised invoice applies only the difference. <b>Pack size must match exactly</b> —a line whose UOM is not one you stock is reported and left out rather than deducted from the wrong pack.</div></div></div>
+      <div class="psub">Drop the SI_Item export (or any sheet with a product and a quantity column). The system reads INVOICEDATE / MATERIAL / UOM / TOTALQTY, skips 合计小计 subtotal rows, and combines invoice lines per item. Every line is remembered by Bill No, so re-importing the same file skips duplicates and a revised invoice applies only the difference. <b>Pack size must match exactly</b> —a line whose UOM is not one you stock is reported and left out rather than deducted from the wrong pack. If the file also has a total amount column (TOTALAMT / AMOUNT / 金额), that's captured too —see the <b>Sales</b> station for revenue by item.</div></div></div>
     <div class="bar"><span class="lbl">Sales date</span><input type="date" id="sales-date"></div>
     <div class="drop" id="drop">
       <b>Drop the sales file here</b>or click to choose
@@ -488,6 +489,32 @@ textarea{width:100%;resize:vertical;font-family:var(--f-mono);font-size:12px;lin
       <input type="file" id="sales-file" accept=".xlsx,.xls,.csv" style="display:none">
     </div>
     <div id="import-preview"></div>
+  </section>
+
+  <!-- ======== 07 SALES (analysis) ======== -->
+  <section id="page-salesview" class="hidden">
+    <div class="phead"><div><h1>Sales</h1><div class="psub">Units and revenue actually sold, by item, for this department.</div></div></div>
+    <div class="bar">
+      <span class="lbl">Range</span>
+      <button class="btn sm" data-range="7" onclick="setSalesRange(7)">7 days</button>
+      <button class="btn sm" data-range="30" onclick="setSalesRange(30)">30 days</button>
+      <button class="btn sm" data-range="90" onclick="setSalesRange(90)">90 days</button>
+      <button class="btn sm" data-range="all" onclick="setSalesRange('all')">All time</button>
+      <span style="width:1px;height:20px;background:var(--rule)"></span>
+      <input type="date" id="salesview-from"> <span class="dim">to</span> <input type="date" id="salesview-to">
+      <select id="salesview-cat"><option value="all">All categories</option></select>
+    </div>
+    <div class="alarms" id="salesview-summary"></div>
+    <div class="panel">
+      <div class="panel-h"><h2><svg class="ic" style="width:14px;height:14px"><use href="#i-chart"/></svg>Daily total</h2>
+        <span class="meta">Units and revenue per day in range</span></div>
+      <div class="chart" id="chart-salesview"></div>
+      <div class="legend"><span><i style="background:var(--series-out)"></i>Units</span><span><i style="background:var(--accent)"></i>Revenue</span></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><h2>By item</h2><span class="meta" id="salesview-meta"></span></div>
+      <div class="scroll" id="salesview-table"></div>
+    </div>
   </section>
 
   <!-- ======== 05 LOG ======== -->
@@ -663,6 +690,7 @@ const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt = n => (Math.round(n*100)/100).toLocaleString();
 const fmt1 = n => (Math.round(n*10)/10).toLocaleString();
+const fmtMoney = n => (Math.round(n*100)/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
 const todayStr = () => new Date().toISOString().slice(0,10);
 const dayAdd = (d,n) => new Date(new Date(d+"T12:00").getTime()+n*86400000).toISOString().slice(0,10);
 function norm(s){ return String(s??"").toLowerCase().replace(/[\s ]/g,"").replace(/[()\uFF08\uFF09\/\\.,\uFF0C:\uFF1A\-\u2010-\u2015'"\u2018\u2019\u201C\u201D]/g,""); }
@@ -887,10 +915,11 @@ function rowItem(r){ return {id:Number(r.id), name:r.name, uom:r.uom, code:r.cod
   preorder:!!r.preorder, stopped:!!r.stopped, watch:!!r.watch, counted:!!r.counted}; }
 
 function txRow(t){ return {id:t.id, dept_id:dept, ts:t.ts, date:t.date, item_id:t.itemId, type:t.type,
-  qty:t.qty, note:t.note||"", batch:t.b??null, planned:(t.planned??null), hist:!!t.h}; }
+  qty:t.qty, note:t.note||"", batch:t.b??null, planned:(t.planned??null), hist:!!t.h, amount:(t.amount??null)}; }
 function rowTx(r){ const t={id:Number(r.id), ts:Number(r.ts), date:r.date, itemId:r.item_id==null?null:Number(r.item_id),
   type:r.type, qty:Number(r.qty), note:r.note||"", b:r.batch==null?undefined:Number(r.batch)};
-  if(r.planned!=null) t.planned=Number(r.planned); if(r.hist) t.h=1; return t; }
+  if(r.planned!=null) t.planned=Number(r.planned); if(r.hist) t.h=1;
+  if(r.amount!=null) t.amount=Number(r.amount); return t; }
 
 function planRow(p){ return {id:p.id, dept_id:dept, date:p.date, item_id:p.itemId, qty:p.qty, done:!!p.done}; }
 function rowPlan(r){ return {id:Number(r.id), date:r.date, itemId:Number(r.item_id), qty:Number(r.qty), done:!!r.done}; }
@@ -943,6 +972,19 @@ function stateFromCache(){
   s.plan  = [...cache.plan.values()].map(rowPlan);
   s.bills = {};
   for(const r of cache.bills.values()){ s.bills[r.bill_key]=Number(r.qty); if(r.date) s.bills[r.bill_key+"@d"]=r.date; }
+  /* The id counters (nextId/txSeq/planSeq) live in `settings` and only reach
+     the server on a debounced flush, same as everything else —if that flush
+     was ever missed (tab closed mid-debounce, connection drop), the counter
+     on the server can be behind the ids actually sitting in items/tx/plan.
+     The next new row then reuses an id still in use, and a later upsert that
+     touches both rows in one batch fails with "ON CONFLICT DO UPDATE command
+     cannot affect row a second time". Clamping the counters to one past the
+     highest id actually present makes that impossible, regardless of how the
+     drift happened. */
+  const maxId = arr => arr.reduce((m,x)=>x.id>m?x.id:m, 0);
+  s.nextId = Math.max(s.nextId, maxId(s.items)+1);
+  s.txSeq  = Math.max(s.txSeq,  maxId(s.tx)+1);
+  s.planSeq= Math.max(s.planSeq,maxId(s.plan)+1);
   return s;
 }
 
@@ -954,6 +996,20 @@ function save(){
   flushTimer = setTimeout(runFlush, 250);
 }
 
+/* The 250ms debounce above means a refresh/tab-close right after an edit can
+   race the pending write and drop it silently (mirrorLocal() already ran, so
+   it looks saved locally, but nothing reached Supabase and the tx log entry
+   for it never gets written either). visibilitychange fires reliably before
+   the page is torn down and —unlike beforeunload— still lets an in-flight
+   fetch finish, so it's the one that actually gets the write out; the others
+   are best-effort backstops for cases visibilitychange doesn't catch. */
+function flushNowIfDirty(){
+  if(dirty && !flushing){ clearTimeout(flushTimer); runFlush(); }
+}
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="hidden") flushNowIfDirty(); });
+window.addEventListener("pagehide", flushNowIfDirty);
+window.addEventListener("beforeunload", flushNowIfDirty);
+
 async function runFlush(){
   if(!DB_READY) return;
   if(flushing){ clearTimeout(flushTimer); flushTimer=setTimeout(runFlush,200); return; }
@@ -961,22 +1017,34 @@ async function runFlush(){
   try{
     const now = snapshotOf(state), jobs=[];
 
+    /* Postgres' ON CONFLICT DO UPDATE errors ("...cannot affect row a second
+       time") if the same conflict key appears twice in one upsert batch. That
+       can only happen if two rows share an id, which should be impossible now
+       that stateFromCache() clamps the id counters —but de-duping here too
+       (last one in state.items/tx/plan wins) means a stray collision, however
+       it happens, degrades to "one edit shadows another" instead of failing
+       the whole flush and blocking every other pending change behind it. */
+    const dedupe = (arr, keyFn) => [...new Map(arr.map(x=>[keyFn(x), x])).values()];
+
     const itemsUp=[], itemsDel=[];
     for(const i of state.items){ if(persisted.items.get(i.id)!==now.items.get(i.id)) itemsUp.push(itemRow(i)); }
     for(const id of persisted.items.keys()) if(!now.items.has(id)) itemsDel.push(id);
-    if(itemsUp.length) jobs.push(sb.from("items").upsert(itemsUp, {onConflict:"dept_id,id"}));
+    const itemsUpD = dedupe(itemsUp, r=>r.id);
+    if(itemsUpD.length) jobs.push(sb.from("items").upsert(itemsUpD, {onConflict:"dept_id,id"}));
     if(itemsDel.length) jobs.push(sb.from("items").delete().eq("dept_id",dept).in("id",itemsDel));
 
     const txUp=[], txDel=[];
     for(const t of state.tx){ if(persisted.tx.get(t.id)!==now.tx.get(t.id)) txUp.push(txRow(t)); }
     for(const id of persisted.tx.keys()) if(!now.tx.has(id)) txDel.push(id);
-    if(txUp.length) jobs.push(sb.from("tx").upsert(txUp, {onConflict:"dept_id,id"}));
+    const txUpD = dedupe(txUp, r=>r.id);
+    if(txUpD.length) jobs.push(sb.from("tx").upsert(txUpD, {onConflict:"dept_id,id"}));
     if(txDel.length) jobs.push(sb.from("tx").delete().eq("dept_id",dept).in("id",txDel));
 
     const planUp=[], planDel=[];
     for(const p of state.plan){ if(persisted.plan.get(p.id)!==now.plan.get(p.id)) planUp.push(planRow(p)); }
     for(const id of persisted.plan.keys()) if(!now.plan.has(id)) planDel.push(id);
-    if(planUp.length) jobs.push(sb.from("plan").upsert(planUp, {onConflict:"dept_id,id"}));
+    const planUpD = dedupe(planUp, r=>r.id);
+    if(planUpD.length) jobs.push(sb.from("plan").upsert(planUpD, {onConflict:"dept_id,id"}));
     if(planDel.length) jobs.push(sb.from("plan").delete().eq("dept_id",dept).in("id",planDel));
 
     const billRows = billRowsFromState(state.bills);
@@ -1525,6 +1593,144 @@ function showTip(e, html){
   t.style.top  = Math.max(e.clientY-h-12, 8)+"px";
 }
 function hideTip(){ $("#tip").classList.remove("show"); }
+
+/* ============================================================
+   SALES ANALYSIS (station 07) —what actually sold, by item, in a
+   chosen range. Reads tx rows of type "sale" only; revenue comes from
+   t.amount, which is only present on rows imported from a file that had
+   a price/amount column (see parseSales) —older or amount-less rows
+   still count fully toward units, just not toward the revenue total.
+   ============================================================ */
+let salesRange = 30;   // number of days, or "all"
+function setSalesRange(r){
+  salesRange = r;
+  const anchor = maxSaleDate() || todayStr();
+  $("#salesview-to").value = anchor;
+  $("#salesview-from").value = r==="all" ? (minSaleDate()||anchor) : dayAdd(anchor,-(r-1));
+  renderSalesView();
+}
+function minSaleDate(){
+  let d=null; for(const t of state.tx){ if(t.type==="sale" && (!d||t.date<d)) d=t.date; } return d;
+}
+function maxSaleDate(){
+  let d=null; for(const t of state.tx){ if(t.type==="sale" && (!d||t.date>d)) d=t.date; } return d;
+}
+function salesViewRange(){
+  const from = $("#salesview-from")?.value, to = $("#salesview-to")?.value;
+  if(from && to) return {from, to};
+  const anchor = maxSaleDate() || todayStr();
+  return {from: dayAdd(anchor,-29), to: anchor};
+}
+function renderSalesView(){
+  const host = $("#salesview-summary"); if(!host) return;
+  fillCats($("#salesview-cat"));
+  /* Default to the 30 days ending on the most recent sale actually on record,
+     not today —a backdated/historical import (e.g. invoices from months ago)
+     would otherwise land the page on an empty "last 30 days from today"
+     window and look like nothing imported, when the data is there, just
+     outside the default range. */
+  if(!$("#salesview-from").value && !$("#salesview-to").value) setSalesRange(30);
+  const {from, to} = salesViewRange();
+  const cat = $("#salesview-cat")?.value || "all";
+
+  const rows = state.tx.filter(t=>t.type==="sale" && t.date>=from && t.date<=to)
+    .filter(t=>{ const it=item(t.itemId); return it && inCat(it,cat); });
+
+  const totUnits = rows.reduce((s,t)=>s-t.qty,0);
+  const revRows = rows.filter(t=>t.amount!=null);
+  const totRev = revRows.reduce((s,t)=>s+t.amount,0);
+  const covered = revRows.length, allRows = rows.length;
+
+  const byItem = new Map();
+  for(const t of rows){
+    const it = item(t.itemId); if(!it) continue;
+    const a = byItem.get(it.id) || {it, units:0, rev:0, hasRev:false, n:0};
+    a.units += -t.qty; a.n++;
+    if(t.amount!=null){ a.rev += t.amount; a.hasRev = true; }
+    byItem.set(it.id, a);
+  }
+  const items = [...byItem.values()].sort((a,b)=> (b.hasRev?b.rev:b.units) - (a.hasRev?a.rev:a.units) || b.units-a.units);
+  const top = items[0];
+
+  const days = Math.max(1, Math.round((new Date(to+"T12:00")-new Date(from+"T12:00"))/86400000)+1);
+  const al = [
+    {k:"Units sold", v:fmt(totUnits), d:`${fmt1(totUnits/days)} / day avg over ${days} day${days===1?"":"s"}`},
+    {k:"Revenue", v: covered ? fmtMoney(totRev) : "—",
+     d: !allRows.length ? "No sales in this range"
+        : !covered ? "None of the sales in this range have a captured amount —check Setup for the amount column, or re-import"
+        : covered<allRows.length ? `${covered} of ${allRows.length} sale lines had an amount —partial total` : "Every sale line in range had an amount"},
+    {k:"Items sold", v:items.length, d: items.length?`${items.length} distinct item${items.length===1?"":"s"} moved`:"Nothing moved in this range"},
+    {k:"Top item", v: top?shortName(top.it.name):"—",
+     d: top ? (top.hasRev?fmtMoney(top.rev):fmt(top.units)+" units") : "No sales in this range"}
+  ];
+  host.innerHTML = al.map(a=>`<div class="al quiet"><div class="k">${esc(a.k)}</div><div class="v" style="font-size:${a.k==="Top item"?"16px":"26px"}">${a.k==="Top item"?esc(a.v):a.v}</div><div class="d">${a.d}</div></div>`).join("");
+
+  drawSalesChart(from, to, rows);
+
+  const meta = $("#salesview-meta"); if(meta) meta.textContent = `${from} to ${to}`;
+  const table = $("#salesview-table");
+  if(!items.length){
+    table.innerHTML = `<div class="empty" style="padding:34px 14px">No sales recorded in this range.</div>`;
+    return;
+  }
+  table.innerHTML = `<table><thead><tr><th>Item</th><th class="num">Units</th><th class="num">Revenue</th><th class="num">Avg / unit</th><th class="num">Sale lines</th></tr></thead><tbody>`
+    + items.map(a=>`<tr>
+        <td class="name">${esc(a.it.name)}<span class="sub">${esc(a.it.uom)} · ${esc(a.it.cat||"Uncategorised")}</span></td>
+        <td class="num">${fmt(a.units)}</td>
+        <td class="num">${a.hasRev?fmtMoney(a.rev):'<span class="faint">—</span>'}</td>
+        <td class="num dim">${a.hasRev&&a.units?fmtMoney(a.rev/a.units):"—"}</td>
+        <td class="num dim">${a.n}</td>
+      </tr>`).join("") + `</tbody></table>`;
+}
+function drawSalesChart(from, to, rows){
+  const host = $("#chart-salesview"); if(!host) return;
+  const days=[]; for(let d=from; d<=to; d=dayAdd(d,1)){ days.push(d); if(days.length>120) break; }
+  const u={}, r={}; days.forEach(d=>{u[d]=0;r[d]=0;});
+  for(const t of rows){ if(!(t.date in u)) continue; u[t.date]+=-t.qty; if(t.amount!=null) r[t.date]+=t.amount; }
+  if(!days.some(d=>u[d]>0)){
+    host.innerHTML = `<div class="empty" style="padding:34px 12px">No sales in this range.</div>`;
+    return;
+  }
+  const n = days.length;
+  const maxU = Math.max(...days.map(d=>u[d]), 1), maxR = Math.max(...days.map(d=>r[d]), 1);
+  const W=Math.max(560, n*16), H=200, L=44, R=44, T=14, B=26;
+  const pw=(W-L-R)/n, bw=Math.min(pw-3, 14);
+  const yU = v => T+(H-T-B)*(1-v/maxU);
+  let g="";
+  for(let k=0;k<=4;k++){
+    const yy=yU(maxU*k/4);
+    g+=`<line x1="${L}" y1="${yy.toFixed(1)}" x2="${W-R}" y2="${yy.toFixed(1)}" stroke="#D6DBD5" stroke-width="1"/>`;
+    g+=`<text x="${L-7}" y="${(yy+3.2).toFixed(1)}" text-anchor="end" class="axl">${fmt(Math.round(maxU*k/4))}</text>`;
+  }
+  const dataPts=[];
+  let bars="", i=0;
+  for(const d of days){
+    const cx = L+i*pw+pw/2;
+    const hU = Math.max((H-T-B)*(u[d]/maxU), u[d]>0?2:0);
+    bars+=`<rect x="${(cx-bw/2).toFixed(1)}" y="${(H-B-hU).toFixed(1)}" width="${bw}" height="${hU.toFixed(1)}" rx="2" fill="var(--series-out)" data-i="${i}"/>`;
+    bars+=`<rect x="${(cx-pw/2).toFixed(1)}" y="${T}" width="${pw.toFixed(1)}" height="${H-T-B}" fill="transparent" data-i="${i}"/>`;
+    if(n<=20 || i%Math.ceil(n/20)===0) bars+=`<text x="${cx.toFixed(1)}" y="${H-8}" text-anchor="middle" class="axl">${d.slice(5).replace("-","/")}</text>`;
+    dataPts.push({x:cx, y:T+(H-T-B)*(1-(r[d]/maxR))});
+    i++;
+  }
+  const line = dataPts.map((p,idx)=>`${idx===0?"M":"L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  for(let k=0;k<=4;k++){
+    const v=maxR*k/4, yy=T+(H-T-B)*(1-k/4);
+    g+=`<text x="${W-R+7}" y="${(yy+3.2).toFixed(1)}" text-anchor="start" class="axl">${fmtMoney(v)}</text>`;
+  }
+  host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Units and revenue sold per day">
+    ${g}<line x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}" stroke="#8B948F" stroke-width="1"/>${bars}
+    <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2"/>
+    ${dataPts.map((p,idx)=>`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.4" fill="var(--accent)" data-i="${idx}"/>`).join("")}
+    </svg>`;
+  host.querySelectorAll("[data-i]").forEach(el=>{
+    el.addEventListener("mousemove", e=>{
+      const d = days[+el.dataset.i];
+      showTip(e, `<b>${d}</b>${fmt(u[d])} units${r[d]?"<br>"+fmtMoney(r[d])+" revenue":""}`);
+    });
+    el.addEventListener("mouseleave", hideTip);
+  });
+}
 
 /* ---------- yield ---------- */
 function yieldRows(){
@@ -2411,7 +2617,7 @@ function toISO(v){
   return null;
 }
 function parseSales(grid, fname){
-  let hr=-1,nc=-1,qc=-1,uc=-1,dc=-1,bc=-1,cc=-1;
+  let hr=-1,nc=-1,qc=-1,uc=-1,dc=-1,bc=-1,cc=-1,ac=-1;
   for(let r=0;r<Math.min(grid.length,10);r++){
     const row = grid[r]||[];
     const n = pickCol(row,["material"],["product","name","item","货品","商品","名称","产品"],["type","类型","cat","code","编码"]);
@@ -2421,6 +2627,10 @@ function parseSales(grid, fname){
       dc = pickCol(row,["invoicedate"],["date","日期"],null);
       bc = pickCol(row,["billno"],["invoiceno","invoice","单号","发票"],["billtype","type"]);
       cc = pickCol(row,["matcode"],["itemcode","sku","编码","货号"],["custcode","billno","matcat"]);
+      // Line total, not unit price —"amount"/"totalamt"/金额 is what we sum across
+      // rows; a per-unit "price"/单价 column would need multiplying by qty first,
+      // so it's deliberately excluded here rather than mismatched as a total.
+      ac = pickCol(row,["totalamt","totalamount","amount","金额"],["amt","sales","销售额","total"],["qty","quantity","unitprice","单价","数量"]);
       break; }
   }
   if(hr<0){ hr=-1; nc=0; qc=1; }
@@ -2431,8 +2641,10 @@ function parseSales(grid, fname){
     if(isJunk(nm) || (dc>=0 && isJunk(row[dc]))) continue;
     const q = parseFloat(row[qc]);
     if(isNaN(q)||q===0) continue;
+    const amt = ac>=0 ? parseFloat(row[ac]) : NaN;
     raw.push({name:String(nm).trim(), uom: uc>=0?String(row[uc]??"").trim():"", date: dc>=0?toISO(row[dc]):null,
-              bill: bc>=0?String(row[bc]??"").trim():"", code: cc>=0?String(row[cc]??"").trim():"", qty:Math.abs(q)});
+              bill: bc>=0?String(row[bc]??"").trim():"", code: cc>=0?String(row[cc]??"").trim():"", qty:Math.abs(q),
+              amount: isNaN(amt)?null:Math.abs(amt)});
   }
   if(!raw.length){ toast("No product and quantity rows found in that file"); return; }
   /* Matching is strict on pack size. A line matches only an item whose UOM is
@@ -2478,16 +2690,18 @@ function aggregate(){
                  : (l.itemId!=null && p.remap["i"+l.itemId]!==undefined) ? p.remap["i"+l.itemId] : l.itemId;
     const key = mapped!=null ? "i"+mapped : rk;
     if(!agg.has(key)) agg.set(key,{key, raw:l.name, uom:l.uom, code:l.code||"", reason:l.reason, known:l.known||[],
-                                   qty:0, delta:0, dup:0, rev:0, itemId:mapped, days:{}, bills:{}});
+                                   qty:0, delta:0, dup:0, rev:0, itemId:mapped, days:{}, bills:{}, amtDays:{}});
     const a = agg.get(key), d = l.date || p.sel || todayStr();
     a.qty = Math.round((a.qty+l.qty)*100)/100;
     if(useBillProtection && l.bill){
       const bk = l.bill+"§"+key;
       a.bills[bk] = Math.round(((a.bills[bk]||0)+l.qty)*100)/100;
       a.bills[bk+"@d"] = d;
+      if(l.amount!=null) a.billAmt = Object.assign(a.billAmt||{}, {[bk]: Math.round(((a.billAmt?.[bk]||0)+l.amount)*100)/100});
     } else {
       a.delta = Math.round((a.delta+l.qty)*100)/100;
       a.days[d] = Math.round(((a.days[d]||0)+l.qty)*100)/100;
+      if(l.amount!=null) a.amtDays[d] = Math.round(((a.amtDays[d]||0)+l.amount)*100)/100;
     }
   }
   if(useBillProtection){
@@ -2495,10 +2709,21 @@ function aggregate(){
       for(const bk of Object.keys(a.bills)){
         if(bk.endsWith("@d")) continue;
         const fq = a.bills[bk], prev = state.bills[bk], d = a.bills[bk+"@d"];
-        if(prev===undefined){ a.delta=Math.round((a.delta+fq)*100)/100; a.days[d]=Math.round(((a.days[d]||0)+fq)*100)/100; }
+        const amt = a.billAmt?.[bk];
+        /* A revision only tells us the new bill total, not the amount already
+           counted last time (revenue isn't diffed the way qty is —there's no
+           "previous amount" kept anywhere to diff against). Recording the full
+           new amount on a revision slightly over-counts revenue against a bill
+           seen before, but that's rarer and far better than the alternative
+           this replaced: silently dropping the revenue entirely. */
+        if(prev===undefined){
+          a.delta=Math.round((a.delta+fq)*100)/100; a.days[d]=Math.round(((a.days[d]||0)+fq)*100)/100;
+          if(amt!=null) a.amtDays[d]=Math.round(((a.amtDays[d]||0)+amt)*100)/100;
+        }
         else if(Math.abs(prev-fq)<0.001){ a.dup++; }
         else { const diff=Math.round((fq-prev)*100)/100; a.delta=Math.round((a.delta+diff)*100)/100;
-               a.days[d]=Math.round(((a.days[d]||0)+diff)*100)/100; a.rev++; }
+               a.days[d]=Math.round(((a.days[d]||0)+diff)*100)/100; a.rev++;
+               if(amt!=null) a.amtDays[d]=Math.round(((a.amtDays[d]||0)+amt)*100)/100; }
       }
     }
   }
@@ -2604,13 +2829,16 @@ function applyImport(){
       if(!(rk in roll)) roll[rk] = state.bills[rk]===undefined ? null : state.bills[rk];
       state.bills[rk] = l.bills[bk];
     }
-    if(l.delta===0) continue;
-    for(const [d,q] of Object.entries(l.days)){
-      if(!q) continue;
-      if(!hist) it.stock = Math.round((it.stock-q)*100)/100;
-      const t = newTx({ts:Date.now(), date:d, itemId:it.id, type:"sale", qty:-q, note:pending.fname, b});
+    if(l.delta===0 && !Object.keys(l.amtDays||{}).length) continue;
+    const days = new Set([...Object.keys(l.days), ...Object.keys(l.amtDays||{})]);
+    for(const d of days){
+      const q = l.days[d], amt = (l.amtDays||{})[d];
+      if(!q && amt==null) continue;
+      if(q && !hist) it.stock = Math.round((it.stock-q)*100)/100;
+      const t = newTx({ts:Date.now(), date:d, itemId:it.id, type:"sale", qty:-(q||0), note:pending.fname, b});
       if(hist) t.h=1;
-      state.tx.push(t); tot+=q;
+      if(amt!=null) t.amount=amt;
+      state.tx.push(t); tot+=(q||0);
     }
     n++;
     if(!hist && it.stock<0) neg.push(it.name);
@@ -3039,6 +3267,7 @@ function render(){
   renderStocktake();
   renderCount();
   renderCook();
+  renderSalesView();
   renderLog();
   renderSetup();
 }
@@ -3051,6 +3280,9 @@ document.addEventListener("click", e=>{ if(!e.target.closest("#deptbtn")) closeD
 document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeDeptMenu(); });
 $("#c-store").addEventListener("change", renderCount);
 $("#c-scope").addEventListener("change", renderCount);
+["#salesview-from","#salesview-to","#salesview-cat"].forEach(s=>{
+  $(s).addEventListener("change", renderSalesView);
+});
 ["#s-q","#s-filter","#s-cat","#s-store"].forEach(s=>{
   $(s).addEventListener(s==="#s-q"?"input":"change", renderStock);
 });
