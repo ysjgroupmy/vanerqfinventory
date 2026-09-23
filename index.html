@@ -198,6 +198,7 @@ th.num{text-align:right}
 td{padding:8px 12px;border-bottom:1px solid var(--rule);vertical-align:middle}
 tbody tr:last-child td{border-bottom:none}
 tbody tr:hover td{background:var(--panel-2)}
+tr.rowlink{cursor:pointer}
 td.name{min-width:190px}
 .sub{display:block;font-size:11px;color:var(--ink-3);font-family:var(--f-mono);margin-top:1px}
 tr.sev-crit td:first-child{box-shadow:inset 3px 0 0 var(--crit)}
@@ -308,6 +309,33 @@ textarea{width:100%;resize:vertical;font-family:var(--f-mono);font-size:12px;lin
 .kv:last-child{border-bottom:none}
 .kv b{font-family:var(--f-mono);font-weight:600}
 
+/* ---------------- racks board (warehouse) ---------------- */
+.rk-row{margin-bottom:18px}
+.rk-row-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin-bottom:6px;padding-left:1px}
+.rk-row-b{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start}
+.rk-col{background:var(--panel);border:1px solid var(--rule);flex:0 0 150px;width:150px;display:flex;flex-direction:column}
+.rk-col.open{flex:0 0 240px;width:240px;max-height:calc(100vh - 220px)}
+.rk-col-h{display:flex;align-items:center;gap:4px;padding:6px 8px;background:var(--panel-2);font-size:12px;cursor:pointer;user-select:none}
+.rk-col.open .rk-col-h{border-bottom:1px solid var(--rule)}
+.rk-col-h .xbtn{width:auto;border:none;background:none;padding:2px 4px;font-size:10.5px}
+.rk-chev{flex:none;width:10px;font-size:9px;color:var(--ink-3)}
+.rk-warn{color:var(--warn)!important;font-weight:700}
+.rk-col-b{flex:1;overflow-y:auto;padding:6px;display:flex;flex-direction:column;gap:7px;min-height:44px}
+.rk-lvl-h{display:flex;align-items:center;gap:5px;padding:0 2px 3px;font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:var(--ink-3)}
+.rk-lvl-h .xbtn{margin-left:auto;width:auto;border:none;background:none;padding:1px 4px;font-size:9.5px;text-transform:none;letter-spacing:normal}
+.rk-lvl-b{display:flex;flex-wrap:wrap;gap:5px;min-height:32px;padding:3px;border:1px dashed transparent;transition:background .12s,border-color .12s}
+.rk-lvl-b.over{background:var(--accent-ink);border-color:var(--accent)}
+.rk-pos{display:flex;flex-direction:column;align-items:center;gap:1px}
+.rk-pos-n{font-family:var(--f-mono);font-size:8.5px;color:var(--ink-3)}
+.rk-card{background:var(--panel-2);border:1px solid var(--rule-2);padding:5px 6px;cursor:grab;font-size:11px;width:92px}
+.rk-card:active{cursor:grabbing}
+.rk-card.dragging{opacity:.35}
+.rk-card-top{line-height:1.2;word-break:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rk-card-qty{display:flex;gap:4px;margin-top:4px}
+.rk-card-qty label{flex:1;display:flex;flex-direction:column;gap:1px;font-size:8.5px;color:var(--ink-3);min-width:0}
+.rk-card-qty input{width:100%;padding:1px 3px;font-size:10.5px}
+.rk-add-slot{width:92px;min-height:32px;border:1.5px dashed var(--rule-2);display:flex;align-items:center;justify-content:center;color:var(--ink-3);font-size:14px}
+
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition-duration:.01ms!important}}
 @media(max-width:860px){
   .shell{flex-direction:column}
@@ -343,6 +371,8 @@ textarea{width:100%;resize:vertical;font-family:var(--f-mono);font-size:12px;lin
 <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="1.5"/><path d="M15 9V4.5a1.5 1.5 0 0 0-1.5-1.5H4.5A1.5 1.5 0 0 0 3 4.5v9A1.5 1.5 0 0 0 4.5 15H9"/></symbol>
 <symbol id="i-count" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="1.5"/><path d="M9 4V2.8h6V4"/><path d="M9 10h6M9 14h6M9 18h3"/></symbol>
 <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V4M4 20h16"/><path d="M8.5 20v-6M13 20V8M17.5 20v-9"/></symbol>
+<symbol id="i-rack" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></symbol>
+<symbol id="i-truck" viewBox="0 0 24 24"><path d="M3 7h11v9H3z"/><path d="M14 10h4l3 3v3h-7z"/><circle cx="7.5" cy="18.3" r="1.7"/><circle cx="17.5" cy="18.3" r="1.7"/></symbol>
 </defs></svg>
 
 <div id="gate-setup" class="gate">
@@ -386,15 +416,18 @@ textarea{width:100%;resize:vertical;font-family:var(--f-mono);font-size:12px;lin
 
 <div class="shell">
   <nav class="rail" id="rail">
-    <button data-page="panel" class="active"><span class="st">01</span><svg class="ic"><use href="#i-panel"/></svg>Panel<span class="dot"></span></button>
+    <button data-page="panel" data-scope="kitchen" class="active"><span class="st">01</span><svg class="ic"><use href="#i-panel"/></svg>Panel<span class="dot"></span></button>
     <button data-page="stock"><span class="st">02</span><svg class="ic"><use href="#i-stock"/></svg>Stock</button>
-    <button data-page="stocktake"><span class="st">03</span><svg class="ic"><use href="#i-clip"/></svg>Stocktake<span class="dot"></span></button>
-    <button data-page="count"><span class="st">04</span><svg class="ic"><use href="#i-count"/></svg>Count</button>
-    <button data-page="cook"><span class="st">05</span><svg class="ic"><use href="#i-cook"/></svg>Cook</button>
-    <button data-page="sales"><span class="st">06</span><svg class="ic"><use href="#i-sales"/></svg>Sales In</button>
-    <button data-page="salesview"><span class="st">07</span><svg class="ic"><use href="#i-chart"/></svg>Sales</button>
-    <button data-page="log"><span class="st">08</span><svg class="ic"><use href="#i-log"/></svg>Log</button>
-    <button data-page="setup"><span class="st">09</span><svg class="ic"><use href="#i-setup"/></svg>Setup</button>
+    <button data-page="racks" data-scope="warehouse"><span class="st">03</span><svg class="ic"><use href="#i-rack"/></svg>Racks</button>
+    <button data-page="stocktake"><span class="st">04</span><svg class="ic"><use href="#i-clip"/></svg>Stocktake<span class="dot"></span></button>
+    <button data-page="count"><span class="st">05</span><svg class="ic"><use href="#i-count"/></svg>Count</button>
+    <button data-page="cook" data-scope="kitchen"><span class="st">06</span><svg class="ic"><use href="#i-cook"/></svg>Cook</button>
+    <button data-page="sales" data-scope="kitchen"><span class="st">07</span><svg class="ic"><use href="#i-sales"/></svg>Sales In</button>
+    <button data-page="salesview" data-scope="kitchen"><span class="st">08</span><svg class="ic"><use href="#i-chart"/></svg>Sales</button>
+    <button data-page="issue" data-scope="warehouse"><span class="st">09</span><svg class="ic"><use href="#i-truck"/></svg>Issue Stock</button>
+    <button data-page="issuesum" data-scope="warehouse"><span class="st">10</span><svg class="ic"><use href="#i-chart"/></svg>Issued Summary</button>
+    <button data-page="log"><span class="st">11</span><svg class="ic"><use href="#i-log"/></svg>Log</button>
+    <button data-page="setup"><span class="st">12</span><svg class="ic"><use href="#i-setup"/></svg>Setup</button>
     <div class="rail-foot" id="rail-foot">Export a backup from Setup regularly.</div>
   </nav>
 
@@ -442,7 +475,21 @@ textarea{width:100%;resize:vertical;font-family:var(--f-mono);font-size:12px;lin
     <div class="panel"><div class="scroll" id="stock-table"></div></div>
   </section>
 
-  <!-- ======== 03 STOCKTAKE ======== -->
+  <!-- ======== 03 RACKS (warehouse) ======== -->
+  <section id="page-racks" class="hidden">
+    <div class="phead">
+      <div><h1>Racks</h1><div class="psub">Rack → Level → Position, same as the shelf labels (R8A, Level 1, Position 01). Click a rack to open it, drag a card onto any position on any level of any open rack to move it there —the change saves and syncs immediately. <b>+lvl</b> stages an empty level, <b>Add rack</b> stages a whole empty rack, ahead of anything being placed on them.</div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input id="rk-q" type="search" placeholder="Search name / code—" style="min-width:180px">
+        <button class="btn sm" onclick="expandAllRacks()">Expand all</button>
+        <button class="btn sm" onclick="collapseAllRacks()">Collapse all</button>
+        <button class="btn primary" onclick="promptAddRack()"><svg class="ic"><use href="#i-plus"/></svg>Add rack</button>
+      </div>
+    </div>
+    <div id="racks-board"></div>
+  </section>
+
+  <!-- ======== 04 STOCKTAKE ======== -->
   <section id="page-stocktake" class="hidden">
     <div class="phead">
       <div><h1>Stocktake</h1><div class="psub">Build the list of items to go and count, print the paper for the floor, then key the figures in on station 04. The list is shared and belongs to the department you are in.</div></div>
@@ -518,7 +565,61 @@ textarea{width:100%;resize:vertical;font-family:var(--f-mono);font-size:12px;lin
     </div>
   </section>
 
-  <!-- ======== 05 LOG ======== -->
+  <!-- ======== 09 ISSUE STOCK (warehouse) ======== -->
+  <section id="page-issue" class="hidden">
+    <div class="phead"><div><h1>Issue Stock</h1><div class="psub">Record stock leaving this warehouse for another company. Deducts from the item's balance immediately and keeps a running history per company.</div></div></div>
+    <div class="panel">
+      <div class="panel-h"><h2>New issue</h2></div>
+      <div class="panel-b">
+        <div class="field"><label>Item</label>
+          <input id="is-item-q" list="is-item-list" placeholder="Search name / code—" autocomplete="off">
+          <datalist id="is-item-list"></datalist>
+        </div>
+        <div class="field"><label>Qty</label><input id="is-qty" type="number" step="any" min="0"></div>
+        <div class="field"><label>Going to</label>
+          <input id="is-co" list="is-co-list" placeholder="Company name">
+          <datalist id="is-co-list"></datalist>
+        </div>
+        <div class="field"><label>Date</label><input type="date" id="is-date"></div>
+        <div class="field"><label>Note (optional)</label><input id="is-note" placeholder="DO number, driver, etc."></div>
+        <button class="btn primary" onclick="submitIssue()"><svg class="ic"><use href="#i-truck"/></svg>Issue stock</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><h2>Recent issues</h2>
+        <select id="is-co-filter" style="margin-left:auto"><option value="all">All companies</option></select>
+      </div>
+      <div class="scroll" id="issue-table"></div>
+    </div>
+  </section>
+
+  <!-- ======== 10 ISSUED SUMMARY (warehouse) ======== -->
+  <section id="page-issuesum" class="hidden">
+    <div class="phead"><div><h1>Issued Summary</h1><div class="psub">Total stock issued to each company over a period —defaults to the current month.</div></div>
+      <button class="btn" onclick="exportIssueSummaryCsv()"><svg class="ic"><use href="#i-print"/></svg>Export CSV</button></div>
+    <div class="bar">
+      <span class="lbl">Range</span>
+      <button class="btn sm" data-range="month" onclick="setIssueSumRange('month')">This month</button>
+      <button class="btn sm" data-range="lastmonth" onclick="setIssueSumRange('lastmonth')">Last month</button>
+      <button class="btn sm" data-range="year" onclick="setIssueSumRange('year')">This year</button>
+      <button class="btn sm" data-range="all" onclick="setIssueSumRange('all')">All time</button>
+      <span style="width:1px;height:20px;background:var(--rule)"></span>
+      <input type="date" id="isum-from"> <span class="dim">to</span> <input type="date" id="isum-to">
+    </div>
+    <div class="alarms" id="isum-cards"></div>
+    <div class="panel">
+      <div class="panel-h"><h2>By company</h2><span class="meta">Click a row, or use the filter below, to break one down by item</span></div>
+      <div class="scroll" id="isum-co-table"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><h2>By item</h2>
+        <select id="isum-co-drill" style="margin-left:auto"><option value="all">All companies</option></select>
+      </div>
+      <div class="scroll" id="isum-item-table"></div>
+    </div>
+  </section>
+
+  <!-- ======== 10 LOG ======== -->
   <section id="page-log" class="hidden">
     <div class="phead"><div><h1>Movement Log</h1><div class="psub">Every change to a balance, newest first.</div></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -526,6 +627,7 @@ textarea{width:100%;resize:vertical;font-family:var(--f-mono);font-size:12px;lin
           <option value="all">All movements</option>
           <option value="production">Cooks</option>
           <option value="sale">Sales out</option>
+          <option value="issue">Issued</option>
           <option value="adjust">Corrections</option>
         </select>
         <button class="btn danger" onclick="clearLog()">Clear log</button>
@@ -546,14 +648,15 @@ textarea{width:100%;resize:vertical;font-family:var(--f-mono);font-size:12px;lin
         <div class="panel">
           <div class="panel-h"><h2>Item list</h2></div>
           <div class="panel-b" id="setup-items">
-            <p class="dim" style="font-size:12.5px;margin-bottom:10px">Upload a sheet with one row per item. Recognised columns: <span class="mono">name / 名称</span>, <span class="mono">uom / 单位</span>, <span class="mono">stock / 库存</span>, <span class="mono">min / 最低</span>, <span class="mono">code</span>, <span class="mono">category</span>. Matching names update in place, new names are added.</p>
+            <p class="dim" style="font-size:12.5px;margin-bottom:10px">Upload a sheet with one row per item. Recognised columns: <span class="mono">name / 名称</span>, <span class="mono">uom / 单位</span>, <span class="mono">stock / 库存 / physical qty</span>, <span class="mono">min / 最低</span>, <span class="mono">code</span>, <span class="mono">category</span>, <span class="mono">storage / rack position</span>, <span class="mono">loose qty</span>. Matching names update in place, new names are added. On a warehouse department, any rack position found in the sheet is added to the Racks board automatically.</p>
             <div class="drop" id="drop-items" style="padding:20px 14px;margin-bottom:10px">
               <b>Drop the item list</b>or click to choose a file
               <input type="file" id="items-file" accept=".xlsx,.xls,.csv" style="display:none">
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button class="btn primary" id="btn-reload-base" onclick="reloadBase()">Reload the 0428 list</button>
-              <button class="btn" onclick="exportItemTemplate()">Download blank template</button>
+              <button class="btn" id="btn-template-kitchen" onclick="exportItemTemplate()">Download blank template</button>
+              <button class="btn" id="btn-template-warehouse" onclick="exportWarehouseTemplate()">Download rack template</button>
               <button class="btn" onclick="loadDemo()">Load example data</button>
             </div>
             <p class="dim" style="font-size:12px;margin-top:10px" id="reload-note"><b style="color:var(--ink)">Reload the 0428 list</b> tops up anything missing from the list originally supplied, without touching balances you have already counted. Categories come from the first two digits of the item code.</p>
@@ -703,7 +806,7 @@ function toast(m){ const t=$("#toast"); t.textContent=m; t.classList.add("show")
 
 let state = null;
 function defaultState(){
-  return { v:1, items:[], tx:[], plan:[], bills:{}, nextId:1, planSeq:1, batchSeq:1, txSeq:1,
+  return { v:1, items:[], tx:[], plan:[], bills:{}, racks:[], levels:[], nextId:1, planSeq:1, batchSeq:1, txSeq:1,
            capacity:600, coverTarget:7, prodHead:"Ho Zi Zong", stocktake:[], demo:false,
            lastBatch:null, lastBatchBills:null };
 }
@@ -890,7 +993,7 @@ let DB_READY = false;
 let syncMode = "starting";
 let syncNote = "";
 
-const cache = { items:new Map(), tx:new Map(), plan:new Map(), bills:new Map(), settings:null };
+const cache = { items:new Map(), tx:new Map(), plan:new Map(), bills:new Map(), racks:new Map(), levels:new Map(), settings:null };
 let persisted = null, dirty=false, flushing=false, needRebuild=false, flushErrorShown=false;
 let flushTimer=null, dataTimer=null, firstLoad=false, applying=false;
 let deptChannel=null, deptRosterChannel=null;
@@ -900,7 +1003,8 @@ let dept = null;
 const DKEY = "qf_active_dept";
 function readDeptPref(){ try{ return localStorage.getItem(DKEY)||null; }catch(e){ return null; } }
 function writeDeptPref(){ try{ localStorage.setItem(DKEY, dept); }catch(e){} }
-function activeDept(){ return depts.find(d=>d.id===dept) || {id:dept, code:dept||"—", name:"", company:""}; }
+function activeDept(){ return depts.find(d=>d.id===dept) || {id:dept, code:dept||"—", name:"", company:"", type:"kitchen"}; }
+function isWarehouse(){ return activeDept().type==="warehouse"; }
 function dkey(){ return "qf0428_mirror_v1_"+(dept||"none"); }
 /* A read-through local mirror, purely for instant paint / resilience if the
    connection drops —Supabase is always the source of truth once reachable. */
@@ -910,17 +1014,27 @@ function readMirror(){ try{ const r=localStorage.getItem(dkey()); const o=r?JSON
 /* ---------- row <-> state field mapping ---------- */
 function itemRow(i){ return {id:i.id, dept_id:dept, name:i.name, uom:i.uom||"", code:i.code||"", store:i.store||"",
   cat:i.cat||"Uncategorised", stock:i.stock||0, min:i.min||0, base_daily:i.baseDaily||0,
-  preorder:!!i.preorder, stopped:!!i.stopped, watch:!!i.watch, counted:!!i.counted}; }
+  preorder:!!i.preorder, stopped:!!i.stopped, watch:!!i.watch, counted:!!i.counted,
+  loose_qty:i.looseQty||0, level:i.level||"1", slot:i.slot||0}; }
 function rowItem(r){ return {id:Number(r.id), name:r.name, uom:r.uom, code:r.code, store:r.store, cat:r.cat,
   stock:Number(r.stock), min:Number(r.min), baseDaily:Number(r.base_daily),
-  preorder:!!r.preorder, stopped:!!r.stopped, watch:!!r.watch, counted:!!r.counted}; }
+  preorder:!!r.preorder, stopped:!!r.stopped, watch:!!r.watch, counted:!!r.counted,
+  looseQty:Number(r.loose_qty||0), level:r.level||"1", slot:Number(r.slot||0)}; }
 
 function txRow(t){ return {id:t.id, dept_id:dept, ts:t.ts, date:t.date, item_id:t.itemId, type:t.type,
-  qty:t.qty, note:t.note||"", batch:t.b??null, planned:(t.planned??null), hist:!!t.h, amount:(t.amount??null)}; }
+  qty:t.qty, note:t.note||"", batch:t.b??null, planned:(t.planned??null), hist:!!t.h, amount:(t.amount??null),
+  dest_company:t.destCompany||null}; }
 function rowTx(r){ const t={id:Number(r.id), ts:Number(r.ts), date:r.date, itemId:r.item_id==null?null:Number(r.item_id),
   type:r.type, qty:Number(r.qty), note:r.note||"", b:r.batch==null?undefined:Number(r.batch)};
   if(r.planned!=null) t.planned=Number(r.planned); if(r.hist) t.h=1;
-  if(r.amount!=null) t.amount=Number(r.amount); return t; }
+  if(r.amount!=null) t.amount=Number(r.amount); if(r.dest_company) t.destCompany=r.dest_company; return t; }
+
+function rackRow(rk){ return {dept_id:dept, name:rk.name, sort_order:rk.order||0, row_no:rk.row||1}; }
+function rowRack(r){ return {name:r.name, order:Number(r.sort_order||0), row:Number(r.row_no||1)}; }
+
+function lvKey(rack,level){ return rack+"\u0001"+level; }
+function levelRow(lv){ return {dept_id:dept, rack:lv.rack, level:lv.level, sort_order:lv.order||0}; }
+function rowLevel(r){ return {rack:r.rack, level:r.level, order:Number(r.sort_order||0)}; }
 
 function planRow(p){ return {id:p.id, dept_id:dept, date:p.date, item_id:p.itemId, qty:p.qty, done:!!p.done}; }
 function rowPlan(r){ return {id:Number(r.id), date:r.date, itemId:Number(r.item_id), qty:Number(r.qty), done:!!r.done}; }
@@ -953,6 +1067,8 @@ function snapshotOf(x){
     tx:    new Map(x.tx.map(t=>[t.id, ser(txRow(t))])),
     plan:  new Map(x.plan.map(p=>[p.id, ser(planRow(p))])),
     bills: new Map(billRowsFromState(x.bills).map(r=>[r.bill_key, ser(r)])),
+    racks: new Map((x.racks||[]).map(rk=>[rk.name, ser(rackRow(rk))])),
+    levels: new Map((x.levels||[]).map(lv=>[lvKey(lv.rack,lv.level), ser(levelRow(lv))])),
     settings: ser(settingsRow(x))
   };
 }
@@ -962,6 +1078,8 @@ function baselineFromCache(){
     tx:    new Map([...cache.tx].map(([id,r])=>[Number(id), ser(r)])),
     plan:  new Map([...cache.plan].map(([id,r])=>[Number(id), ser(r)])),
     bills: new Map([...cache.bills].map(([k,r])=>[k, ser(r)])),
+    racks: new Map([...cache.racks].map(([k,r])=>[k, ser(r)])),
+    levels: new Map([...cache.levels].map(([k,r])=>[k, ser(r)])),
     settings: cache.settings ? ser(cache.settings) : ser(settingsRow(defaultState()))
   };
 }
@@ -973,6 +1091,8 @@ function stateFromCache(){
   s.plan  = [...cache.plan.values()].map(rowPlan);
   s.bills = {};
   for(const r of cache.bills.values()){ s.bills[r.bill_key]=Number(r.qty); if(r.date) s.bills[r.bill_key+"@d"]=r.date; }
+  s.racks = [...cache.racks.values()].map(rowRack);
+  s.levels = [...cache.levels.values()].map(rowLevel);
   /* The id counters (nextId/txSeq/planSeq) live in `settings` and only reach
      the server on a debounced flush, same as everything else —if that flush
      was ever missed (tab closed mid-debounce, connection drop), the counter
@@ -1055,6 +1175,23 @@ async function runFlush(){
     if(billsUp.length) jobs.push(sb.from("bills").upsert(billsUp, {onConflict:"dept_id,bill_key"}));
     if(billsDel.length) jobs.push(sb.from("bills").delete().eq("dept_id",dept).in("bill_key",billsDel));
 
+    const racksUp=[], racksDel=[];
+    for(const rk of state.racks){ if(persisted.racks.get(rk.name)!==now.racks.get(rk.name)) racksUp.push(rackRow(rk)); }
+    for(const k of persisted.racks.keys()) if(!now.racks.has(k)) racksDel.push(k);
+    const racksUpD = dedupe(racksUp, r=>r.name);
+    if(racksUpD.length) jobs.push(sb.from("racks").upsert(racksUpD, {onConflict:"dept_id,name"}));
+    if(racksDel.length) jobs.push(sb.from("racks").delete().eq("dept_id",dept).in("name",racksDel));
+
+    const levelsUp=[], levelsDel=[];
+    for(const lv of state.levels){ const k=lvKey(lv.rack,lv.level); if(persisted.levels.get(k)!==now.levels.get(k)) levelsUp.push(levelRow(lv)); }
+    for(const k of persisted.levels.keys()) if(!now.levels.has(k)) levelsDel.push(k);
+    const levelsUpD = dedupe(levelsUp, r=>lvKey(r.rack,r.level));
+    if(levelsUpD.length) jobs.push(sb.from("levels").upsert(levelsUpD, {onConflict:"dept_id,rack,level"}));
+    if(levelsDel.length) jobs.push(...levelsDel.map(k=>{
+      const [rack,level] = k.split("\u0001");
+      return sb.from("levels").delete().eq("dept_id",dept).eq("rack",rack).eq("level",level);
+    }));
+
     if(persisted.settings !== now.settings) jobs.push(sb.from("settings").upsert(settingsRow(state), {onConflict:"dept_id"}));
 
     if(jobs.length){
@@ -1118,9 +1255,11 @@ async function initStorage(){
 
   const { data: deptRows, error: deptErr } = await sb.from("departments").select("*").order("sort_order").order("id");
   if(deptErr){ setSync("error", deptErr.message); toast("Could not reach Supabase: "+deptErr.message); return; }
-  depts = (deptRows||[]).map(d=>({id:d.id, code:d.code, name:d.name, company:d.company, order:d.sort_order}));
-  if(!depts.length){ await createDept("0428","Sauce Production","Quan Feng Food Supply"); return; }
+  depts = (deptRows||[]).map(d=>({id:d.id, code:d.code, name:d.name, company:d.company, order:d.sort_order, type:d.type||"kitchen"}));
+  if(!depts.length){ await createDept("0428","Sauce Production","Quan Feng Food Supply","kitchen"); return; }
   if(!dept || !depts.some(d=>d.id===dept)){ dept = depts[0].id; writeDeptPref(); }
+  applyDeptTypeNav();
+  loadExpandedRacks();
   subscribeDeptRoster();
   await subscribeDept();
 }
@@ -1130,8 +1269,8 @@ function subscribeDeptRoster(){
   deptRosterChannel = sb.channel("departments-roster")
     .on("postgres_changes", {event:"*", schema:"public", table:"departments"}, async ()=>{
       const { data } = await sb.from("departments").select("*").order("sort_order").order("id");
-      depts = (data||[]).map(d=>({id:d.id, code:d.code, name:d.name, company:d.company, order:d.sort_order}));
-      renderTopbar(); renderSetup();
+      depts = (data||[]).map(d=>({id:d.id, code:d.code, name:d.name, company:d.company, order:d.sort_order, type:d.type||"kitchen"}));
+      applyDeptTypeNav(); renderTopbar(); renderSetup();
     })
     .subscribe();
 }
@@ -1154,20 +1293,22 @@ async function fetchAllRows(table, deptId, orderCol){
 
 async function subscribeDept(){
   if(deptChannel){ try{ await sb.removeChannel(deptChannel); }catch(e){} deptChannel=null; }
-  cache.items=new Map(); cache.tx=new Map(); cache.plan=new Map(); cache.bills=new Map(); cache.settings=null;
+  cache.items=new Map(); cache.tx=new Map(); cache.plan=new Map(); cache.bills=new Map(); cache.racks=new Map(); cache.levels=new Map(); cache.settings=null;
   firstLoad=false; persisted=null; dirty=false; DB_READY=false; flushErrorShown=false;
   setSync("starting");
 
   const mirror = readMirror();
 
-  const [itemsRes, txRes, planRes, billsRes, setRes] = await Promise.all([
+  const [itemsRes, txRes, planRes, billsRes, racksRes, levelsRes, setRes] = await Promise.all([
     fetchAllRows("items", dept, "id"),
     fetchAllRows("tx", dept, "id"),
     fetchAllRows("plan", dept, "id"),
     fetchAllRows("bills", dept, "bill_key"),
+    fetchAllRows("racks", dept, "sort_order"),
+    fetchAllRows("levels", dept, "sort_order"),
     sb.from("settings").select("*").eq("dept_id",dept).maybeSingle()
   ]);
-  const firstErr = itemsRes.error || txRes.error || planRes.error || billsRes.error || setRes.error;
+  const firstErr = itemsRes.error || txRes.error || planRes.error || billsRes.error || racksRes.error || levelsRes.error || setRes.error;
   if(firstErr){ setSync("error", firstErr.message); toast("Could not load this department: "+firstErr.message); return; }
 
   // Never turn a transient empty read into an apparent wipe. Keep the last
@@ -1188,6 +1329,8 @@ async function subscribeDept(){
   for(const r of txRes.data||[]) cache.tx.set(Number(r.id), r);
   for(const r of planRes.data||[]) cache.plan.set(Number(r.id), r);
   for(const r of billsRes.data||[]) cache.bills.set(r.bill_key, r);
+  for(const r of racksRes.data||[]) cache.racks.set(r.name, r);
+  for(const r of levelsRes.data||[]) cache.levels.set(lvKey(r.rack,r.level), r);
   cache.settings = setRes.data || null;
   if(!cache.settings){
     const fresh = settingsRow(defaultState());
@@ -1216,6 +1359,14 @@ async function subscribeDept(){
       if(p.eventType==="DELETE") cache.bills.delete(p.old.bill_key); else cache.bills.set(p.new.bill_key, p.new);
       onStoreData();
     })
+    .on("postgres_changes", {event:"*", schema:"public", table:"racks", filter:filt}, p=>{
+      if(p.eventType==="DELETE") cache.racks.delete(p.old.name); else cache.racks.set(p.new.name, p.new);
+      onStoreData();
+    })
+    .on("postgres_changes", {event:"*", schema:"public", table:"levels", filter:filt}, p=>{
+      if(p.eventType==="DELETE") cache.levels.delete(lvKey(p.old.rack,p.old.level)); else cache.levels.set(lvKey(p.new.rack,p.new.level), p.new);
+      onStoreData();
+    })
     .on("postgres_changes", {event:"*", schema:"public", table:"settings", filter:filt}, p=>{
       cache.settings = p.eventType==="DELETE" ? null : p.new;
       onStoreData();
@@ -1240,23 +1391,28 @@ async function switchDept(id){
   countDraft = {}; cookLines = []; pending = null; stockView = [];
   const mirror = readMirror();
   state = mirror ? Object.assign(defaultState(), mirror) : defaultState();
+  applyDeptTypeNav();
+  loadExpandedRacks();
   setSync("starting"); render();
   await subscribeDept();
   const d = depts.find(x=>x.id===id);
   toast("Switched to " + (d ? d.code + " " + (d.name||"") : id));
 }
-async function createDept(code, name, company){
+async function createDept(code, name, company, type){
   code = String(code||"").trim(); if(!code){ toast("A department code is required"); return; }
   if(depts.some(d=>d.id===code)){ toast("Department "+code+" already exists"); return; }
+  type = (type==="warehouse") ? "warehouse" : "kitchen";
   const order = (depts.length?Math.max(...depts.map(d=>d.order||0)):0)+1;
   const { error } = await sb.from("departments").insert({id:code, code, name:String(name||"").trim(),
-    company:String(company||"").trim(), sort_order:order});
+    company:String(company||"").trim(), sort_order:order, type});
   if(error){ toast("Could not create department: "+error.message); return; }
   toast("Department "+code+" created");
   const { data } = await sb.from("departments").select("*").order("sort_order").order("id");
-  depts = (data||[]).map(d=>({id:d.id, code:d.code, name:d.name, company:d.company, order:d.sort_order}));
+  depts = (data||[]).map(d=>({id:d.id, code:d.code, name:d.name, company:d.company, order:d.sort_order, type:d.type||"kitchen"}));
   subscribeDeptRoster();
   dept = code; writeDeptPref();
+  applyDeptTypeNav();
+  loadExpandedRacks();
   await subscribeDept();
 }
 async function renameDept(id){
@@ -2853,6 +3009,18 @@ function applyImport(){
 }
 
 /* ---------- item master import ---------- */
+/* "R1A1L01" -> rack "R1A", level "1", position 1 (left-to-right within that
+   level). The rack is whatever comes before the last run-of-digits+"L"+digits;
+   a label that doesn't follow that pattern (a flat zone like "CENTER", or a
+   rack name typed in by hand) becomes its own rack with everything on a
+   single implicit level "1", ordered by sheet row. */
+function parseRackPosition(raw){
+  const s = String(raw??"").trim();
+  if(!s) return {rack:"", level:"1", pos:0};
+  const m = s.match(/^(.+?)(\d+)L(\d+)$/i);
+  if(m) return {rack:m[1], level:String(parseInt(m[2],10)), pos:parseInt(m[3],10)};
+  return {rack:s, level:"1", pos:0};
+}
 function importItems(grid, fname){
   let hr=-1, c={};
   for(let r=0;r<Math.min(grid.length,12);r++){
@@ -2865,7 +3033,8 @@ function importItems(grid, fname){
     c.min   = pickCol(row,["min"],["minimum","reorder","safety","最低","安全"],null);
     c.code  = pickCol(row,["code"],["sku","编码","货号"],null);
     c.cat   = pickCol(row,["category"],["cat","group","类别","分类"],null);
-    c.store = pickCol(row,["storage"],["location","store","warehouse","仓","位置"],null);
+    c.store = pickCol(row,["storage"],["location","store","warehouse","仓","位置","rack","货位"],null);
+    c.loose = pickCol(row,["loose"],["散装"],null);
     c.base  = pickCol(row,["baseline"],["perday","usage","daily","日均"],null);
     break;
   }
@@ -2873,31 +3042,59 @@ function importItems(grid, fname){
   const get = (row,i) => i>=0 ? row[i] : null;
   const num = v => { const n=parseFloat(v); return isNaN(n)?0:n; };
   let added=0, updated=0;
+  const touchedRacks = new Set();
+  const touchedLevels = new Set();   // "rack\u0001level" pairs
   const byNU = new Map(state.items.map(i=>[keyNU(i.name, i.uom), i]));
   for(let r=hr+1;r<grid.length;r++){
     const row = grid[r]||[]; const nm = get(row,c.name);
     if(nm==null || String(nm).trim()==="" || isJunk(nm)) continue;
     const name = String(nm).trim(), uom = String(get(row,c.uom)??"").trim();
     const ex = byNU.get(keyNU(name, uom));
+    const pp = c.store>=0 ? parseRackPosition(get(row,c.store)) : null;
     if(ex){
       if(c.stock>=0) ex.stock = num(get(row,c.stock));
       if(c.min>=0)   ex.min   = num(get(row,c.min));
       if(c.code>=0)  ex.code  = String(get(row,c.code)??"").trim();
       if(c.cat>=0)   ex.cat   = String(get(row,c.cat)??"").trim() || ex.cat;
-      if(c.store>=0) ex.store = String(get(row,c.store)??"").trim() || ex.store;
+      if(pp && pp.rack){ ex.store = pp.rack; ex.level = pp.level; ex.slot = pp.pos||r; }
+      if(c.loose>=0) ex.looseQty = num(get(row,c.loose));
       if(c.base>=0)  ex.baseDaily = num(get(row,c.base));
       updated++;
     } else {
       const code = String(get(row,c.code)??"").trim();
-      const it = {id:state.nextId++, name, uom, code,
-        store:String(get(row,c.store)??"").trim(),
+      const it = {id:state.nextId++, name, uom, code, store:pp?pp.rack:"",
+        level:pp?pp.level:"1", slot:pp?(pp.pos||r):r,
         cat:String(get(row,c.cat)??"").trim() || CODE_CAT[code.slice(0,2)] || "Uncategorised",
         stock:num(get(row,c.stock)), min:num(get(row,c.min)), counted:c.stock>=0,
+        looseQty:c.loose>=0?num(get(row,c.loose)):0,
         baseDaily:num(get(row,c.base)), stopped:false};
       state.items.push(it); byNU.set(keyNU(name, uom), it); added++;
     }
+    if(pp && pp.rack){ touchedRacks.add(pp.rack); touchedLevels.add(lvKey(pp.rack, pp.level)); }
   }
   if(!added && !updated){ toast("No item rows found in that file"); return; }
+  /* A rack sheet's own Rack Position column is the most convenient way to
+     stand up the whole Racks board in one drop —register any rack (and each
+     of its levels) that showed up but doesn't have an entry yet, so none of
+     it is left "orphaned" (visible but unmanageable —can't be moved/removed)
+     on the board, and none of it can vanish later just because a level or
+     rack briefly ends up with nothing on it. New racks are placed by the
+     same row/position guess "Move rack" uses (R#A names on row 1, R#B and
+     everything else on row 2), sorted by the number in their name, so a
+     fresh import lands in reading order without manual tidying. */
+  if(isWarehouse() && touchedRacks.size){
+    const known = new Set(state.racks.map(r=>r.name));
+    const newNames = [...touchedRacks].filter(n=>!known.has(n))
+      .sort((a,b)=> defaultRackRow(a)-defaultRackRow(b) || rackSortKey(a)-rackSortKey(b) || a.localeCompare(b));
+    const orderByRow = {};
+    for(const r of state.racks){ const row=r.row||1; orderByRow[row] = Math.max(orderByRow[row]||0, r.order||0); }
+    for(const name of newNames){
+      const row = defaultRackRow(name);
+      orderByRow[row] = (orderByRow[row]||0)+1;
+      state.racks.push({name, order:orderByRow[row], row});
+    }
+    for(const k of touchedLevels){ const [rack,level] = k.split("\u0001"); registerLevel(rack, level); }
+  }
   state.demo = false;
   save(); render(); go("stock");
   toast("Loaded "+fname+" —"+added+" added, "+updated+" updated");
@@ -2916,6 +3113,518 @@ function exportItemTemplate(){
     + "46PS0R1ZVT00976,Pure Salt 盐,1kg/pkt,CENTER,,,\n";
   saveFile("0428-item-template.csv", "﻿"+csv, "text/csv;charset=utf-8");
 }
+/* Warehouse bulk-import template: header names match what importItems()/
+   parseRackPosition() read, so a filled-in copy round-trips cleanly —a
+   Rack Position of "R1A1L01" splits into rack R1A / level 1 / position 01
+   automatically, exactly like the Racks board. Existing racks on this board
+   are appended as a reference list —Product Name left blank on those rows
+   means importItems() skips them, they're just there to copy-paste codes
+   from, not data to import. */
+function exportWarehouseTemplate(){
+  const header = "Rack Position,Product Code,Product Name,UOM,Physical Qty,Loose Qty,Category\n";
+  const examples =
+    "R1A1L01,40MTKT1PVT02871,Maggi Tomato Ketchup Refill 美極番茄酱大包装,12x1.5kg/ctn,10,2,Sauces\n" +
+    "R1A1L02,,New product name goes here,1kg/pkt,0,0,\n" +
+    "CENTER,,Bulk item with no fixed shelf,2kg/pkt,0,0,\n";
+  const racks = rackList();
+  const legend = racks.length
+    ? ",,-- existing racks on this board, for reference —blank Product Name rows below are skipped on import --,,,,\n"
+      + racks.map(r=>`${r},,,,,,`).join("\n") + "\n"
+    : "";
+  saveFile((activeDept().code||"warehouse")+"-rack-item-template.csv", "﻿"+header+examples+legend, "text/csv;charset=utf-8");
+}
+
+/* ============================================================
+   WAREHOUSE — RACKS BOARD
+   Rack > Level > Position, three levels deep. A product's rack is
+   items.store (the same free-text location field kitchen departments
+   already use for the Stock page's location filter), its shelf level is
+   items.level, and its left-to-right spot on that level is items.slot.
+   state.racks / state.levels track which racks and rack+level combos exist
+   independently of items, so a rack or level added on purpose —or seen once
+   on an imported row— stays on the board even after everything on it is
+   moved away or deleted, instead of vanishing the moment it's empty.
+   ============================================================ */
+let dragItemId = null;
+/* Which racks are open, shown expanded on the board —a per-browser display
+   preference (localStorage, keyed by department), never synced to Supabase:
+   clicking around the board shouldn't write to the shared database. Search
+   opens matching racks on top of this without changing what's actually
+   stored, so clearing the search reverts to how you left the board. */
+let expandedRacks = new Set();
+function rkExpKey(){ return "qf_racks_open_"+(dept||"none"); }
+function loadExpandedRacks(){
+  try{ expandedRacks = new Set(JSON.parse(localStorage.getItem(rkExpKey())||"[]")); }
+  catch(e){ expandedRacks = new Set(); }
+}
+function saveExpandedRacks(){ try{ localStorage.setItem(rkExpKey(), JSON.stringify([...expandedRacks])); }catch(e){} }
+function toggleRackExpanded(name){
+  if(expandedRacks.has(name)) expandedRacks.delete(name); else expandedRacks.add(name);
+  saveExpandedRacks(); renderRacks();
+}
+function expandAllRacks(){
+  for(const name of rackList()) expandedRacks.add(name);
+  expandedRacks.add("Unassigned");
+  saveExpandedRacks(); renderRacks();
+}
+function collapseAllRacks(){ expandedRacks.clear(); saveExpandedRacks(); renderRacks(); }
+/* A rack not explicitly registered yet (only known because an item points
+   at it) gets a synthetic entry so it still shows up, sorted after every
+   registered rack in its row. */
+function racksExplicitOrSeen(){
+  const explicit = new Map(state.racks.map(r=>[r.name, r]));
+  const used = new Set(state.items.map(i=>(i.store||"").trim()).filter(Boolean));
+  for(const name of used) if(!explicit.has(name)) explicit.set(name, {name, order:1e9, row:defaultRackRow(name)});
+  return [...explicit.values()];
+}
+function rackList(){
+  return racksExplicitOrSeen()
+    .sort((a,b)=> (a.row||1)-(b.row||1) || (a.order||0)-(b.order||0) || a.name.localeCompare(b.name))
+    .map(r=>r.name);
+}
+/* Racks grouped into their rows (R1A..R9A on row 1, R1B..R5B + Center on
+   row 2, etc.), each row sorted by position —this is what the board itself
+   renders, as a real 2D layout rather than one long scrolling strip. */
+function racksByRow(){
+  const byRow = new Map();
+  for(const r of racksExplicitOrSeen()){
+    const row = r.row||1;
+    if(!byRow.has(row)) byRow.set(row, []);
+    byRow.get(row).push(r);
+  }
+  for(const arr of byRow.values()) arr.sort((a,b)=>(a.order||0)-(b.order||0) || a.name.localeCompare(b.name));
+  return [...byRow.entries()].sort((a,b)=>a[0]-b[0]).map(([row,racks])=>({row, racks:racks.map(r=>r.name)}));
+}
+/* Leading number in the rack name, for a sensible default order —"R7A"
+   sorts before "R10A" the way a person reading shelf labels expects. */
+function rackSortKey(name){
+  const m = String(name).match(/(\d+)/);
+  return m ? parseInt(m[1],10) : 1e9;
+}
+/* New racks default to row 1 if the name ends in "A" (matching the R#A /
+   R#B convention already on the sheet), row 2 otherwise —a sensible guess
+   that "Move rack" can always override. */
+function defaultRackRow(name){
+  return /A$/i.test(String(name).trim()) ? 1 : 2;
+}
+/* Every level a rack has —registered in state.levels, or just seen on an
+   item— union'd so neither source can make one disappear from the other. */
+function levelsOf(rackName){
+  const s = new Set(state.levels.filter(lv=>lv.rack===rackName).map(lv=>lv.level));
+  for(const it of state.items) if((it.store||"")===rackName) s.add(it.level||"1");
+  if(!s.size) s.add("1");
+  return [...s].sort(cmpLevel);
+}
+function registerLevel(rackName, level){
+  if(!state.levels.some(lv=>lv.rack===rackName && lv.level===level)){
+    const order = state.levels.length?Math.max(...state.levels.map(lv=>lv.order||0)):0;
+    state.levels.push({rack:rackName, level, order:order+1});
+  }
+}
+/* Numeric levels sort as numbers (1, 2, 10, ...), anything else falls back
+   to alphabetical and after every numbered level. */
+function cmpLevel(a,b){
+  const na=Number(a), nb=Number(b), an=a!==""&&!isNaN(na), bn=b!==""&&!isNaN(nb);
+  if(an && bn) return na-nb;
+  if(an!==bn) return an?-1:1;
+  return String(a).localeCompare(String(b));
+}
+function promptAddRack(){
+  modal(`<h3>Add a rack</h3>
+    <div class="field"><label>Rack name</label><input id="m-rackname" placeholder="e.g. R10A or Freezer"></div>
+    <div class="field"><label>Row</label><input id="m-rackrow" type="number" min="1" step="1" value="1"></div>
+    <div class="mfoot"><button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn primary" onclick="addRack()">Add</button></div>`);
+  $("#m-rackname").focus();
+}
+function addRack(){
+  const name = ($("#m-rackname").value||"").trim();
+  if(!name){ toast("Enter a rack name"); return; }
+  if(state.racks.some(r=>r.name===name) || name==="Unassigned"){ toast("That rack already exists"); return; }
+  const row = Math.max(1, parseInt($("#m-rackrow").value,10)||1);
+  const inRow = state.racks.filter(r=>(r.row||1)===row);
+  const order = (inRow.length?Math.max(...inRow.map(r=>r.order||0)):0)+1;
+  state.racks.push({name, order, row});
+  registerLevel(name, "1");
+  closeModal(); save(); render();
+  toast("Rack "+name+" added");
+}
+function promptMoveRack(name){
+  const rk = state.racks.find(r=>r.name===name);
+  const curRow = rk ? (rk.row||1) : defaultRackRow(name);
+  const curOrder = rk ? (rk.order||0) : 0;
+  modal(`<h3>Move ${esc(name)}</h3>
+    <div class="field"><label>Row</label><input id="m-mv-row" type="number" min="1" step="1" value="${curRow}"></div>
+    <div class="field"><label>Position in row (lower = further left)</label><input id="m-mv-order" type="number" step="1" value="${curOrder}"></div>
+    <div class="mfoot"><button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn primary" onclick="moveRack('${esc(name)}')">Move</button></div>`);
+}
+function moveRack(name){
+  const row = Math.max(1, parseInt($("#m-mv-row").value,10)||1);
+  const order = parseInt($("#m-mv-order").value,10)||0;
+  let rk = state.racks.find(r=>r.name===name);
+  if(!rk){ rk = {name, order:0, row:1}; state.racks.push(rk); }
+  rk.row = row; rk.order = order;
+  closeModal(); save(); render();
+  toast(name+" moved");
+}
+/* Removing a rack also unassigns whatever is on it (back to Unassigned,
+   never deleted) and drops its registered levels —matching what the
+   confirmation below tells the user is about to happen. */
+async function removeRack(name){
+  const affected = state.items.filter(i=>(i.store||"")===name);
+  const body = affected.length
+    ? `${affected.length} item${affected.length===1?"":"s"} currently on this rack will move to Unassigned —they are not deleted.`
+    : "This rack is empty.";
+  if(!await askConfirm("Remove rack "+name+"?", body, "Remove it", true)) return;
+  for(const it of affected){ it.store=""; it.level="1"; it.slot=0; }
+  state.racks = state.racks.filter(r=>r.name!==name);
+  state.levels = state.levels.filter(lv=>lv.rack!==name);
+  save(); render();
+  toast("Rack "+name+" removed");
+}
+function promptAddLevel(rackName){
+  modal(`<h3>Add a level to ${esc(rackName)}</h3>
+    <div class="field"><label>Level</label><input id="m-levelname" placeholder="e.g. 2"></div>
+    <div class="mfoot"><button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn primary" onclick="addLevel('${esc(rackName)}')">Add</button></div>`);
+  $("#m-levelname").focus();
+}
+function addLevel(rackName){
+  const label = ($("#m-levelname").value||"").trim();
+  if(!label){ toast("Enter a level"); return; }
+  if(levelsOf(rackName).includes(label)){ toast("That level already exists"); return; }
+  registerLevel(rackName, label);
+  closeModal(); save(); render();
+  toast("Level "+label+" added");
+}
+/* Removing a level unassigns whatever is on it (back to Unassigned) and
+   drops the registration —same convention as removing a whole rack. */
+async function removeLevel(rackName, level){
+  const affected = state.items.filter(i=>(i.store||"")===rackName && (i.level||"1")===level);
+  const body = affected.length
+    ? `${affected.length} item${affected.length===1?"":"s"} on this level will move to Unassigned —they are not deleted.`
+    : "This level is empty.";
+  if(!await askConfirm(`Remove level ${level} of ${rackName}?`, body, "Remove it", true)) return;
+  for(const it of affected){ it.store=""; it.level="1"; it.slot=0; }
+  state.levels = state.levels.filter(lv=>!(lv.rack===rackName && lv.level===level));
+  save(); render();
+  toast("Level "+level+" removed");
+}
+/* Inserts item `id` into rackName/level, before `beforeId` if given
+   (else appended), and renumbers everyone else in that rack+level 1..n so
+   positions stay contiguous —no permanently-empty gaps to manage. */
+function moveItemToPosition(id, rackName, level, beforeId){
+  const it = item(id); if(!it) return;
+  const dest = state.items.filter(i=>i.id!==id && (i.store||"")===rackName && (i.level||"1")===level)
+    .sort((a,b)=>(a.slot||0)-(b.slot||0));
+  let idx = dest.length;
+  if(beforeId!=null){ const p = dest.findIndex(i=>i.id===beforeId); if(p>=0) idx=p; }
+  dest.splice(idx, 0, it);
+  it.store = rackName; it.level = level||"1";
+  dest.forEach((i,n)=>{ i.slot = n+1; });
+  if(rackName) registerLevel(rackName, it.level);
+  save(); render();
+}
+function setItemQty(id, field, v){
+  const it = item(id); if(!it) return;
+  const n = parseFloat(v);
+  it[field] = isNaN(n) ? 0 : n;
+  if(field==="stock") it.counted = true;
+  save();
+}
+function renderRacks(){
+  const board = $("#racks-board"); if(!board || !isWarehouse()) return;
+  const q = norm($("#rk-q").value);
+  const rowGroups = racksByRow();
+  const byRack = new Map();
+  for(const g of rowGroups) for(const name of g.racks) byRack.set(name, []);
+  const unassigned = [];
+  for(const it of state.items){
+    if(q && !norm(it.name).includes(q) && !norm(it.code).includes(q)) continue;
+    const r = (it.store||"").trim();
+    if(r && byRack.has(r)) byRack.get(r).push(it); else if(!r) unassigned.push(it);
+  }
+  unassigned.sort((a,b)=>a.name.localeCompare(b.name));
+
+  const card = it => `<div class="rk-card" draggable="true" data-id="${it.id}" title="${esc(it.name)}">
+      <div class="rk-card-top"><b>${esc(it.name)}</b></div>
+      ${it.uom?`<div class="dim" style="font-size:9.5px">${esc(it.uom)}</div>`:""}
+      <div class="rk-card-qty">
+        <label>Qty<input type="number" step="any" value="${it.stock||0}" title="Physical qty" onchange="setItemQty(${it.id},'stock',this.value)"></label>
+        <label>Loose<input type="number" step="any" value="${it.looseQty||0}" title="Loose qty" onchange="setItemQty(${it.id},'looseQty',this.value)"></label>
+      </div>
+    </div>`;
+
+  const levelSection = (rackName, level, items) => `<div class="rk-lvl">
+      <div class="rk-lvl-h">Lvl ${esc(level)}<span class="dim" style="font-size:10px">${items.length}</span>
+        <button class="xbtn rk-lvl-x" onclick="removeLevel('${esc(rackName)}','${esc(level)}')" title="Remove level">✕</button></div>
+      <div class="rk-lvl-b" data-rack="${esc(rackName)}" data-level="${esc(level)}">
+        ${items.map((it,n)=>`<div class="rk-pos"><span class="rk-pos-n">${String(n+1).padStart(2,"0")}</span>${card(it)}</div>`).join("")}
+        <div class="rk-pos rk-pos-add" title="Drop here to add"><span class="rk-pos-n">${String(items.length+1).padStart(2,"0")}</span><div class="rk-add-slot">+</div></div>
+      </div>
+    </div>`;
+
+  const rackCol = (name) => {
+    const items = byRack.get(name)||[];
+    const open = expandedRacks.has(name) || (!!q && items.length>0);
+    const byLevel = new Map();
+    for(const it of items){ const lv=it.level||"1"; if(!byLevel.has(lv)) byLevel.set(lv,[]); byLevel.get(lv).push(it); }
+    for(const arr of byLevel.values()) arr.sort((a,b)=>(a.slot||0)-(b.slot||0));
+    const levels = levelsOf(name);
+    return `<div class="rk-col${open?" open":""}">
+      <div class="rk-col-h" onclick="toggleRackExpanded('${esc(name)}')">
+        <span class="rk-chev">${open?"▾":"▸"}</span><b>${esc(name)}</b><span class="dim" style="font-size:10.5px">${items.length}</span>
+        <button class="xbtn" onclick="event.stopPropagation();promptMoveRack('${esc(name)}')" title="Move rack" style="margin-left:auto">⇅</button>
+        <button class="xbtn" onclick="event.stopPropagation();promptAddLevel('${esc(name)}')" title="Add level">+lvl</button>
+        <button class="xbtn" onclick="event.stopPropagation();removeRack('${esc(name)}')" title="Remove rack">✕</button></div>
+      ${open ? `<div class="rk-col-b">${levels.map(lv=>levelSection(name, lv, byLevel.get(lv)||[])).join("")}</div>` : ""}
+    </div>`;
+  };
+  const unOpen = expandedRacks.has("Unassigned") || (!!q && unassigned.length>0);
+  const unassignedCol = `<div class="rk-col${unOpen?" open":""}">
+      <div class="rk-col-h" onclick="toggleRackExpanded('Unassigned')">
+        <span class="rk-chev">${unOpen?"▾":"▸"}</span><b>Unassigned</b><span class="dim${unassigned.length?" rk-warn":""}" style="font-size:10.5px">${unassigned.length}</span></div>
+      ${unOpen ? `<div class="rk-col-b"><div class="rk-lvl"><div class="rk-lvl-b" data-rack="" data-level="1">
+        ${unassigned.map((it,n)=>`<div class="rk-pos"><span class="rk-pos-n">${String(n+1).padStart(2,"0")}</span>${card(it)}</div>`).join("")}
+        <div class="rk-pos rk-pos-add" title="Drop here to add"><span class="rk-pos-n">${String(unassigned.length+1).padStart(2,"0")}</span><div class="rk-add-slot">+</div></div>
+      </div></div></div>` : ""}
+    </div>`;
+
+  const rowsHtml = rowGroups.map(g => `<div class="rk-row">
+      <div class="rk-row-label">Row ${esc(g.row)}</div>
+      <div class="rk-row-b">${g.racks.map(rackCol).join("")}</div>
+    </div>`).join("");
+
+  board.innerHTML = rowsHtml
+    + `<div class="rk-row"><div class="rk-row-label">Unassigned</div><div class="rk-row-b">${unassignedCol}</div></div>`;
+
+  $$(".rk-lvl-b").forEach(zone=>{
+    zone.addEventListener("dragover", e=>{ e.preventDefault(); zone.classList.add("over"); });
+    zone.addEventListener("dragleave", ()=> zone.classList.remove("over"));
+    zone.addEventListener("drop", e=>{
+      e.preventDefault(); zone.classList.remove("over");
+      if(dragItemId==null) return;
+      const rack = zone.dataset.rack, level = zone.dataset.level;
+      const overCard = e.target.closest(".rk-card");
+      const beforeId = (overCard && Number(overCard.dataset.id)!==dragItemId) ? Number(overCard.dataset.id) : null;
+      moveItemToPosition(dragItemId, rack, level, beforeId);
+      dragItemId = null;
+    });
+  });
+  $$(".rk-card").forEach(c=>{
+    c.addEventListener("dragstart", e=>{ e.stopPropagation(); dragItemId = Number(c.dataset.id); c.classList.add("dragging"); });
+    c.addEventListener("dragend", ()=> c.classList.remove("dragging"));
+  });
+}
+
+/* ============================================================
+   WAREHOUSE — ISSUE STOCK
+   ============================================================ */
+function issueCompanies(){
+  const own = activeDept().company;
+  const fromDepts = depts.map(d=>d.company).filter(c=>c && c!==own);
+  const fromTx = state.tx.filter(t=>t.type==="issue" && t.destCompany).map(t=>t.destCompany);
+  return [...new Set([...fromDepts, ...fromTx])].sort();
+}
+function renderIssueStock(){
+  const list = $("#is-item-list"); if(!list || !isWarehouse()) return;
+  list.innerHTML = state.items.filter(i=>!i.stopped).map(i=>
+    `<option value="${esc(i.name)} · ${esc(i.uom)}${i.code?" · "+esc(i.code):""}">`).join("");
+  $("#is-co-list").innerHTML = issueCompanies().map(c=>`<option value="${esc(c)}">`).join("");
+  if(!$("#is-date").value) $("#is-date").value = todayStr();
+
+  const filterSel = $("#is-co-filter");
+  const companies = [...new Set(state.tx.filter(t=>t.type==="issue" && t.destCompany).map(t=>t.destCompany))].sort();
+  const cur = filterSel.value;
+  filterSel.innerHTML = `<option value="all">All companies</option>` + companies.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join("");
+  filterSel.value = companies.includes(cur) ? cur : "all";
+
+  let rows = state.tx.filter(t=>t.type==="issue").sort((a,b)=>b.ts-a.ts);
+  if(filterSel.value!=="all") rows = rows.filter(t=>t.destCompany===filterSel.value);
+  const tbl = $("#issue-table");
+  if(!rows.length){ tbl.innerHTML = '<div class="empty">Nothing issued yet.</div>'; return; }
+  tbl.innerHTML = `<table><thead><tr><th>Date</th><th>Item</th><th class="num">Qty</th><th>To</th><th>Note</th><th></th></tr></thead><tbody>`
+    + rows.slice(0,400).map(t=>{
+        const it = item(t.itemId);
+        return `<tr><td class="mono dim" style="white-space:nowrap">${esc(t.date)}</td>
+          <td>${it?esc(it.name):'<span class="faint">(removed)</span>'}</td>
+          <td class="num" style="color:var(--series-out);font-weight:600">${fmt(Math.abs(t.qty))}</td>
+          <td>${esc(t.destCompany||"")}</td>
+          <td class="dim" style="font-size:12px">${esc(t.note||"")}</td>
+          <td><button class="xbtn" style="width:auto;padding:3px 8px" onclick="promptDeleteIssue(${t.id})" title="Delete this issue">✕</button></td></tr>`;
+      }).join("") + `</tbody></table>`;
+}
+const ISSUE_DELETE_REASONS = [
+  "Wrong item selected", "Wrong quantity entered", "Wrong company selected",
+  "Duplicate entry", "Entered by mistake", "Stock did not actually leave", "Other"
+];
+/* Confirmation page (modal): shows exactly what will change before anything
+   does, and requires a reason —deleting an issue always restores the qty to
+   stock and removes the record, so there's no silent "oops, undo that" path
+   without saying why, and a correction tx keeps the change auditable in the
+   Log even after the original issue row is gone. */
+function promptDeleteIssue(txId){
+  const t = state.tx.find(x=>x.id===txId); if(!t) return;
+  const it = item(t.itemId);
+  modal(`<h3>Delete this issue?</h3>
+    <div class="kv"><span>Date</span><b>${esc(t.date)}</b></div>
+    <div class="kv"><span>Item</span><b>${it?esc(it.name):'<span class="faint">(removed)</span>'}</b></div>
+    <div class="kv"><span>Qty</span><b>${fmt(Math.abs(t.qty))}${it?" "+esc(it.uom):""}</b></div>
+    <div class="kv"><span>To</span><b>${esc(t.destCompany||"—")}</b></div>
+    ${t.note?`<div class="kv"><span>Note</span><b>${esc(t.note)}</b></div>`:""}
+    <p class="dim" style="font-size:12px;margin:10px 0 2px">${it?`Restores ${fmt(Math.abs(t.qty))} ${esc(it.uom)} to ${esc(it.name)}'s balance and `:""}removes this record. A correction is logged so the change stays auditable.</p>
+    <div class="field"><label>Reason</label>
+      <select id="m-del-reason" onchange="$('#m-del-other').hidden = this.value!=='Other'">
+        <option value="">Select a reason—</option>
+        ${ISSUE_DELETE_REASONS.map(r=>`<option value="${esc(r)}">${esc(r)}</option>`).join("")}
+      </select>
+    </div>
+    <div class="field" id="m-del-other" hidden><label>Details</label><input id="m-del-other-text" placeholder="Say more—"></div>
+    <div class="mfoot"><button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn danger" onclick="deleteIssue(${txId})">Delete issue</button></div>`);
+}
+function deleteIssue(txId){
+  const t = state.tx.find(x=>x.id===txId); if(!t) return;
+  const reason = $("#m-del-reason").value;
+  if(!reason){ toast("Choose a reason"); return; }
+  const detail = reason==="Other" ? ($("#m-del-other-text").value||"").trim() : "";
+  if(reason==="Other" && !detail){ toast('Add a bit of detail for "Other"'); return; }
+  const it = item(t.itemId);
+  const qty = Math.abs(t.qty);
+  if(it){
+    it.stock += qty; it.counted = true;
+    state.tx.push(newTx({ts:Date.now(), date:todayStr(), itemId:it.id, type:"adjust", qty:qty,
+      note:`Issue to ${t.destCompany||"—"} on ${t.date} deleted —${reason}${detail?": "+detail:""}`}));
+  }
+  state.tx = state.tx.filter(x=>x.id!==txId);
+  closeModal(); save(); render();
+  toast("Issue deleted"+(it?" —"+fmt(qty)+" "+it.uom+" restored to stock":""));
+}
+function submitIssue(){
+  const q = ($("#is-item-q").value||"").trim();
+  const it = state.items.find(i=> `${i.name} · ${i.uom}${i.code?" · "+i.code:""}` === q);
+  if(!it){ toast("Pick an item from the list"); return; }
+  const qty = parseFloat($("#is-qty").value);
+  if(!qty || qty<=0){ toast("Enter a qty greater than 0"); return; }
+  const co = ($("#is-co").value||"").trim();
+  if(!co){ toast("Enter which company this is going to"); return; }
+  const date = $("#is-date").value || todayStr();
+  const note = ($("#is-note").value||"").trim();
+  it.stock -= qty; it.counted = true;
+  state.tx.push(newTx({ts:Date.now(), date, itemId:it.id, type:"issue", qty:-Math.abs(qty), note, destCompany:co}));
+  save(); render();
+  $("#is-item-q").value=""; $("#is-qty").value=""; $("#is-note").value="";
+  toast("Issued "+fmt(qty)+" "+it.uom+" of "+it.name+" to "+co);
+}
+
+/* ============================================================
+   WAREHOUSE — ISSUED SUMMARY (by company, by month)
+   Reads tx rows of type "issue" only, same source as the Issue Stock
+   history —this is just that same data rolled up by company and item
+   over whatever date range is selected.
+   ============================================================ */
+function monthBounds(offset){
+  const now = new Date();
+  const first = new Date(now.getFullYear(), now.getMonth()+offset, 1);
+  const last  = new Date(now.getFullYear(), now.getMonth()+offset+1, 0);
+  return { from: first.toISOString().slice(0,10), to: last.toISOString().slice(0,10) };
+}
+function setIssueSumRange(r){
+  if(r==="month"){ const b=monthBounds(0); $("#isum-from").value=b.from; $("#isum-to").value=b.to; }
+  else if(r==="lastmonth"){ const b=monthBounds(-1); $("#isum-from").value=b.from; $("#isum-to").value=b.to; }
+  else if(r==="year"){ const y=new Date().getFullYear(); $("#isum-from").value=y+"-01-01"; $("#isum-to").value=y+"-12-31"; }
+  else if(r==="all"){
+    const dates = state.tx.filter(t=>t.type==="issue").map(t=>t.date);
+    $("#isum-from").value = dates.length ? dates.reduce((a,b)=>a<b?a:b) : todayStr();
+    $("#isum-to").value = todayStr();
+  }
+  renderIssueSummary();
+}
+function issueSumBounds(){
+  const from = $("#isum-from")?.value, to = $("#isum-to")?.value;
+  if(from && to) return {from, to};
+  return monthBounds(0);
+}
+function issueSummaryRows(){
+  const {from, to} = issueSumBounds();
+  return state.tx.filter(t=>t.type==="issue" && t.date>=from && t.date<=to);
+}
+function issueSummaryByCompany(rows){
+  const byCo = new Map();
+  for(const t of rows){
+    const co = t.destCompany || "(no company)";
+    const a = byCo.get(co) || {co, qty:0, items:new Set(), n:0, last:null};
+    a.qty += Math.abs(t.qty); a.n++;
+    if(t.itemId!=null) a.items.add(t.itemId);
+    if(!a.last || t.date>a.last) a.last = t.date;
+    byCo.set(co, a);
+  }
+  return [...byCo.values()].sort((a,b)=>b.qty-a.qty);
+}
+function renderIssueSummary(){
+  const host = $("#isum-cards"); if(!host || !isWarehouse()) return;
+  if(!$("#isum-from").value && !$("#isum-to").value) setIssueSumRange("month");
+  const {from, to} = issueSumBounds();
+  const rows = issueSummaryRows();
+  const companies = issueSummaryByCompany(rows);
+  const totQty = rows.reduce((s,t)=>s+Math.abs(t.qty),0);
+
+  const cards = [
+    {k:"Total issued", v:fmt(totQty), d:`${rows.length} transaction${rows.length===1?"":"s"} · ${from} to ${to}`},
+    {k:"Companies", v:companies.length, d: companies.length ? companies.map(c=>c.co).slice(0,3).join(", ")+(companies.length>3?"…":"") : "No issues in this range"},
+    {k:"Top company", v: companies[0]?companies[0].co:"—", d: companies[0]?fmt(companies[0].qty)+" units":"—"}
+  ];
+  host.innerHTML = cards.map(a=>`<div class="al quiet"><div class="k">${esc(a.k)}</div><div class="v" style="font-size:${a.k==="Top company"?"16px":"26px"}">${esc(String(a.v))}</div><div class="d">${esc(a.d)}</div></div>`).join("");
+
+  const sel = $("#isum-co-drill");
+  const cur = sel.value;
+  sel.innerHTML = `<option value="all">All companies</option>` + companies.map(c=>`<option value="${esc(c.co)}">${esc(c.co)}</option>`).join("");
+  sel.value = companies.some(c=>c.co===cur) ? cur : "all";
+
+  const coTable = $("#isum-co-table");
+  coTable.innerHTML = !companies.length
+    ? `<div class="empty" style="padding:34px 14px">No stock issued in this range.</div>`
+    : `<table><thead><tr><th>Company</th><th class="num">Qty issued</th><th class="num">Items</th><th class="num">Transactions</th><th>Last issue</th></tr></thead><tbody>`
+      + companies.map(c=>`<tr class="rowlink" onclick="drillIssueSummary('${esc(c.co)}')">
+          <td>${esc(c.co)}</td>
+          <td class="num" style="font-weight:600">${fmt(c.qty)}</td>
+          <td class="num dim">${c.items.size}</td>
+          <td class="num dim">${c.n}</td>
+          <td class="mono dim">${esc(c.last||"")}</td></tr>`).join("")
+      + `</tbody></table>`;
+
+  const coFilter = sel.value;
+  const itemRows = rows.filter(t=> coFilter==="all" || (t.destCompany||"(no company)")===coFilter);
+  const byItem = new Map();
+  for(const t of itemRows){
+    const it = item(t.itemId);
+    const key = it ? it.id : "removed:"+t.id;
+    const a = byItem.get(key) || {it, qty:0, n:0};
+    a.qty += Math.abs(t.qty); a.n++;
+    byItem.set(key, a);
+  }
+  const items = [...byItem.values()].sort((a,b)=>b.qty-a.qty);
+  const itemTable = $("#isum-item-table");
+  itemTable.innerHTML = !items.length
+    ? `<div class="empty" style="padding:34px 14px">No items in this selection.</div>`
+    : `<table><thead><tr><th>Item</th><th class="num">Qty issued</th><th class="num">Transactions</th></tr></thead><tbody>`
+      + items.map(a=>`<tr><td>${a.it?esc(a.it.name):'<span class="faint">(removed)</span>'}</td>
+          <td class="num" style="font-weight:600">${fmt(a.qty)}</td>
+          <td class="num dim">${a.n}</td></tr>`).join("")
+      + `</tbody></table>`;
+}
+function drillIssueSummary(co){
+  $("#isum-co-drill").value = co;
+  renderIssueSummary();
+}
+function exportIssueSummaryCsv(){
+  const {from, to} = issueSumBounds();
+  const companies = issueSummaryByCompany(issueSummaryRows());
+  let csv = "Company,Qty issued,Items,Transactions,Last issue\n";
+  for(const c of companies) csv += `"${c.co.replace(/"/g,'""')}",${c.qty},${c.items.size},${c.n},${c.last||""}\n`;
+  saveFile(`${activeDept().code||"warehouse"}-issued-${from}-to-${to}.csv`, "﻿"+csv, "text/csv;charset=utf-8");
+}
 
 /* ============================================================
    LOG / UNDO
@@ -2925,17 +3634,18 @@ function renderLog(){
   let tx = state.tx.slice().sort((a,b)=>b.ts-a.ts);
   if(f!=="all") tx = tx.filter(t=>t.type===f);
   if(!tx.length){ $("#log-table").innerHTML='<div class="empty">Nothing recorded yet.</div>'; return; }
-  const tag = {sale:'<span class="tag t-warn">Sale out</span>', production:'<span class="tag t-ok">Cook</span>', adjust:'<span class="tag t-info">Correction</span>'};
+  const tag = {sale:'<span class="tag t-warn">Sale out</span>', production:'<span class="tag t-ok">Cook</span>', adjust:'<span class="tag t-info">Correction</span>', issue:'<span class="tag t-crit">Issued</span>'};
   $("#log-table").innerHTML = `<table><thead><tr><th>Date</th><th>Type</th><th>Item</th><th class="num">Qty</th><th class="num">Yield</th><th>Note</th></tr></thead><tbody>`
     + tx.slice(0,600).map(t=>{
         const it = item(t.itemId);
         const y = (t.type==="production"&&t.planned>0) ? fmt1(t.qty/t.planned*100)+"%" : "";
+        const note = t.type==="issue" ? [t.destCompany?("→ "+t.destCompany):"", t.note||""].filter(Boolean).join(" · ") : (t.note||"");
         return `<tr><td class="mono dim" style="white-space:nowrap">${esc(t.date)}</td>
           <td>${tag[t.type]||esc(t.type)}${t.h?' <span class="tag t-off">trend only</span>':""}</td>
           <td>${it?esc(it.name):'<span class="faint">(removed)</span>'}</td>
           <td class="num" style="color:${t.qty<0?"var(--series-out)":"var(--series-in)"};font-weight:600">${t.qty>0?"+":""}${fmt(t.qty)}</td>
           <td class="num dim">${y}</td>
-          <td class="dim" style="font-size:12px">${esc(t.note||"")}</td></tr>`;
+          <td class="dim" style="font-size:12px">${esc(note)}</td></tr>`;
       }).join("") + `</tbody></table>`;
 }
 async function clearLog(){
@@ -3160,10 +3870,15 @@ function renderSetup(){
   const rb = $("#btn-reload-base"), rn = $("#reload-note");
   if(rb) rb.hidden = !only0428;
   if(rn) rn.hidden = !only0428;
+  const wh = isWarehouse();
+  const tk = $("#btn-template-kitchen"), twh = $("#btn-template-warehouse");
+  if(tk) tk.hidden = wh;
+  if(twh) twh.hidden = !wh;
   const dep = $("#setup-depts");
   if(dep) dep.innerHTML = depts.map(d=>`<div class="kv" style="align-items:center">
         <span>${d.id===dept?'<b style="color:var(--accent)">●</b>':'<span style="color:var(--rule-2)">●</span>'}<b class="mono">${esc(d.code)}</b>
-          <span class="dim" style="margin-left:8px">${esc(d.name||"")}${d.company?" · "+esc(d.company):""}</span></span>
+          <span class="dim" style="margin-left:8px">${esc(d.name||"")}${d.company?" · "+esc(d.company):""}</span>
+          ${d.type==="warehouse"?'<span class="tag t-info" style="margin-left:6px">warehouse</span>':""}</span>
         <span style="display:flex;gap:6px;white-space:nowrap">
           ${d.id===dept?'<span class="tag t-ok">active</span>':`<button class="btn sm" onclick="switchDept('${esc(d.id)}')">Open</button>`}
           <button class="btn sm" onclick="renameDept('${esc(d.id)}')">Edit</button>
@@ -3174,9 +3889,10 @@ function renderSetup(){
             <input id="nd-code" placeholder="Code e.g. 0227" style="width:130px">
             <input id="nd-name" placeholder="Name e.g. Production" style="flex:1;min-width:130px">
             <input id="nd-co" placeholder="Company" style="flex:1;min-width:130px">
-            <button class="btn primary" onclick="createDept($('#nd-code').value,$('#nd-name').value,$('#nd-co').value)">Add department</button>
+            <select id="nd-type" style="width:130px"><option value="kitchen">Kitchen</option><option value="warehouse">Warehouse</option></select>
+            <button class="btn primary" onclick="createDept($('#nd-code').value,$('#nd-name').value,$('#nd-co').value,$('#nd-type').value)">Add department</button>
           </div>
-          <p class="dim" style="font-size:11.5px;margin-top:8px">A new department starts empty —load its item list on this page, or add items by hand on station 02.</p>
+          <p class="dim" style="font-size:11.5px;margin-top:8px">A new department starts empty —load its item list on this page, or add items by hand on station 02. <b>Warehouse</b> departments get the Racks and Issue Stock stations instead of Panel/Cook/Sales.</p>
         </div>`;
   $("#set-cap").value = state.capacity;
   $("#set-cover").value = state.coverTarget;
@@ -3279,14 +3995,33 @@ function go(page){
 }
 $$("#rail button").forEach(b=>b.addEventListener("click", ()=>go(b.dataset.page)));
 
+/* A department is either 'kitchen' (cook line —Panel/Cook/Sales) or
+   'warehouse' (racks/stock —Racks/Issue Stock). Buttons/pages tagged with
+   data-scope only show for the matching type; untagged ones (Stock,
+   Stocktake, Count, Log, Setup) are common to both. */
+function applyDeptTypeNav(){
+  const t = isWarehouse() ? "warehouse" : "kitchen";
+  let hidCurrent = false;
+  $$("#rail button").forEach(b=>{
+    const scope = b.dataset.scope;
+    const show = !scope || scope===t;
+    b.classList.toggle("hidden", !show);
+    if(!show && b.classList.contains("active")) hidCurrent = true;
+  });
+  if(hidCurrent) go(t==="warehouse" ? "stock" : "panel");
+}
+
 function render(){
   renderTopbar();
   renderPanel();
   renderStock();
+  renderRacks();
   renderStocktake();
   renderCount();
   renderCook();
   renderSalesView();
+  renderIssueStock();
+  renderIssueSummary();
   renderLog();
   renderSetup();
 }
@@ -3313,6 +4048,11 @@ $("#s-hide").addEventListener("click", ()=>{
   renderStock();
 });
 $("#log-filter").addEventListener("change", renderLog);
+$("#rk-q").addEventListener("input", renderRacks);
+$("#is-co-filter").addEventListener("change", renderIssueStock);
+$("#isum-from").addEventListener("change", renderIssueSummary);
+$("#isum-to").addEventListener("change", renderIssueSummary);
+$("#isum-co-drill").addEventListener("change", renderIssueSummary);
 $("#cook-date").addEventListener("change", renderCook);
 $("#restore-file").addEventListener("change", e=>{
   const f = e.target.files[0]; if(!f) return;

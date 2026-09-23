@@ -79,6 +79,64 @@ signed in, the app itself.
 To reconfigure later (different project, wrong key, etc.), use **Setup → Change
 Supabase / Clerk keys** inside the app, or the equivalent link on the sign-in screen.
 
+## Warehouse departments (Racks & Issue Stock)
+
+A department can be `kitchen` (the cook-line pages: Panel/Cook/Sales In/Sales)
+or `warehouse` (Racks/Issue Stock instead). Setup → Departments has a Type
+selector when adding a new one. Stock, Stocktake, Count, Log and Setup are
+shared by both types.
+
+- **Racks** — three levels deep: **Rack → Level → Position**, matching a
+  position code like `R8A1L01` (rack `R8A`, level `1`, position `01`, left to
+  right). A rack is `items.store`, its level is `items.level`, its spot on
+  that level is `items.slot` (the same `store` field kitchen departments
+  already use for the Stock page's location filter). Drag a card onto any
+  position on any level of any rack to move it there —saves and syncs
+  immediately; positions renumber to stay contiguous. **+ Add rack** stages
+  a rack, **+lvl** on a rack stages a level —both are real rows (`racks` /
+  `levels` tables) the moment you add them, so they stay on the board even
+  after everything on them is moved away or deleted; they don't disappear
+  just because they're empty. The ✕ next to a rack or level removes it and
+  moves anything still on it to Unassigned (not deleted). Each card also has
+  inline Physical Qty / Loose Qty fields (no product code shown, to keep
+  cards small).
+  Racks are laid out in **rows** (`racks.row_no`) —e.g. row 1 holds the R#A
+  racks, row 2 the R#B racks plus Center —so the board reads as a real floor
+  plan instead of one long scrolling strip. A new rack defaults to row 1 if
+  its name ends in "A", row 2 otherwise; **⇅** on any rack's header opens
+  **Move rack** to set its row and position directly. Importing a sheet
+  places newly-seen racks the same way automatically.
+  Racks start collapsed —click one to open it and see its levels/positions,
+  click again to close. Multiple can be open at once (needed to drag between
+  two racks). Typing in the search box opens any rack with a match, without
+  changing which ones you had open yourself; **Expand all** / **Collapse
+  all** cover the rest. This open/closed state is a per-browser preference
+  (`localStorage`, per department) —it's not shared between devices or
+  written to Supabase.
+- **Issue Stock** — records stock leaving the warehouse for another company
+  (e.g. Quan Feng Food Supply, Vaner Food Supply). Deducts from the item's
+  balance immediately and keeps a running history, filterable by company.
+  This is a one-sided log: it does not create a matching stock-in entry in
+  the receiving department.
+- **Issued Summary** — total stock issued per company over a date range
+  (This month / Last month / This year / All time, or a custom range;
+  defaults to the current month). Click a company row (or use the filter)
+  to break that company's total down by item. **Export CSV** downloads the
+  by-company table for the selected range.
+- **Setup → Item list import** recognises a `Rack Position` / `Storage`
+  column and a `Loose Qty` column, on top of the columns it already reads.
+  A rack position like `R8A1L01` is split automatically into rack/level/
+  position; anything that doesn't match that pattern (a flat zone like
+  `CENTER`, or a hand-typed rack name) becomes its own rack on a single
+  level. On a warehouse department, any rack found in the sheet is added to
+  the Racks board automatically —so a stocktake sheet exported with a Rack
+  Position column can be dropped straight in to seed the whole board.
+  **Download rack template** (Setup, warehouse departments only) gives a
+  blank CSV with headers matching this exactly —`Rack Position, Product
+  Code, Product Name, UOM, Physical Qty, Loose Qty, Category`— plus every
+  rack currently on the board listed for reference, so a filled-in copy
+  imports cleanly without guessing column names or rack codes.
+
 ## Notes on the data model
 
 - Each **department** (e.g. `0428`, `0227`) has its own items, movement log, cook
