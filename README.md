@@ -79,6 +79,26 @@ signed in, the app itself.
 To reconfigure later (different project, wrong key, etc.), use **Setup → Change
 Supabase / Clerk keys** inside the app, or the equivalent link on the sign-in screen.
 
+### Language —English / 简体中文
+
+The **中文 / EN** button in the top bar switches the app between English and
+Simplified Chinese. Each browser remembers its own choice, so one person
+reading Chinese doesn't change it for anyone else.
+
+- **What changes:** the interface text — buttons, headings, labels, messages
+  and dialogs, plus the printed sheets and the stocktake report. Dates read
+  10月14日, and units read 箱 / 包 / 瓶 / 罐 / 桶.
+- **What stays as typed:** product names, codes, UOMs, rack codes, companies,
+  suppliers and categories. These are your data, not part of the interface.
+- **Downloaded Excel / CSV files:** their column headings stay in English, so
+  a downloaded list can still be imported back in.
+
+How it works: the app is written in English, and `ZH_DICT` in `index.html`
+maps each interface phrase to its Chinese. Numbers and dates are matched as
+placeholders, so `Apply {n} counts` covers every count. A phrase that isn't in
+the dictionary simply stays in English. To add or fix a translation, edit its
+entry in `ZH_DICT`.
+
 ### On a phone or tablet
 
 Every page fits the screen width, with no sideways scrolling:
@@ -300,6 +320,31 @@ keyed as cartons and packets in separate boxes. The printed sheets (Stocktake
 paper and Count sheet) put **each zone on its own page** with Rack code,
 System, Ctn and Pkt columns, so the freezer page can go to whoever is counting
 the freezer.
+
+### Stocktake report
+
+After a count on any page (Racks floor plan, Count, ± Count), go to
+**Setup → Stocktake report**. The **Stocktake report** button on the Stocktake
+page also goes there. The report lists every product's balance as it stands
+now, in shelf order, zone by zone.
+
+- **Count started:** pick the first day of the count. It defaults to the last
+  day a count was saved. **Count change** for each product is the total of the
+  corrections logged since that date. A product that was checked and already
+  matched logs nothing, so it shows no change.
+- **Zone:** report on all zones or just one.
+- **Print report:**
+  - The cover page has the totals: products, changed by the count, out of
+    stock and below minimum. It also has a per-zone table (with cartons and
+    loose units) and Counted by / Checked by / Approved by lines.
+  - Then there is one page per zone. Each lists Rack code, Item, Balance
+    (ctn + pkt), Total in packets, Count change and Status (OK / Low / Out).
+  - Use **Print / Save PDF** to keep a copy.
+- **Download Excel:**
+  - A **Stocktake** sheet with one row per product: Zone, Rack Code, Product
+    Code, Name, UOM, Pkts per Ctn, Ctn, Loose Pkt, Total (pkt), Count change,
+    Last count change, Min and Status.
+  - A **Summary** sheet with the totals per zone.
 
 ### Item list import (warehouse)
 
