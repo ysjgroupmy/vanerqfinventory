@@ -79,6 +79,26 @@ signed in, the app itself.
 To reconfigure later (different project, wrong key, etc.), use **Setup → Change
 Supabase / Clerk keys** inside the app, or the equivalent link on the sign-in screen.
 
+### Language —English / 简体中文
+
+The **中文 / EN** button in the top bar switches the app between English and
+Simplified Chinese. Each browser remembers its own choice, so one person
+reading Chinese doesn't change it for anyone else.
+
+- **What changes:** the interface text — buttons, headings, labels, messages
+  and dialogs, plus the printed sheets and the stocktake report. Dates read
+  10月14日, and units read 箱 / 包 / 瓶 / 罐 / 桶.
+- **What stays as typed:** product names, codes, UOMs, rack codes, companies,
+  suppliers and categories. These are your data, not part of the interface.
+- **Downloaded Excel / CSV files:** their column headings stay in English, so
+  a downloaded list can still be imported back in.
+
+How it works: the app is written in English, and `ZH_DICT` in `index.html`
+maps each interface phrase to its Chinese. Numbers and dates are matched as
+placeholders, so `Apply {n} counts` covers every count. A phrase that isn't in
+the dictionary simply stays in English. To add or fix a translation, edit its
+entry in `ZH_DICT`.
+
 ### On a phone or tablet
 
 Every page fits the screen width, with no sideways scrolling:
