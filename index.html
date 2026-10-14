@@ -523,23 +523,145 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
 .fp-off .btn{margin-left:auto}
 @media(max-width:1000px){
   .fp-wrap{grid-template-columns:1fr}
-  .fp-side{position:static;max-height:none}
+  .fp-side{position:static;max-height:none;scroll-margin-top:52px}
+  .fp-save{position:sticky;bottom:0;z-index:5;padding-bottom:calc(10px + env(safe-area-inset-bottom))}
 }
-/* on a phone the plan keeps a readable size and scrolls sideways */
-@media(max-width:560px){ .fp-svg{min-width:500px} }
+/* on a phone the whole floor fits the screen; Zoom in makes it readable and it scrolls */
+@media(max-width:860px){
+  .fp-mapbox{padding:6px}
+  .fp-bar .m-only+.btn{margin-left:0!important}
+}
+@media(max-width:640px){ .fp-mapbox.zoom .fp-svg{width:760px;max-width:none} }
+@media(min-width:641px){ .fp-zoom-b{display:none!important} .fp-bar .fp-zoom-b+.btn{margin-left:auto!important} }
 
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition-duration:.01ms!important}}
+/* ---------------- tablet & phone ----------------
+   Below 860px the rail turns into one row of tabs across the top (swipe it
+   sideways), the page fills the screen width, and every control is big
+   enough to hit with a thumb. Below 760px tables turn into one card per row
+   (labels come from the column headings —see labelTables()). */
+.psub-more{display:none}
+.psub-more.no{display:none!important}
+@media(min-width:861px){ .m-only{display:none!important} }
 @media(max-width:860px){
-  .shell{flex-direction:column}
-  .rail{position:static;width:100%;min-height:0;display:flex;flex-wrap:wrap;border-right:none;border-bottom:1px solid var(--rule);padding:6px}
-  .rail button{width:auto;border-left:none;border-bottom:3px solid transparent;padding:8px 11px}
+  .shell{flex-direction:column;align-items:stretch;min-height:0}
+  .rail{position:sticky;top:0;z-index:25;width:100%;min-height:0;display:flex;flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;
+    scrollbar-width:none;border-right:none;border-bottom:1px solid var(--rule);padding:0 4px;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+  .rail::-webkit-scrollbar{display:none}
+  .rail button{width:auto;flex:none;border-left:none;border-bottom:3px solid transparent;padding:11px 12px 9px;gap:7px;white-space:nowrap}
   .rail button.active{border-left:none;border-bottom-color:var(--accent)}
+  .rail button .st{display:none}
+  .rail button .dot{margin-left:0}
   .rail-foot{display:none}
-  .work{padding:16px 14px 48px}
-  .topbar{height:auto;padding:8px 14px;flex-wrap:wrap;gap:10px}
+  .work{width:100%;max-width:none;padding:16px 14px 48px}
+  .topbar{position:static;height:auto;padding:8px 14px;flex-wrap:wrap;gap:8px 12px}
   .tb-sep{display:none}
+  .tb-lamps{margin-left:0}
+  .lowbar{padding:8px 14px}
+  .lowbar span{min-width:0;flex-basis:100%}
+  .demo-bar{padding:7px 14px;flex-wrap:wrap}
   .hrow{grid-template-columns:minmax(96px,1fr) 1.4fr 104px;padding:6px 10px}
   .cookline{grid-template-columns:1fr 1fr;gap:6px}
+  /* thumb-sized controls; 16px text stops iPhones zooming in on a focused box */
+  input,select,textarea{font-size:16px;min-height:40px}
+  input[type=checkbox],input[type=radio]{min-height:0;width:20px;height:20px}
+  textarea{font-size:14px}
+  .btn{min-height:40px;padding:8px 14px;font-size:13.5px}
+  .btn.sm{min-height:34px;padding:5px 11px;font-size:12.5px}
+  .xbtn{min-height:34px;min-width:34px}
+  .star{padding:8px}
+  .pill-tg button{padding:7px 12px;font-size:11.5px;min-height:34px}
+  .minv{padding:6px 2px;font-size:14px;min-height:34px}
+  .info-b{width:22px;height:22px;font-size:12px}
+  .tb-lamp{padding:7px 10px}
+  /* page headings: buttons drop under the title and share the width */
+  .phead{align-items:stretch;flex-direction:column;gap:12px}
+  .phead>div:last-child:not(:first-child),.phead>.btn{width:100%}
+  .phead>div:last-child:not(:first-child)>*{flex:1 1 auto}
+  .phead input[type=search],.phead input:not([type]){min-width:0!important;flex-basis:100%}
+  .psub{max-width:none}
+  .bar>*{flex:1 1 auto}
+  .bar input[type=search]{flex-basis:100%;min-width:0}
+  .bar>span.lbl,.bar>span.dim,.bar>span[style*="width:1px"]{flex:none}
+  .bar>span[style*="width:1px"]{display:none}
+  .panel-h{flex-wrap:wrap;gap:4px 12px}
+  .panel-h .meta{margin-left:0;text-align:left;flex-basis:100%}
+  .panel-h select{margin-left:0!important;flex:1 1 100%}
+  .scroll[style*="max-height"]{max-height:none!important}
+  .alarms{grid-template-columns:1fr 1fr;gap:8px}
+  .al{min-height:0;padding:10px 12px 11px}
+  .al .v{font-size:32px}
+  .drop{padding:22px 14px}
+  /* dialogs: a sheet from the bottom with the buttons always in reach */
+  .mbg{padding:0;align-items:flex-end}
+  .modal{width:100%;max-height:92vh;max-height:92dvh;padding:18px 16px 0}
+  .modal .mfoot{position:sticky;bottom:0;background:var(--panel);margin:16px -16px 0;padding:10px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--rule)}
+  .modal .mfoot .btn{flex:1 1 auto}
+  .modal td.name{min-width:140px}
+  .field .qpair input[type=number],.qpair input[type=number]{width:100%}
+  .qpair{display:flex;width:100%}
+  .qpair label{flex:1;min-width:0}
+  /* count sheet: the Apply button stays on screen while counting */
+  .count-foot{position:sticky;bottom:0;z-index:3;background:var(--panel);box-shadow:0 -4px 10px rgba(0,0,0,.06)}
+  /* shelves board: wider cards so the boxes can be typed in */
+  .rk-col.open{flex:1 1 100%;width:100%;max-height:none}
+  .rk-card{width:128px}
+  .rk-add-slot{width:128px}
+  .rk-card-qty input{font-size:16px;min-height:34px;padding:2px 4px}
+  #toast{bottom:calc(16px + env(safe-area-inset-bottom))}
+}
+@media(max-width:760px){
+  /* tables become cards: the product on top, then label / value pairs */
+  table.stk,table.stk>tbody{display:block}
+  table.stk>thead{display:none}
+  table.stk>tbody>tr{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px 14px;padding:11px 12px 12px;position:relative;border-bottom:1px solid var(--rule)}
+  table.stk>tbody>tr:last-child{border-bottom:none}
+  table.stk>tbody>tr>td{display:block;padding:0;border:none;text-align:left;min-width:0;white-space:normal!important;overflow-wrap:anywhere;background:none!important}
+  table.stk>tbody>tr>td::before{content:attr(data-l);display:block;font-family:var(--f-mono);font-size:9.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-bottom:1px}
+  table.stk>tbody>tr>td:empty,table.stk>tbody>tr>td.c-blank{display:none}
+  table.stk>tbody>tr>td.c-main{grid-column:1/-1;order:-1;font-size:14px;font-weight:500;min-width:0}
+  table.stk>tbody>tr>td.c-main::before,table.stk>tbody>tr>td.c-act::before,table.stk>tbody>tr>td.c-badge::before{display:none}
+  table.stk>tbody>tr>td.c-wide{grid-column:span 2}
+  table.stk>tbody>tr>td.c-act{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  table.stk>tbody>tr>td.c-act .btn{flex:1 1 auto}
+  table.stk>tbody>tr>td.c-badge{position:absolute;top:10px;right:10px}
+  table.stk>tbody>tr.has-badge>td.c-main{padding-right:76px}
+  table.stk>tbody>tr>td.num .mincell{justify-content:flex-start}
+  table.stk>tbody>tr.grp{display:block;padding:0}
+  table.stk>tbody>tr.grp>td{display:block;padding:8px 12px}
+  table.stk>tbody>tr.grp>td::before{display:none}
+  table.stk>tbody>tr>td[colspan]{grid-column:1/-1}
+  table.stk>tbody>tr.sev-crit{box-shadow:inset 4px 0 0 var(--crit)}
+  table.stk>tbody>tr.sev-warn{box-shadow:inset 4px 0 0 var(--warn)}
+  table.stk>tbody>tr.sev-ok{box-shadow:inset 4px 0 0 var(--ok)}
+  table.stk>tbody>tr.sev-info{box-shadow:inset 4px 0 0 var(--info)}
+  table.stk>tbody>tr>td:first-child{box-shadow:none!important}
+  table.stk td.c-wide input[type=number]{width:100%!important}
+  .count-foot>span.dim{display:none}
+  .count-foot>.btn{flex:1 1 auto}
+  table.stk select{max-width:none!important;width:100%}
+}
+@media(max-width:640px){
+  .work{padding:12px 10px 40px}
+  h1{font-size:24px}
+  .psub.clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .psub-more{display:inline-block;background:none;border:none;padding:8px 14px 8px 0;margin-top:-2px;min-height:34px;font:600 12.5px var(--f-ui);color:var(--accent);cursor:pointer}
+  .tb-read.tb-opt{display:none}
+  .tb-id>span{display:none}
+  .panel{margin-bottom:12px}
+  .panel-h{padding:9px 12px}
+  .panel-b{padding:12px}
+  .alarms{gap:6px}
+  .al .k{font-size:9.5px;letter-spacing:.08em}
+  .al .v{font-size:28px}
+  .al .d{font-size:11px}
+  .fp-side-h{flex-wrap:wrap}
+  .fp-it-q{gap:8px}
+  .fp-diff{margin-left:0;flex-basis:100%;text-align:left}
+}
+@media(max-width:860px){
+  .fp-step button{width:42px;height:42px}
+  .fp-step input[type=number]{height:42px;width:64px}
 }
 </style>
 </head><body>
@@ -597,9 +719,9 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
     <div id="deptmenu"></div>
   </div>
   <div class="tb-sep"></div>
-  <div class="tb-read"><span id="tb-co">—</span><b id="tb-date">—</b></div>
+  <div class="tb-read tb-opt"><span id="tb-co">—</span><b id="tb-date">—</b></div>
   <div class="tb-sep"></div>
-  <div class="tb-read"><span id="tb-fresh-k">Sales data</span><b id="tb-fresh">—</b></div>
+  <div class="tb-read tb-opt"><span id="tb-fresh-k">Sales data</span><b id="tb-fresh">—</b></div>
   <div class="tb-sep"></div>
   <div class="tb-read">Data<b id="tb-sync">connecting—</b></div>
   <div class="tb-lamps" id="tb-lamps"></div>
@@ -1384,6 +1506,9 @@ function toggleInfo(e, btn){
   pop.style.width = w+"px";
   pop.style.left = Math.max(12, Math.min(window.innerWidth-w-12, r.left+r.width/2-w/2))+"px";
   pop.style.top = (r.bottom+8)+"px";
+  // near the bottom of a phone screen: open upwards instead
+  const h = pop.offsetHeight;
+  if(r.bottom+8+h > window.innerHeight-8 && r.top-8-h >= 8) pop.style.top = (r.top-8-h)+"px";
 }
 document.addEventListener("click", e=>{ if(!e.target.closest(".info")) closeInfos(); });
 window.addEventListener("scroll", closeInfos, true);
@@ -2917,7 +3042,7 @@ function renderStocktake(){
       <div class="panel-h"><h2>Add items</h2><span class="meta">${pool.length} not yet on the list</span></div>
       <div class="panel-b" style="padding-bottom:10px">
         <div class="bar" style="margin-bottom:8px">
-          <input type="search" id="st-q" placeholder="Search name / 名称 / code— value="${esc($("#st-q")?$("#st-q").value:"")}">
+          <input type="search" id="st-q" placeholder="Search name / 名称 / code—" value="${esc($("#st-q")?$("#st-q").value:"")}">
           ${wh?'<select id="st-zone"><option value="all">All zones</option></select>':""}
           <select id="st-store"><option value="all">All locations</option></select>
         </div>
@@ -3077,7 +3202,7 @@ function renderCount(){
     <div class="scroll"><table><thead><tr>
       ${wh?"<th>Rack code</th>":""}<th>Item</th><th class="num">System</th><th class="num">Counted</th><th class="num">Difference</th>${wh?"":'<th class="num">kg</th>'}<th class="num">Status</th>
     </tr></thead><tbody>${rows}</tbody></table></div>
-    <div class="panel-b" style="border-top:1px solid var(--rule);display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <div class="panel-b count-foot" style="border-top:1px solid var(--rule);display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <button class="btn primary" id="count-apply" onclick="applyCounts()" ${typed?"":"disabled"}>Apply ${typed} count${typed===1?"":"s"}</button>
       <button class="btn" id="count-clear" onclick="countDraft={};renderCount()" ${typed?"":"disabled"}>Clear entries</button>
       <span class="dim" style="font-size:12px">Enter moves to the next box. Blank lines are left alone.${wh?" Cartons and packets are added together —count the loose packets in the second box.":""}</span>
@@ -3980,6 +4105,37 @@ function askChoice(title, body, a, b){
       <button class="btn primary" onclick="_cA()">${esc(a.label)}</button></div>`);
   });
 }
+/* What data cells look like, so a sheet with no header row is never misread:
+   a rack code (R1B1L01, R1A | 1L | 01), a YonYou product code
+   (40HGLT2DVI01480), or a UOM (6x1.75L/ctn, 0.4kg/pkt). */
+const RACKPOS_RE = /^[A-Za-z]{1,3}\d+[A-Za-z]{0,2}\s*[|\-]?\s*\d+\s*L\s*[|\-]?\s*\d+$/i;
+const PCODE_RE = /^\d{2}[A-Za-z0-9]{9,}$/;
+const UOMV_RE = /\d.*\/\s*[A-Za-z\u4e00-\u9fff]+\s*$/;
+function looksLikeData(row){
+  return (row||[]).some(v=>{ const t = String(v??"").trim(); return t && (RACKPOS_RE.test(t) || PCODE_RE.test(t) || UOMV_RE.test(t)); });
+}
+/* A rack sheet typed without headings —rack code | product code | name | UOM
+   in any order— has its columns recognised by what's in them. */
+function guessItemColumns(grid){
+  const rows = grid.filter(r=>r && r.some(v=>String(v??"").trim()!=="")).slice(0,40);
+  if(rows.length<2) return null;
+  const width = Math.max(...rows.map(r=>r.length));
+  const cols = [];
+  for(let c=0;c<width;c++){
+    let n=0, rack=0, code=0, uom=0, text=0, len=0;
+    for(const r of rows){
+      const v = String(r[c]??"").trim(); if(!v) continue; n++;
+      if(RACKPOS_RE.test(v)) rack++; else if(PCODE_RE.test(v)) code++; else if(UOMV_RE.test(v)) uom++;
+      else if(isNaN(Number(v))){ text++; len += v.length; }
+    }
+    cols.push({c, n, rack, code, uom, text, avg: text ? len/text : 0});
+  }
+  const best = k => { const x = cols.filter(o=>o.n && o[k]/o.n>=0.6).sort((a,b)=>b[k]-a[k])[0]; return x ? x.c : -1; };
+  const store = best("rack"), code = best("code"), uom = best("uom");
+  const nameCol = cols.filter(o=>![store,code,uom].includes(o.c) && o.text>=Math.max(2, rows.length*0.5)).sort((a,b)=>b.avg-a.avg)[0];
+  if(!nameCol || (store<0 && code<0 && uom<0)) return null;
+  return {name:nameCol.c, store, code, uom};
+}
 /* Next free position number on a rack level (for placing something at the end). */
 function nextSlot(rack, level, exceptId){
   return state.items.filter(o=>o.id!==exceptId && (o.store||"")===rack && (o.level||"1")===level)
@@ -3987,9 +4143,10 @@ function nextSlot(rack, level, exceptId){
 }
 async function importItems(grid, fname){
   const wh = isWarehouse();
-  let hr=-1, c={};
+  let hr=-1, c={}, guessed=false;
   for(let r=0;r<Math.min(grid.length,12);r++){
     const row = grid[r]||[];
+    if(looksLikeData(row)) continue;            // a product row, not the headings
     const n = pickCol(row,["name"],["product","item","sauce","货品","商品","名称"],["category","cat","类别"]);
     if(n<0) continue;
     hr=r; c.name=n;
@@ -4006,7 +4163,12 @@ async function importItems(grid, fname){
     c.unit  = pickCol(row,["pktunit","innerunit","puom","countedin"],[],null);
     break;
   }
-  if(hr<0){ toast("Could not find a name column in that file"); return; }
+  if(hr<0){
+    const g = guessItemColumns(grid);
+    if(!g){ toast("Could not find a name column in that file —add a header row (Rack Position, Product Code, Product Name, UOM)"); return; }
+    c = {name:g.name, store:g.store, code:g.code, uom:g.uom, stock:-1, min:-1, cat:-1, loose:-1, base:-1, pack:-1, zone:-1, unit:-1};
+    hr = -1; guessed = true;                     // no header row: data starts on the first row
+  }
   const get = (row,i) => i>=0 ? row[i] : null;
   const num = v => { const n=parseFloat(v); return isNaN(n)?0:n; };
   const blank = v => v==null || String(v).trim()==="";
@@ -4078,6 +4240,7 @@ async function importItems(grid, fname){
       else if(!ex) it.cat = CODE_CAT[it.code.slice(0,2)] || "Uncategorised";
       const pk = packIn(row);
       if(pk!=null) convertToPacks(it, pk, wasCartons);
+      else if(!ex){ const g = packFromUom(uom); if(g!=null) it.packSize = g; }   // a new product takes its pack size from the UOM
       const fresh = ex ? Math.round(it.stock*100)/100 : 0;   // balance after any conversion, before this row's count
       if(has(row,c.stock) || has(row,c.loose)){
         const ctn = has(row,c.stock) ? num(get(row,c.stock)) : null, loose = has(row,c.loose) ? num(get(row,c.loose)) : null;
@@ -4139,7 +4302,8 @@ async function importItems(grid, fname){
   for(const [name, z] of rackZones){ const rk = state.racks.find(r=>r.name===name); if(rk) rk.zone = z; }
   state.demo = false;
   save(); render(); go("stock");
-  toast("Loaded "+fname+" —"+added+" added, "+updated+" updated"+(logged?" · "+logged+" balance"+(logged===1?"":"s")+" changed (Undo available)":""));
+  toast("Loaded "+fname+" —"+added+" added, "+updated+" updated"+(logged?" · "+logged+" balance"+(logged===1?"":"s")+" changed (Undo available)":"")
+    +(guessed?" · no header row, so columns were read as "+[c.store>=0?"rack code":"",c.code>=0?"product code":"","name",c.uom>=0?"UOM":""].filter(Boolean).join(", "):""));
 }
 function reloadBase(){
   const r = seedBase();
@@ -4466,6 +4630,7 @@ function commitCard(el){
    ============================================================ */
 let rkView = "plan";          // "plan" | "shelves" —per-browser preference
 let fpFloor = 1, fpSel = null, fpEdit = false, fpEditSel = null, fpDrag = null, fpFocus = null;
+let fpZoom = false;   // phones: the plan fits the screen; Zoom in makes it bigger and scrollable
 /* Quantities changed on the plan but not saved yet: itemId -> new balance
    (packets). Kept until Save so a whole rack can be gone through, checked,
    and logged as one count —one Undo puts it all back. */
@@ -4723,7 +4888,8 @@ function renderPlan(){
     <span class="fp-leg"><i class="fp-sw sw-out"></i>Out</span><span class="fp-leg"><i class="fp-sw sw-empty"></i>Empty</span>`
     + ZONES.map(z=>`<span class="fp-leg"><i class="zdot ${z.cls}"></i>${z.label}</span>`).join("");
   const bar = `<div class="fp-bar">${floorTabs}<span class="fp-legend">${legend}</span>
-      ${empty&&!fpEdit?"":`<button class="btn sm ${fpEdit?"on":""}" style="margin-left:auto" onclick="setPlanEdit(${!fpEdit})">${fpEdit?"Done editing":"Edit layout"}</button>`}</div>
+      ${empty&&!fpEdit?"":`<button class="btn sm m-only fp-zoom-b${fpZoom?" on":""}" style="margin-left:auto" onclick="fpZoom=!fpZoom;renderRacks()">${fpZoom?"Fit to screen":"Zoom in"}</button>
+      <button class="btn sm ${fpEdit?"on":""}" style="margin-left:auto" onclick="setPlanEdit(${!fpEdit})">${fpEdit?"Done editing":"Edit layout"}</button>`}</div>
     ${fpEdit?`<div class="fp-bar fp-tools"><span class="dim" style="font-size:12px">Drag to move · drag the corner square to resize · add:</span>
       ${["wall","door","stairs","block","area","floor","label"].map(t=>`<button class="btn sm" onclick="planAddDeco('${t}')">+ ${DECO_TYPES[t]}</button>`).join("")}
       ${[...PLAN_0434.racks, ...PLAN_0434.shapes].some(x=>x.floor===fpFloor) ? `<button class="btn sm" style="margin-left:auto" onclick="loadPlan0434(${fpFloor})">Redraw ${ordinal(fpFloor)} floor from the 0434 plan</button>` : ""}</div>`:""}`;
@@ -4740,7 +4906,7 @@ function renderPlan(){
       return `<div class="notebar"><span><b>The ${ordinal(f)} floor's layout is ready</b> —your plan was drawn before it was added, so ${names.join(", ")}${f===2?" and the stairs":""} aren't on it yet.</span>
         <button class="btn sm primary" onclick="loadPlan0434(${f})">Draw the ${ordinal(f)} floor</button></div>`;
     }).join("") : "";
-  host.innerHTML = `${drawBar}<div class="fp-wrap"><div class="fp-left">${bar}<div class="fp-mapbox" id="fp-mapbox">${map}</div></div>
+  host.innerHTML = `${drawBar}<div class="fp-wrap"><div class="fp-left">${bar}<div class="fp-mapbox${fpZoom?" zoom":""}" id="fp-mapbox">${map}</div></div>
     <div class="fp-side" id="fp-side">${side}${planSaveBar()}</div></div>`;
   wirePlanMap();
   wirePlanSide();
@@ -4776,8 +4942,10 @@ function planSelect(name, focusId){
   const rk = name ? state.racks.find(r=>r.name===name) : null;
   if(rk && rk.x!=null) fpFloor = rk.floor||1;
   fpFocus = focusId ?? null;
+  const focusing = fpFocus!=null;
   renderRacks();
-  const b = $("#fp-side-b"); if(b && fpFocus==null) b.scrollTop = 0;
+  const b = $("#fp-side-b"); if(b && !focusing) b.scrollTop = 0;
+  if(name && !focusing && narrowScreen()){ const sd = $("#fp-side"); if(sd) sd.scrollIntoView({behavior:"smooth", block:"start"}); }
 }
 function setPlanFloor(f){ fpFloor = f; fpEditSel = null; renderRacks(); }
 /* A plan drawn before a floor's layout existed (the 2nd floor used to be a
@@ -4802,6 +4970,7 @@ function planRackPanel(name, q){
       <span class="dim" style="font-size:12px">${its.length} product${its.length===1?"":"s"}${coded?" · "+lv.length+" level"+(lv.length===1?"":"s"):""}${rk&&rk.x==null?" · not on the plan":""}</span>
       <span style="margin-left:auto;display:flex;gap:4px">
         <button class="btn sm" onclick="promptMoveRack('${esc(name)}')" title="Rack settings —zone">⚙</button>
+        <button class="btn sm m-only" onclick="$('#fp-mapbox').scrollIntoView({behavior:'smooth',block:'center'})" title="Back to the map">↑ Map</button>
         <button class="btn sm" onclick="planSelect(null)" title="Close">✕</button></span></div>`;
   const body = lv.map(l=>{
     const rows = its.filter(i=>(i.level||"1")===l).sort((a,b)=>(a.slot||0)-(b.slot||0) || a.name.localeCompare(b.name));
@@ -6354,8 +6523,68 @@ function go(page){
   const el = $("#page-"+page); if(el) el.classList.remove("hidden");
   window.scrollTo({top:0, behavior:"instant"});
   render();
+  const rail = $("#rail"), ab = $("#rail button.active");
+  if(rail && ab && rail.scrollWidth > rail.clientWidth) rail.scrollTo({left: ab.offsetLeft - (rail.clientWidth-ab.offsetWidth)/2, behavior:"smooth"});
 }
 $$("#rail button").forEach(b=>b.addEventListener("click", ()=>go(b.dataset.page)));
+
+/* ---------- phone layout ----------
+   Under 760px wide every table on a page is shown as a stack of cards
+   (CSS: table.stk) —the product on top, then label / value pairs. The labels
+   are the column headings, copied onto each cell here. A MutationObserver
+   runs it after every render, including the ones a filter or a search box
+   does on its own, so no render function has to remember to. */
+const narrowScreen = () => window.matchMedia("(max-width:860px)").matches;
+const MAIN_COL = /^(item|product|company|in the file)$/i;
+function thLabel(th){
+  let t = "";
+  for(const n of th.childNodes) if(n.nodeType===3 || (n.nodeType===1 && !n.classList.contains("info"))) t += n.textContent;
+  return t.replace(/\s+/g," ").trim();
+}
+function labelRow(tr, heads){
+  tr.dataset.lb = "1";
+  if(tr.classList.contains("grp")) return;
+  let col = 0, main = false, badge = false;
+  for(const td of tr.cells){
+    const l = heads[col] || ""; col += td.colSpan || 1;
+    if(td.colSpan>1) continue;
+    td.dataset.l = l;
+    const els = td.children, txt = td.textContent.replace(/\s+/g,"");
+    if(!main && (td.classList.contains("name") || MAIN_COL.test(l))){ td.classList.add("c-main"); main = true; continue; }
+    if(!l && !badge && els.length===1 && els[0].matches(".tag,.star,.xbtn") && txt===els[0].textContent.replace(/\s+/g,"")){
+      td.classList.add("c-badge"); tr.classList.add("has-badge"); badge = true; continue; }
+    if(td.querySelector("input,select,textarea,.pill-tg")) td.classList.add("c-wide");
+    else if((!l && td.querySelector("button")) || td.querySelectorAll(".btn").length>1) td.classList.add("c-act");
+    else if(!txt && !els.length && !td.id) td.classList.add("c-blank");
+  }
+}
+function labelTables(){
+  for(const tb of $$("main.work table:not(.stk):not(.fp-zt)")){
+    const hr = tb.tHead && tb.tHead.rows[0]; if(!hr || !tb.tBodies[0]) continue;
+    const heads = []; for(const th of hr.cells){ const l = thLabel(th); for(let k=0;k<(th.colSpan||1);k++) heads.push(l); }
+    tb.dataset.heads = JSON.stringify(heads);
+    tb.classList.add("stk");
+  }
+  for(const tr of $$("main.work table.stk>tbody>tr:not([data-lb])")){
+    const tb = tr.closest("table"); labelRow(tr, JSON.parse(tb.dataset.heads||"[]"));
+  }
+  /* long page descriptions fold to three lines on a phone, with More / Less */
+  for(const ps of $$("main.work .psub:not([data-pm])")){
+    ps.dataset.pm = "1"; ps.classList.add("clamp");
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "psub-more"; b.textContent = "More";
+    b.addEventListener("click", ()=>{ const c = ps.classList.toggle("clamp"); b.textContent = c ? "More" : "Less"; });
+    ps.after(b);
+  }
+  for(const b of $$("main.work section:not(.hidden) .psub-more")){
+    const ps = b.previousElementSibling;
+    b.classList.toggle("no", !!ps && ps.classList.contains("clamp") && ps.scrollHeight <= ps.clientHeight + 2);
+  }
+}
+let labelQueued = false;
+function queueLabel(){ if(labelQueued) return; labelQueued = true; requestAnimationFrame(()=>{ labelQueued = false; labelTables(); }); }
+new MutationObserver(queueLabel).observe($("main.work"), {childList:true, subtree:true});
+window.addEventListener("resize", queueLabel);
 
 /* A department is either 'kitchen' (cook line —Panel/Cook/Sales) or
    'warehouse' (racks/stock —Racks/Issue Stock). Buttons/pages tagged with

@@ -79,6 +79,28 @@ signed in, the app itself.
 To reconfigure later (different project, wrong key, etc.), use **Setup → Change
 Supabase / Clerk keys** inside the app, or the equivalent link on the sign-in screen.
 
+### On a phone or tablet
+
+Every page fits the screen width, with no sideways scrolling:
+
+- **Station tabs:** the stations become a row of tabs across the top. Swipe the
+  row sideways to reach the rest; it stays pinned while you scroll.
+- **Tables:** below 760px wide, each table row is shown as a card. The product
+  is on top, then each column as a label and value, with the row's buttons
+  along the bottom.
+- **Page descriptions:** long ones fold to three lines, with **More** to open
+  them.
+- **Dialogs:** they slide up from the bottom, with Cancel / Save always in
+  reach.
+- **Count:** the Apply button stays on screen while you count.
+- **Racks floor plan:**
+  - The whole floor fits the screen. **Zoom in** makes it bigger, and you
+    scroll it inside its box.
+  - Tapping a rack scrolls down to its panel, and **↑ Map** goes back up.
+  - **Save changes** stays at the bottom of the screen until you press it.
+- **Shelves view:** dragging cards may not work on every phone. If it doesn't,
+  change a product's rack code with **Edit**.
+
 ## Warehouse departments (0434)
 
 A department can be `kitchen` (the cook-line pages: Panel/Cook/Sales In/Sales)
@@ -287,7 +309,11 @@ the freezer.
 what's there alone, so **Download current list (to edit)** → fill in pack sizes
 / zones / counts in Excel → drop it back in. A changed balance is logged and
 can be undone. A rack position like `R8A1L01` is split into rack/level/position
-automatically; anything else (`CENTER`, `CHILLER`) becomes an open area. New
+automatically; anything else (`CENTER`, `CHILLER`) becomes an open area.
+A sheet typed **without a header row** —rack code | product code | name | UOM,
+in any order— is read too: its columns are recognised by what's in them, and
+a product row is never mistaken for headings. A new product with no
+`Pkts per Ctn` takes its pack size from its UOM. New
 racks are added to the board automatically. **Download rack template** gives a
 blank sheet with the same columns.
 
