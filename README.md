@@ -82,17 +82,56 @@ Supabase / Clerk keys** inside the app, or the equivalent link on the sign-in sc
 ## Warehouse departments (0434)
 
 A department can be `kitchen` (the cook-line pages: Panel/Cook/Sales In/Sales)
-or `warehouse` (Racks / Receive Stock / Issue Stock / Issued Summary instead).
+or `warehouse` (Low Stock / Racks / Receive Stock / Issue Stock / Issued Summary
+instead).
 Setup → Departments has a Type selector when adding a new one. Stock,
 Stocktake, Count, Log and Setup are shared by both types.
 
 > **Updating an existing database:** re-run `supabase-schema.sql` *before*
 > opening this version on a warehouse department. It adds `items.pack_size`,
-> `items.unit`,
+> `items.unit`, `items.ordered_on`,
 > `tx.supplier` / `tx.ref`, `racks.zone` / `x` / `y` / `w` / `h` / `floor` and
 > `settings.floor_plan`, and changes nothing that's already there. Kitchen
 > departments never send those columns, so they keep working either way; a
 > warehouse department shows "the database needs updating" until it's run.
+
+### Minimums and low-stock alerts
+
+Every product has a **minimum** —the level below which it needs reordering—
+without anyone having to type one in:
+
+- **Auto** (the default): worked out from everything that goes out —issues,
+  and sales once they're imported— as enough stock for N days of usage (N set
+  in **Minimums** / Setup → Stock alert settings; delivery time plus a safety
+  margin). While history is short it's average usage × N (falling back to the
+  item's baseline usage per day); once there's about 4×N days on record it
+  becomes the 90th percentile of rolling N-day demand, so a bad week is still
+  covered. It's recalculated continuously as history builds.
+- **Manual**: a number you set; it stays exactly as set.
+- Each product has an **Auto | Manual** pill (Stock page, Low Stock page and
+  Edit) with an **ⓘ** that explains it. Switching to Manual starts from what
+  Auto would give, so nothing jumps. **Bought to order** (in Edit) means no
+  minimum and no alerts. Storage: `items.min` > 0 is a manual minimum, 0 is
+  Auto, the pre-order flag is "bought to order".
+
+**Low Stock** (station 01, where a warehouse opens) lists what needs
+reordering, worst first —out of stock, then below minimum by days left— with
+the rack code, balance, minimum, days left, a **suggested order** (back to
+about twice the minimum, rounded up to whole cartons), when and from whom it
+was last received, and **Mark ordered** (`items.ordered_on`, cleared
+automatically when a delivery for it is received). Below that: what will drop
+below its minimum within a few days at the current rate, and products with no
+minimum yet (no usage, no manual minimum). **Print reorder list** groups it by
+the supplier each product last came from; **Export CSV** has the same.
+
+**Alerts:** whenever a product crosses below its minimum or runs out —from an
+issue keyed here, a count, an import, or a change made on another device
+(it arrives live)— a banner drops in across the top of every page until it's
+looked at. Once a day, opening the app shows how many products are low. The
+OUT / BELOW MIN lamps in the top bar go to Low Stock, and the Low Stock entry
+in the menu shows a red dot while anything is low. **Turn on desktop alerts**
+(per device) also pops up a system notification when the app isn't the
+window in front.
 
 ### Storage zones —Dry / Chiller / Freezer
 
