@@ -60,6 +60,15 @@ alter table items add column if not exists slot int not null default 0;
 -- it was first counted in (plus loose_qty), exactly as before this existed.
 -- Kitchen depts never set it.
 alter table items add column if not exists pack_size numeric;
+-- Warehouse depts: what the packets inside a carton are called when the UOM
+-- doesn't say —cans in a "24x0.4kg/ctn", bottles in a "12x0.7ltr/ctn", drums
+-- in a "4x5ltr/ctn". Learned from YonYou's PUOM on receipt, or set by hand.
+-- Null/blank = read it off the UOM (pkt for most cartons).
+alter table items add column if not exists unit text;
+-- Warehouse depts: the day a reorder was placed for this product (Low Stock →
+-- Mark ordered), so it isn't ordered twice; cleared when the delivery is
+-- received. Null = nothing on order.
+alter table items add column if not exists ordered_on date;
 
 create table if not exists tx (
   id          bigint not null,           -- client-assigned (state.txSeq), per department

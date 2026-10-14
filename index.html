@@ -133,6 +133,39 @@ svg.ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;str
 .lamp.ok{background:var(--ok)} .lamp.off{background:#5E6B69}
 @keyframes blink{0%,45%{opacity:1}55%,100%{opacity:.25}}
 .tb-lamp.on .lamp{animation:blink 1.6s steps(1) infinite}
+button.tb-lamp{cursor:pointer;line-height:inherit}
+button.tb-lamp:hover{border-color:#93B8B3}
+button.tb-lamp:focus-visible{outline:2px solid #93B8B3;outline-offset:1px}
+
+/* ---------------- low-stock banner, Auto | Manual pill, ⓘ ---------------- */
+.lowbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 18px;background:var(--warn-bg);color:var(--warn);
+  border-bottom:1px solid var(--warn-rule);font-size:13px}
+.lowbar.crit{background:var(--crit-bg);color:var(--crit);border-bottom-color:var(--crit-rule)}
+.lowbar b{color:var(--ink)}
+.lowbar span{flex:1;min-width:220px}
+.lowbar .ic{width:17px;height:17px}
+.pill-tg{display:inline-flex;border:1px solid var(--rule-2);border-radius:999px;overflow:hidden;background:var(--panel-2);vertical-align:middle;flex:none}
+.pill-tg button{border:none;background:none;font:600 10.5px var(--f-mono);letter-spacing:.02em;padding:3px 9px;color:var(--ink-3);cursor:pointer;line-height:1.4}
+.pill-tg button+button{border-left:1px solid var(--rule-2)}
+.pill-tg button.on{background:var(--accent);color:#fff}
+.pill-tg button:not(.on):hover{background:var(--panel-3);color:var(--ink)}
+.pill-tg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.mincell{display:inline-flex;align-items:center;gap:7px;justify-content:flex-end;white-space:nowrap}
+.minv{background:none;border:none;border-bottom:1px dashed var(--rule-2);font:12.5px var(--f-mono);color:var(--ink);cursor:pointer;padding:1px 0}
+.minv.auto{color:var(--ink-2)}
+.minv:hover{border-bottom-color:var(--accent);color:var(--accent)}
+.minbox{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-height:34px}
+.minbox[data-mode="auto"] .min-man{display:none}
+.minbox[data-mode="manual"] .min-auto{display:none}
+.min-auto{font-size:12.5px}
+.info{position:relative;display:inline-block;vertical-align:middle;margin-left:3px}
+.info-b{width:16px;height:16px;border-radius:50%;border:1px solid var(--ink-3);background:var(--panel);color:var(--ink-2);
+  font:italic 700 10px/1 Georgia,serif;cursor:pointer;padding:0;display:inline-flex;align-items:center;justify-content:center;text-transform:none}
+.info-b:hover,.info.open .info-b{background:var(--accent);border-color:var(--accent);color:#fff}
+.info-pop{display:none;position:fixed;z-index:90;background:var(--ink);color:#EEF2F0;padding:10px 12px;font:400 12.5px/1.5 var(--f-ui);
+  text-transform:none;letter-spacing:normal;text-align:left;white-space:normal;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.info-pop b{color:#fff;font-weight:600}
+.info.open .info-pop{display:block}
 
 .demo-bar{background:var(--warn-bg);border-bottom:1px solid var(--warn-rule);color:var(--warn);
   font-size:12.5px;padding:7px 18px;display:flex;align-items:center;gap:10px;font-weight:500}
@@ -568,10 +601,12 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
   <div id="clerk-user"></div>
 </header>
 <div id="demo-bar"></div>
+<div id="low-bar"></div>
 
 <div class="shell">
   <nav class="rail" id="rail">
     <button data-page="panel" data-scope="kitchen" class="active"><span class="st">01</span><svg class="ic"><use href="#i-panel"/></svg>Panel<span class="dot"></span></button>
+    <button data-page="alerts" data-scope="warehouse"><span class="st">01</span><svg class="ic"><use href="#i-alert"/></svg>Low Stock<span class="dot"></span></button>
     <button data-page="stock"><span class="st">02</span><svg class="ic"><use href="#i-stock"/></svg>Stock</button>
     <button data-page="racks" data-scope="warehouse"><span class="st">03</span><svg class="ic"><use href="#i-rack"/></svg>Racks</button>
     <button data-page="stocktake"><span class="st">04</span><svg class="ic"><use href="#i-clip"/></svg>Stocktake<span class="dot"></span></button>
@@ -603,13 +638,28 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
     <div id="panel-body"></div>
   </section>
 
+  <!-- ======== 01 LOW STOCK (warehouse) ======== -->
+  <section id="page-alerts" class="hidden">
+    <div class="phead">
+      <div><h1>Low Stock</h1><div class="psub">What needs reordering, worst first. Every product has a minimum —worked out automatically from what goes out, or one you set (the <b>Auto | Manual</b> pill). When a balance drops below it, the product shows here and a banner pops up across the top of every page, on every device using the app.</div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <select id="al-zone"><option value="all">All zones</option></select>
+        <button class="btn" id="btn-notify" onclick="enableDesktopAlerts()">Turn on desktop alerts</button>
+        <button class="btn" onclick="openMinTool()"><svg class="ic"><use href="#i-scale"/></svg>Minimums</button>
+        <button class="btn" onclick="exportReorderCsv()">Export CSV</button>
+        <button class="btn primary" onclick="printReorderList()"><svg class="ic"><use href="#i-print"/></svg>Print reorder list</button>
+      </div>
+    </div>
+    <div id="al-body"></div>
+  </section>
+
   <!-- ======== 02 STOCK ======== -->
   <section id="page-stock" class="hidden">
     <div class="phead">
       <div><h1>Stock Register</h1><div class="psub" id="stock-sub">Every item on this line, its balance, its minimum, and how many days that balance covers. <b>Set minimums</b> rebuilds them from real sales —the 90th percentile of rolling 7-day demand, enough for a bad week in 9 weeks out of 10.</div></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn" onclick="copyCodes()"><svg class="ic"><use href="#i-copy"/></svg><span id="copy-label">Copy codes</span></button>
-        <button class="btn" onclick="openMinTool()"><svg class="ic"><use href="#i-scale"/></svg>Set minimums</button>
+        <button class="btn" onclick="openMinTool()"><svg class="ic"><use href="#i-scale"/></svg><span id="btn-mins-l">Set minimums</span></button>
         <button class="btn primary" onclick="openAdd()"><svg class="ic"><use href="#i-plus"/></svg>Add item</button>
       </div>
     </div>
@@ -872,16 +922,16 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
           </div>
         </div>
         <div class="panel">
-          <div class="panel-h"><h2>Line settings</h2></div>
+          <div class="panel-h"><h2 id="set-title">Line settings</h2></div>
           <div class="panel-b">
-            <div class="field"><label>Daily kettle capacity (kg of finished product)</label>
+            <div class="field kitchen-only"><label>Daily kettle capacity (kg of finished product)</label>
               <input type="number" id="set-cap" step="any" min="0" style="width:100%"></div>
-            <div class="field"><label>Cover target —days of stock a minimum should represent</label>
+            <div class="field"><label id="set-cover-l">Cover target —days of stock a minimum should represent</label>
               <input type="number" id="set-cover" step="1" min="1" style="width:100%"></div>
-            <div class="field"><label>Production head —printed on the cook sheet</label>
+            <div class="field kitchen-only"><label>Production head —printed on the cook sheet</label>
               <input id="set-head" style="width:100%"></div>
             <button class="btn primary" onclick="saveSettings()">Save settings</button>
-            <p class="dim" style="font-size:12px;margin-top:10px">Capacity drives the load meter on the cook schedule. The cover target is what <b>Set minimums</b> on the stock page uses to rebuild every minimum from real usage.</p>
+            <p class="dim" style="font-size:12px;margin-top:10px" id="set-note">Capacity drives the load meter on the cook schedule. The cover target is what <b>Set minimums</b> on the stock page uses to rebuild every minimum from real usage.</p>
           </div>
         </div>
       </div>
@@ -1075,6 +1125,7 @@ const CARTON_RE = /(ctn|carton|case|\bcs\b|\bbox\b|\bbx\b|箱|件)/i;
 const INNER_UNITS = /^(roll|btl|bottle|can|tin|bag|tray|tub|jar|pack|pkt|packet|pail|drum)$/i;
 const PIECE_UNITS = /^(roll|btl|bottle|can|tin|bag|tray|tub|jar|pack|pkt|packet|pail|drum|pcs|pc|piece|pieces)$/i;
 function unitOf(it){
+  if(it && it.unit) return it.unit;                 // set by hand, from the item sheet, or learned from a receipt's PUOM
   const u = String(it && it.uom || "");
   const m = u.match(/(?:^|\/)\s*([A-Za-z\u4e00-\u9fff]+)\s*$/);
   const tail = m ? m[1].toLowerCase() : "";
@@ -1087,6 +1138,18 @@ function unitOf(it){
     return "pkt";
   }
   return tail || "pkt";
+}
+/* Unit names as people write them -> one short form ("bottle" -> btl, "cans" -> can). */
+const UNIT_ALIASES = {bottle:"btl",bottles:"btl",btls:"btl",cans:"can",drums:"drum",tins:"tin",bags:"bag",rolls:"roll",
+  packet:"pkt",packets:"pkt",pack:"pkt",packs:"pkt",pkts:"pkt",boxes:"box",trays:"tray",jars:"jar",pc:"pcs",piece:"pcs",pieces:"pcs"};
+function normUnit(u){ const k = String(u||"").trim().toLowerCase(); return UNIT_ALIASES[k] || k; }
+/* What a carton can hold that's worth naming —a PUOM of "can", "btl" or
+   "drum" on a "24x0.4kg/ctn" product means the carton holds 24 cans. */
+const CONTAINER_RE = /^(btl|can|drum|tin|bag|roll|tray|jar|tub|pail|box)$/;
+function learnUnit(it, pu){
+  if(!it || it.unit || packOf(it)<=1) return null;
+  const u = normUnit(pu);
+  return CONTAINER_RE.test(u) ? u : null;
 }
 /* Packets per carton, as the UOM spells it out: "10x1kg/ctn" -> 10,
    "100pcsx10roll/ctn" -> 10; 1 for anything that isn't split into packs
@@ -1271,7 +1334,100 @@ function smartDailyRate(id){
 }
 function usageRate(it){ const r=smartDailyRate(it.id); return r>0 ? r : (it.baseDaily||0); }
 function coverDays(it){ const r=usageRate(it); return r>0 ? it.stock/r : null; }
-function shortfall(it){ return Math.max(0, Math.round((it.min - it.stock)*100)/100); }
+function shortfall(it){ return Math.max(0, Math.round((effMin(it) - it.stock)*100)/100); }
+
+/* ---------- warehouse minimums ----------
+   In a warehouse every product has a minimum without anyone typing one in:
+   unless it's been given a fixed one, it's worked out from what actually goes
+   out (issues, and sales once imported) the same way "Set minimums" does it
+   —the 90th percentile of rolling N-day demand, N = the cover days set in
+   Setup, or mean usage × N while history is short— so it keeps up as history
+   builds. A fixed minimum (items.min > 0) overrides it; "bought to order"
+   (the pre-order flag) means no minimum and no alerts. Kitchen departments
+   keep their stored minimum exactly as before. */
+let stateVer = 0, autoMinCache = null;
+function autoMin(it){
+  if(!autoMinCache || autoMinCache.ref!==state || autoMinCache.ver!==stateVer) autoMinCache = {ref:state, ver:stateVer, map:new Map()};
+  let v = autoMinCache.map.get(it.id);
+  if(v===undefined){
+    v = recommendMin(Object.assign({}, it, {preorder:false, stopped:false}), state.coverTarget||7);
+    autoMinCache.map.set(it.id, v);
+  }
+  return v;
+}
+function minMode(it){ return !isWarehouse() ? "fixed" : it.preorder ? "none" : it.min>0 ? "fixed" : "auto"; }
+function effMin(it){
+  if(!isWarehouse()) return it.min||0;
+  if(it.preorder || it.stopped) return 0;
+  return it.min>0 ? it.min : autoMin(it);
+}
+/* ⓘ that opens a short explanation on tap (hover-only tooltips don't work
+   on a tablet). The bubble is positioned on screen so a scrolling table
+   can't clip it; tapping anywhere else, or scrolling, closes it. */
+function infoTip(html){
+  return `<span class="info"><button type="button" class="info-b" aria-label="What does this do?" onclick="toggleInfo(event,this)">i</button><span class="info-pop" role="tooltip">${html}</span></span>`;
+}
+function closeInfos(){ $$(".info.open").forEach(x=>x.classList.remove("open")); }
+function toggleInfo(e, btn){
+  e.preventDefault(); e.stopPropagation();
+  const box = btn.parentNode, open = box.classList.contains("open");
+  closeInfos();
+  if(open) return;
+  box.classList.add("open");
+  const pop = box.querySelector(".info-pop"), r = btn.getBoundingClientRect();
+  const w = Math.min(300, window.innerWidth-24);
+  pop.style.width = w+"px";
+  pop.style.left = Math.max(12, Math.min(window.innerWidth-w-12, r.left+r.width/2-w/2))+"px";
+  pop.style.top = (r.bottom+8)+"px";
+}
+document.addEventListener("click", e=>{ if(!e.target.closest(".info")) closeInfos(); });
+window.addEventListener("scroll", closeInfos, true);
+function minInfo(){
+  const d = state.coverTarget||7;
+  return `<b>Auto</b> —the system sets the minimum from what goes out: enough stock for <b>${d} days</b> of issues${isWarehouse()?" (and sales, once imported)":""}, sized for the busiest weeks so a bad week is still covered. It updates by itself as history builds up; a product with no movement yet has no automatic minimum.<br><br><b>Manual</b> —you type the minimum and it stays exactly as you set it until you switch back to Auto.<br><br>Either way, when the balance drops below the minimum the product goes on <b>Low Stock</b> and you get an alert. The ${d} days can be changed in <b>Minimums</b>.`;
+}
+/* Auto | Manual pill for one product's minimum. Manual opens the editor,
+   starting from what Auto gives now so the number doesn't jump. */
+function minPill(it){
+  const auto = !(it.min>0);
+  return `<span class="pill-tg" role="group" aria-label="Minimum for ${esc(it.name)}: automatic or manual">
+    <button type="button" class="${auto?"on":""}" aria-pressed="${auto}" onclick="setMinMode(${it.id},'auto')">Auto</button><button type="button" class="${auto?"":"on"}" aria-pressed="${!auto}" onclick="setMinMode(${it.id},'manual')">Manual</button></span>`;
+}
+function minCell(it){
+  if(it.preorder) return '<span class="tag t-info" title="Bought to order —no minimum, never on Low Stock">To order</span>';
+  const auto = !(it.min>0), v = effMin(it);
+  return `<span class="mincell">${minPill(it)}<button type="button" class="minv${auto?" auto":""}" onclick="openMinEdit(${it.id})"
+    title="${auto ? (v>0 ? "Worked out from usage —tap to set your own" : "No usage yet, so no automatic minimum —tap to set one") : "Your minimum —tap to change"}">${v>0 ? esc(fmtQty(it, v)) : "—"}</button></span>`;
+}
+function setMinMode(id, mode){
+  const it = item(id); if(!it) return;
+  if(mode==="auto"){
+    if(!(it.min>0)) return;
+    it.min = 0; save(); render();
+    const v = effMin(it);
+    toast(it.name+" —minimum is automatic again"+(v>0 ? " ("+fmtQty(it, v)+")" : ", once it has usage"));
+    return;
+  }
+  openMinEdit(id);
+}
+function openMinEdit(id){
+  const it = item(id); if(!it) return;
+  const a = autoMin(it), start = it.min>0 ? it.min : (a>0 ? a : "");
+  modal(`<h3>Set a manual minimum</h3>
+    <p class="dim" style="font-size:12.5px;margin-bottom:10px">${esc(it.name)} —the low-stock alert fires when the balance drops below this, and it stays as you set it until you switch back to <b>Auto</b>.
+      ${a>0 ? `Automatic would be <b class="mono">${esc(fmtQty(it, a))}</b> (${state.coverTarget||7} days of usage).` : "There's no usage history yet, so there's no automatic minimum to start from."}</p>
+    <div class="field"><label>Minimum</label>${qtyInputs(it, "m-min", start)}</div>
+    <div class="mfoot"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="saveMinEdit(${id})">Save</button></div>`);
+  const f = $("#m-min-c") || $("#m-min-p"); if(f){ f.focus(); f.select(); }
+}
+function saveMinEdit(id){
+  const it = item(id); if(!it) return;
+  const v = readQty(it, "m-min");
+  if(!(v>0)){ toast("Enter a minimum above 0 —or keep it on Auto"); return; }
+  it.min = v; it.preorder = false;
+  closeModal(); save(); render();
+  toast(it.name+" —manual minimum "+fmtQty(it, v));
+}
 function trend(it){
   const now = windowDaily(it.id,7,0), prev = windowDaily(it.id,14,7);
   if(now<0.05 && prev<0.05) return null;
@@ -1289,16 +1445,17 @@ function sev(it){
   if(uncounted(it)) return "off";          // balance unknown until it is counted
   if(it.stock<0) return "data";
   const c = coverDays(it);
-  if(it.stock<=0 && (usageRate(it)>0 || it.min>0)) return "crit";
+  const mn = effMin(it);
+  if(it.stock<=0 && (usageRate(it)>0 || mn>0)) return "crit";
   if(c!=null && c<=1) return "crit";
   if(c!=null && c<=3) return "warn";
-  if(it.min>0 && it.stock<it.min) return "warn";
+  if(mn>0 && it.stock<mn) return "warn";
   return "ok";
 }
 function sevTag(it){
   const s = sev(it), c = coverDays(it);
   if(it.stopped) return '<span class="tag t-off">Stopped</span>';
-  if(it.preorder) return '<span class="tag t-info">Pre-order</span>';
+  if(it.preorder) return isWarehouse() ? '<span class="tag t-info">To order</span>' : '<span class="tag t-info">Pre-order</span>';
   if(uncounted(it)) return '<span class="tag t-off">Not counted</span>';
   if(s==="data") return '<span class="tag t-crit">Negative</span>';
   if(it.stock<=0 && s==="crit") return '<span class="tag t-crit">Out</span>';
@@ -1393,12 +1550,15 @@ function itemRow(i){ const r = {id:i.id, dept_id:dept, name:i.name, uom:i.uom||"
   preorder:!!i.preorder, stopped:!!i.stopped, watch:!!i.watch, counted:!!i.counted,
   loose_qty:i.looseQty||0, level:i.level||"1", slot:i.slot||0};
   if(i.packSize!=null) r.pack_size = i.packSize;
+  if(i.unit!=null) r.unit = i.unit;
+  if(i.orderedOn!==undefined) r.ordered_on = i.orderedOn || null;
   return r; }
 function rowItem(r){ return {id:Number(r.id), name:r.name, uom:r.uom, code:r.code, store:r.store, cat:r.cat,
   stock:Number(r.stock), min:Number(r.min), baseDaily:Number(r.base_daily),
   preorder:!!r.preorder, stopped:!!r.stopped, watch:!!r.watch, counted:!!r.counted,
   looseQty:Number(r.loose_qty||0), level:r.level||"1", slot:Number(r.slot||0),
-  packSize:r.pack_size==null?null:Number(r.pack_size)}; }
+  packSize:r.pack_size==null?null:Number(r.pack_size), unit:r.unit??null,
+  ...(r.ordered_on!==undefined ? {orderedOn:r.ordered_on} : {})}; }
 
 function txRow(t){ const r = {id:t.id, dept_id:dept, ts:t.ts, date:t.date, item_id:t.itemId, type:t.type,
   qty:t.qty, note:t.note||"", batch:t.b??null, planned:(t.planned??null), hist:!!t.h, amount:(t.amount??null),
@@ -1499,6 +1659,7 @@ function stateFromCache(){
 }
 
 function save(){
+  stateVer++;                      // anything worked out from the data (automatic minimums) is stale now
   mirrorLocal();
   if(!DB_READY) return;
   dirty = true;
@@ -1893,19 +2054,19 @@ function renderTopbarWarehouse(){
   $("#tb-fresh-k").textContent = "Last received";
   $("#tb-fresh").textContent = last ? (last===todayStr() ? "today" : last) : "nothing yet";
   const a = active();
-  const low = a.filter(i=>i.min>0 && i.stock<i.min && i.stock>0).length;
-  const out = a.filter(i=>i.stock<=0 && !uncounted(i)).length;
+  const low = a.filter(i=>itemState(i)==="low").length;
+  const out = a.filter(i=>itemState(i)==="out").length;
   const noRack = a.filter(i=>!(i.store||"").trim()).length;
   const lamps = [
-    {k:"OUT",       v:out,    cls:out?"on":"",  lamp:out?"crit":"off"},
-    {k:"BELOW MIN", v:low,    cls:low?"warn":"", lamp:low?"warn":"off"},
-    {k:"NO RACK",   v:noRack, cls:"",            lamp:noRack?"warn":"ok"}
+    {k:"OUT",       v:out,    cls:out?"on":"",  lamp:out?"crit":"off", go:"alerts", t:"Out of stock —see Low Stock"},
+    {k:"BELOW MIN", v:low,    cls:low?"warn":"", lamp:low?"warn":"off", go:"alerts", t:"Below minimum —see Low Stock"},
+    {k:"NO RACK",   v:noRack, cls:"",            lamp:noRack?"warn":"ok", go:"racks", t:"Products not given a rack yet"}
   ];
   $("#tb-lamps").innerHTML = lamps.map(l=>
-    `<span class="tb-lamp ${l.cls}"><i class="lamp ${l.lamp}"></i>${l.k} <b>${l.v}</b></span>`).join("");
+    `<button type="button" class="tb-lamp ${l.cls}" onclick="go('${l.go}')" title="${l.t}"><i class="lamp ${l.lamp}"></i>${l.k} <b>${l.v}</b></button>`).join("");
   const stN = (state.stocktake||[]).length;
   $$("#rail button").forEach(b=>b.classList.toggle("alarm",
-    (b.dataset.page==="stock" && out>0) || (b.dataset.page==="stocktake" && stN>0)));
+    (b.dataset.page==="alerts" && (out+low)>0) || (b.dataset.page==="stocktake" && stN>0)));
   $("#demo-bar").innerHTML = "";
 }
 
@@ -2369,11 +2530,14 @@ function fillCats(sel){
 function renderStock(){
   fillCats($("#s-cat")); fillStores($("#s-store")); fillZones($("#s-zone"));
   const wh = isWarehouse();
+  /* categories are optional in a warehouse —no filter until some product has one */
+  const sc = $("#s-cat"); if(sc){ const any = state.items.some(hasCat); sc.classList.toggle("hidden", wh && !any); if(wh && !any) sc.value = "all"; }
   const q = norm($("#s-q").value), f = $("#s-filter").value, cat = $("#s-cat").value;
   const sv = $("#s-store").value, zv = zoneSel("#s-zone");
+  const ml = $("#btn-mins-l"); if(ml) ml.textContent = wh ? "Minimums" : "Set minimums";
   const sub = $("#stock-sub");
   if(sub) sub.innerHTML = wh
-    ? "Every product in this warehouse: where it's stored, its balance in cartons + packets, its minimum, and how many days that balance covers at the rate it's being issued. <b>Set minimums</b> rebuilds them from real issues —the 90th percentile of rolling 7-day demand."
+    ? "Every product in this warehouse: where it's stored, its balance in cartons + packets, its minimum, and how many days that balance covers at the rate it's going out. Each minimum is <b>Auto</b> (worked out from usage and kept up to date) or <b>Manual</b> (your number) —flip the pill on any row; ⓘ explains it."
     : "Every item on this line, its balance, its minimum, and how many days that balance covers. <b>Set minimums</b> rebuilds them from real sales —the 90th percentile of rolling 7-day demand, enough for a bad week in 9 weeks out of 10.";
   const hide = $("#s-hide").getAttribute("aria-pressed")==="true";
   let list = state.items.slice().sort((a,b)=>
@@ -2386,7 +2550,7 @@ function renderStock(){
   const note = $("#stock-note");
   if(note) note.innerHTML = unpacked ? `<div class="notebar"><span><b>${unpacked} product${unpacked===1?" has":"s have"} no pack size yet</b>, so ${unpacked===1?"its":"their"} balance isn't split into cartons + packets.</span>
       <button class="btn sm primary" onclick="openPackFromUom()">Set pack sizes from the UOM</button></div>` : "";
-  if(f==="short") list = list.filter(i=>i.min>0 && i.stock<i.min);
+  if(f==="short") list = list.filter(i=>{ const m = effMin(i); return m>0 && i.stock<m; });
   else if(f==="out") list = list.filter(i=>i.stock<=0);
   else if(f==="watch") list = list.filter(i=>i.watch);
   else if(f==="preorder") list = list.filter(i=>i.preorder);
@@ -2411,19 +2575,19 @@ function renderStock(){
   if(!list.length){ $("#stock-table").innerHTML = '<div class="empty">Nothing matches that filter.</div>'; return; }
 
   $("#stock-table").innerHTML = `<table><thead><tr>
-    <th></th><th>Item</th><th class="num">${wh?"Rack code":"Location"}</th><th class="num">Stock</th><th class="num">Min</th>
+    <th></th><th>Item</th><th class="num">${wh?"Rack code":"Location"}</th><th class="num">Stock</th><th class="num">Min${wh?" "+infoTip(minInfo()):""}</th>
     <th class="num">Min in days</th><th class="num">Cover</th><th class="num">Use / day</th>
     <th class="num">Status</th><th class="num">Actions</th></tr></thead><tbody>`
     + list.map(i=>{
-        const s = sev(i), u = usageRate(i);
-        const minDays = u>0 && i.min>0 ? fmt1(i.min/u) : "—";
+        const s = sev(i), u = usageRate(i), mn = effMin(i);
+        const minDays = u>0 && mn>0 ? fmt1(mn/u) : "—";
         return `<tr class="sev-${s==="data"?"crit":s==="off"?"":s}">
           <td style="width:30px"><button class="star ${i.watch?"on":""}" onclick="toggleWatch(${i.id})" title="${i.watch?"Stop watching":"Watch this sauce"}"><svg class="ic"><use href="#i-star"/></svg></button></td>
           <td class="name"><span style="${i.stopped?"text-decoration:line-through;color:var(--ink-3)":""}">${esc(i.name)}</span>
-            <span class="sub">${esc(i.uom)}${i.code?" · "+esc(i.code):""} · ${esc(i.cat||"Uncategorised")}</span></td>
+            <span class="sub">${esc(i.uom)}${i.code?" · "+esc(i.code):""}${hasCat(i)?" · "+esc(i.cat):""}</span></td>
           <td class="num mono dim" style="font-size:11.5px">${wh ? (i.store ? zoneChip(zoneOf(i))+" "+esc(posCode(i)) : '<span class="faint">Unassigned</span>') : esc(i.store||"—")}</td>
           <td class="num" style="${i.stock<0?"color:var(--crit);font-weight:600":""}">${uncounted(i)?'<span class="faint">—</span>':fmtBal(i)}</td>
-          <td class="num dim">${fmtQty(i, i.min)}</td>
+          <td class="num dim">${wh ? minCell(i) : fmtQty(i, i.min)}</td>
           <td class="num dim">${minDays}</td>
           <td class="num">${coverCell(i)}</td>
           <td class="num dim">${u>0?fmt1(u)+(hasPack(i)?" "+esc(unitOf(i)):""):"—"}</td>
@@ -2668,7 +2832,7 @@ function stAddMany(which){
   const zv = zoneSel("#st-zone");
   let pool = active().filter(i=>inStore(i,sv) && inZoneSel(i,zv));
   if(q) pool = pool.filter(i=>norm(i.name).includes(q)||norm(i.code).includes(q)||norm(i.uom).includes(q)||norm(posCode(i)).includes(q));
-  if(which==="short") pool = pool.filter(i=>!i.preorder && i.min>0 && i.stock<i.min);
+  if(which==="short") pool = pool.filter(i=>!i.preorder && effMin(i)>0 && i.stock<effMin(i));
   if(which==="uncounted") pool = pool.filter(i=>uncounted(i));
   let n=0;
   for(const i of pool) if(!stHas(i.id)){ state.stocktake.push(i.id); n++; }
@@ -2715,7 +2879,7 @@ function renderStocktake(){
       out += `<tr>
         <td class="name">${esc(i.name)}<span class="sub">${wh&&posCode(i)?`<b class="mono">${esc(posCode(i))}</b> · `:""}${esc(i.uom)}${i.code?" · "+esc(i.code):""}</span></td>
         <td class="num">${uncounted(i)?'<span class="faint">—</span>':esc(fmtBal(i))}</td>
-        <td class="num dim">${i.preorder?"—":esc(fmtQty(i, i.min))}</td>
+        <td class="num dim">${i.preorder?"—":esc(fmtQty(i, effMin(i)))}</td>
         <td class="num">${sevTag(i)}</td>
         <td class="num"><button class="btn sm danger" onclick="stRemove(${i.id})">Remove</button></td>
       </tr>`;
@@ -3080,24 +3244,25 @@ tr.grp td{background:#F2F4F1;font:600 11px "IBM Plex Mono",monospace;letter-spac
 /* ============================================================
    ITEM EDITING
    ============================================================ */
-function modal(html){ $("#modal-root").innerHTML = `<div class="mbg" onclick="if(event.target===this)closeModal()"><div class="modal">${html}</div></div>`; }
+/* A dialog only closes from its own buttons (Cancel, Save, ...) —never from a
+   tap outside it or a stray key, so a half-filled form isn't lost by accident. */
+function modal(html){ $("#modal-root").innerHTML = `<div class="mbg"><div class="modal">${html}</div></div>`; }
 function closeModal(){ $("#modal-root").innerHTML=""; }
 function askConfirm(title, body, ok, danger){
   return new Promise(res=>{
     let done=false;
-    const fin = v => { if(done) return; done=true; document.removeEventListener("keydown",key); closeModal(); res(v); };
-    const key = e => { if(e.key==="Escape") fin(false); };
+    const fin = v => { if(done) return; done=true; closeModal(); res(v); };
     window._aY=()=>fin(true); window._aN=()=>fin(false);
     modal(`<h3>${esc(title)}</h3><p class="dim" style="font-size:13px">${esc(body||"")}</p>
       <div class="mfoot"><button class="btn" onclick="_aN()">Cancel</button>
       <button class="btn ${danger?"danger":"primary"}" onclick="_aY()">${esc(ok||"Confirm")}</button></div>`);
-    const bg = $(".mbg"); if(bg) bg.onclick = e => { if(e.target===bg) fin(false); };
-    document.addEventListener("keydown", key);
     const btn = document.querySelector(".modal .mfoot .btn:last-child"); if(btn) btn.focus();
   });
 }
+/* Category is optional —blank is fine, the item just has none. */
+const hasCat = it => !!it.cat && it.cat!=="Uncategorised";
 function catField(v){
-  return `<div class="field"><label>Category</label><input id="m-cat" list="catlist" value="${esc(v||"")}" placeholder="e.g. Chilli &amp; Sambal">
+  return `<div class="field"><label>Category (optional)</label><input id="m-cat" list="catlist" value="${esc(v&&v!=="Uncategorised"?v:"")}" placeholder="leave blank if not needed">
     <datalist id="catlist">${allCats().map(c=>`<option value="${esc(c)}">`).join("")}</datalist></div>`;
 }
 /* ---------- warehouse-only item fields ---------- */
@@ -3120,10 +3285,51 @@ function packField(it){
         <label class="opt"><input type="radio" name="m-was" value="pkt" ${wasC?"":"checked"}> packets</label></div>
       <div class="dim" style="font-size:11.5px;margin-top:4px">Setting the pack size converts its balance, minimum and past movements into packets, so totals stay right.</div></div>`:""}`;
 }
+/* What the packets inside a carton are called, when the UOM doesn't say —
+   cans in a "24x0.4kg/ctn", bottles in a "12x0.7ltr/ctn". Blank = from the UOM. */
+function unitField(it){
+  const fromUom = it ? unitOf(Object.assign({}, it, {unit:null})) : "pkt";
+  return `<div class="field"><label>Counted in —what's inside a carton: pkt, btl, can, drum… (optional)</label>
+    <input id="m-unit" list="unitlist" value="${esc(it&&it.unit||"")}" placeholder="${esc(fromUom)} —from the UOM" autocomplete="off">
+    <datalist id="unitlist">${["pkt","btl","can","drum","tin","bag","roll","box","tray","jar","pcs"].map(u=>`<option value="${u}">`).join("")}</datalist></div>`;
+}
+/* Only sets the unit when it changed, so an untouched form never sends the column. */
+function readUnitField(it){
+  const el = $("#m-unit"); if(!el) return;
+  const u = el.value.trim() ? normUnit(el.value) : "";
+  if(u !== (it.unit||"")) it.unit = u;
+}
 /* Blank ctn + pkt boxes for a form where the pack size is typed in the same form. */
-function pairNew(idp){
-  return `<span class="qpair"><label>ctn<input type="number" step="any" min="0" id="${idp}-c" value="0"></label>
-    <label>pkt<input type="number" step="any" id="${idp}-p" value="0"></label></span>`;
+function pairNew(idp, blank){
+  const v = blank ? "" : "0";
+  return `<span class="qpair"><label>ctn<input type="number" step="any" min="0" id="${idp}-c" value="${v}"></label>
+    <label>pkt<input type="number" step="any" id="${idp}-p" value="${v}"></label></span>`;
+}
+/* Warehouse Add / Edit: the minimum as an Auto | Manual pill (same as on the
+   Stock page), plus "bought to order" for products that shouldn't alert. */
+function minBox(it){
+  const manual = !!it && it.min>0, a = it ? autoMin(it) : 0;
+  return `<div class="field"><label>Minimum —the low-stock alert level ${infoTip(minInfo())}</label>
+    <div class="minbox" id="m-minbox" data-mode="${manual?"manual":"auto"}">
+      <span class="pill-tg"><button type="button" class="${manual?"":"on"}" onclick="minBoxMode('auto')">Auto</button><button type="button" class="${manual?"on":""}" onclick="minBoxMode('manual')">Manual</button></span>
+      <span class="min-auto dim">${it ? (a>0 ? "now <b class=\"mono\">"+esc(fmtQty(it,a))+"</b> —from usage" : "no usage yet") : "worked out once it has usage"}</span>
+      <span class="min-man">${it ? qtyInputs(it, "m-min", manual ? it.min : (a>0?a:"")) : pairNew("m-min", true)}</span>
+    </div></div>
+    <div class="field"><label class="opt"><input type="checkbox" id="m-toorder" ${it&&it.preorder?"checked":""}> Bought to order —no minimum, never on Low Stock</label></div>`;
+}
+function minBoxMode(m){
+  const b = $("#m-minbox"); if(!b) return;
+  b.dataset.mode = m;
+  b.querySelectorAll(".pill-tg button").forEach((x,i)=>x.classList.toggle("on", (i===0)===(m==="auto")));
+  if(m==="manual"){ const f = $("#m-min-c") || $("#m-min-p"); if(f) f.focus(); }
+}
+/* -> {min, preorder}, or null (with a message) if Manual was picked with no number. */
+function readMinBox(it){
+  if($("#m-toorder") && $("#m-toorder").checked) return {min:0, preorder:true};
+  if(!$("#m-minbox") || $("#m-minbox").dataset.mode==="auto") return {min:0, preorder:false};
+  const v = readQty(it, "m-min");
+  if(!(v>0)){ toast("Enter the manual minimum —or switch it to Auto"); return null; }
+  return {min:v, preorder:false};
 }
 function readPackInput(){
   const raw = ($("#m-pack") ? $("#m-pack").value : "").trim();
@@ -3170,11 +3376,11 @@ function openAdd(pos){
     <div class="field"><label>Name 名称</label><input id="m-name" placeholder="e.g. QF Mango Sauce 芒果酱"></div>
     <div class="field"><label>Pack size (UOM)</label><input id="m-uom" placeholder="e.g. 2kg/pkt"></div>
     <div class="field"><label>Code</label><input id="m-code" placeholder="optional"></div>
-    ${wh ? packField(null) + posField(typeof pos==="string" ? pos : "") : `<div class="field"><label>Storage location</label><input id="m-store" list="storelist" placeholder="e.g. 0434FR">
+    ${wh ? packField(null) + unitField(null) + posField(typeof pos==="string" ? pos : "") : `<div class="field"><label>Storage location</label><input id="m-store" list="storelist" placeholder="e.g. 0434FR">
       <datalist id="storelist">${allStores().map(v=>`<option value="${esc(v)}">`).join("")}</datalist></div>`}
     ${catField("")}
     ${wh ? `<div class="field"><label>Opening balance</label>${pairNew("m-stock")}</div>
-            <div class="field"><label>Minimum</label>${pairNew("m-min")}</div>`
+            ${minBox(null)}`
          : `<div class="field"><label>Opening balance</label><input type="number" id="m-stock" step="any" value="0" style="width:100%"></div>
             <div class="field"><label>Minimum</label><input type="number" id="m-min" step="any" value="0" style="width:100%"></div>`}
     <div class="mfoot"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="doAdd()">Add item</button></div>`);
@@ -3190,10 +3396,12 @@ function doAdd(){
     const pack = readPackInput();
     if(Number.isNaN(pack)){ toast("Packets per carton must be 1 or more"); return; }
     it.packSize = pack==null ? 1 : pack;
+    readUnitField(it);
+    const mb = readMinBox(it); if(!mb) return;
     const err = placeItem(it, $("#m-pos").value);
     if(err){ toast(err); return; }
     it.stock = readQty(it, "m-stock") || 0;
-    it.min = readQty(it, "m-min") || 0;
+    it.min = mb.min; it.preorder = mb.preorder;
   } else {
     it.store = $("#m-store").value.trim();
     it.stock = parseFloat($("#m-stock").value)||0;
@@ -3210,10 +3418,10 @@ function openEdit(id){
     <div class="field"><label>Name 名称</label><input id="m-name" value="${esc(it.name)}"></div>
     <div class="field"><label>Pack size (UOM)</label><input id="m-uom" value="${esc(it.uom)}"></div>
     <div class="field"><label>Code</label><input id="m-code" value="${esc(it.code||"")}"></div>
-    ${wh ? packField(it) + posField(posCode(it)) : `<div class="field"><label>Storage location</label><input id="m-store" list="storelist" value="${esc(it.store||"")}">
+    ${wh ? packField(it) + unitField(it) + posField(posCode(it)) : `<div class="field"><label>Storage location</label><input id="m-store" list="storelist" value="${esc(it.store||"")}">
       <datalist id="storelist">${allStores().map(v=>`<option value="${esc(v)}">`).join("")}</datalist></div>`}
     ${catField(it.cat)}
-    ${wh ? `<div class="field"><label>Minimum</label>${qtyInputs(it, "m-min", it.min)}</div>`
+    ${wh ? minBox(it)
          : `<div class="field"><label>Minimum</label><input type="number" id="m-min" step="any" value="${it.min}" style="width:100%"></div>`}
     <div class="field"><label>Baseline usage per day${wh?(hasPack(it)?" ("+esc(unitOf(it))+") —used until issues are recorded":" —used until issues are recorded"):" (used until sales are imported)"}</label><input type="number" id="m-base" step="any" value="${it.baseDaily||0}" style="width:100%"></div>
     ${wh?"":`<div class="field"><label class="opt">
@@ -3226,10 +3434,11 @@ function doEdit(id){
   const it = item(id), name = $("#m-name").value.trim();
   if(!name){ toast("A name is required"); return; }
   const wh = isWarehouse();
-  let pack = null;
+  let pack = null, mb = null;
   if(wh){
     pack = readPackInput();
     if(Number.isNaN(pack)){ toast("Packets per carton must be 1 or more"); return; }
+    mb = readMinBox(it); if(!mb) return;
     const posRaw = $("#m-pos").value.trim();
     if(posRaw !== posCode(it)){ const err = placeItem(it, posRaw); if(err){ toast(err); return; } }
   } else it.store=$("#m-store").value.trim();
@@ -3237,10 +3446,11 @@ function doEdit(id){
   it.cat=$("#m-cat").value.trim()||"Uncategorised";
   /* Minimum and baseline are read in the item's current unit, before any pack
      size change below converts them along with the balance. */
-  if(wh){ const m = readQty(it, "m-min"); it.min = isNaN(m) ? 0 : m; }
+  if(wh){ it.min = mb.min; it.preorder = mb.preorder; }
   else it.min=parseFloat($("#m-min").value)||0;
   it.baseDaily=parseFloat($("#m-base").value)||0;
-  it.preorder = wh ? false : $("#m-pre").checked;
+  if(wh) readUnitField(it);
+  else it.preorder = $("#m-pre").checked;
   if(it.preorder) it.min=0;
   it.stopped=$("#m-stop").checked;
   let note = "";
@@ -3369,7 +3579,40 @@ function recommendMin(it, days){
   const u = usageRate(it);
   return u>0 ? Math.max(1, Math.ceil(u*days)) : 0;
 }
+/* Warehouse: minimums are automatic unless set by hand, so this sets how
+   many days of usage they cover and shows where every product stands. */
+function openMinToolWh(){
+  const n = state.coverTarget||7, a = active().filter(i=>!i.preorder);
+  const auto = a.filter(i=>!(i.min>0)), manual = a.filter(i=>i.min>0), none = active().filter(i=>i.preorder);
+  const noUse = auto.filter(i=>!(autoMin(i)>0)).length, hist = historyDays(), method = minMethod(n);
+  modal(`<h3>Minimums</h3>
+    <p class="dim" style="font-size:12.5px;margin-bottom:12px">Products on <b>Auto</b> get their minimum from what goes out —${method==="p90"
+      ? `the 90th percentile of rolling ${n}-day demand over the ${hist} days on record, so a bad week is still covered`
+      : `average usage × ${n} days for now (${hist} day${hist===1?"":"s"} on record); with about ${Math.max(1, 4*n-hist)} more days of history it switches to the 90th percentile of rolling ${n}-day demand, which copes better with uneven weeks`}. It's recalculated continuously; <b>Manual</b> ones stay as set.</p>
+    <div class="field"><label>Days of usage a minimum should cover —delivery time plus a safety margin</label>
+      <input type="number" id="m-days" step="1" min="1" value="${n}" style="width:100%"></div>
+    <div class="kv"><span>On Auto</span><b>${auto.length}${noUse?` (${noUse} with no usage yet)`:""}</b></div>
+    <div class="kv"><span>Manual</span><b>${manual.length}</b></div>
+    <div class="kv"><span>Bought to order —no minimum</span><b>${none.length}</b></div>
+    <div class="mfoot"><button class="btn" onclick="closeModal()">Cancel</button>
+      ${manual.length?`<button class="btn" onclick="allMinsAuto()">Put the ${manual.length} manual on Auto</button>`:""}
+      <button class="btn primary" onclick="saveMinDays()">Save</button></div>`);
+}
+function saveMinDays(){
+  const d = Math.max(1, parseInt($("#m-days").value,10)||7);
+  state.coverTarget = d; save(); closeModal(); render();
+  toast("Automatic minimums now cover "+d+" day"+(d===1?"":"s")+" of usage");
+}
+async function allMinsAuto(){
+  const m = active().filter(i=>i.min>0 && !i.preorder);
+  closeModal();
+  if(!await askConfirm("Put "+m.length+" manual minimum"+(m.length===1?"":"s")+" on Auto?",
+      "Each is replaced by the minimum worked out from usage. A product with no usage yet then has no minimum until it moves.", "Put them on Auto")) return;
+  for(const i of m) i.min = 0;
+  save(); render(); toast(m.length+" minimum"+(m.length===1?"":"s")+" back on Auto");
+}
 function openMinTool(){
+  if(isWarehouse()){ openMinToolWh(); return; }
   const n = state.coverTarget || 7;
   const stocked = active().filter(i=>!i.preorder);
   const moving = stocked.filter(i=>usageRate(i)>0).length;
@@ -3724,15 +3967,12 @@ function parseRackPosition(raw){
 function askChoice(title, body, a, b){
   return new Promise(res=>{
     let done=false;
-    const fin = v => { if(done) return; done=true; document.removeEventListener("keydown",key); closeModal(); res(v); };
-    const key = e => { if(e.key==="Escape") fin(null); };
+    const fin = v => { if(done) return; done=true; closeModal(); res(v); };
     window._cA=()=>fin(a.value); window._cB=()=>fin(b.value); window._cN=()=>fin(null);
     modal(`<h3>${esc(title)}</h3><p class="dim" style="font-size:13px">${esc(body)}</p>
       <div class="mfoot"><button class="btn" onclick="_cN()">Cancel</button>
       <button class="btn" onclick="_cB()">${esc(b.label)}</button>
       <button class="btn primary" onclick="_cA()">${esc(a.label)}</button></div>`);
-    const bg = $(".mbg"); if(bg) bg.onclick = e => { if(e.target===bg) fin(null); };
-    document.addEventListener("keydown", key);
   });
 }
 /* Next free position number on a rack level (for placing something at the end). */
@@ -3748,7 +3988,7 @@ async function importItems(grid, fname){
     const n = pickCol(row,["name"],["product","item","sauce","货品","商品","名称"],["category","cat","类别"]);
     if(n<0) continue;
     hr=r; c.name=n;
-    c.uom   = pickCol(row,["uom"],["unit","pack","单位","规格"],["perctn","packsize","换算"]);
+    c.uom   = pickCol(row,["uom"],["unit","pack","单位","规格"],["perctn","packsize","换算","puom","pktunit","innerunit"]);
     c.stock = pickCol(row,["stock","ctnqty","physicalqty"],["balance","qty","onhand","库存","结存"],["min","最低","loose","散","perctn","换算"]);
     c.min   = pickCol(row,["min"],["minimum","reorder","safety","最低","安全"],null);
     c.code  = pickCol(row,["code"],["sku","编码","货号"],null);
@@ -3758,6 +3998,7 @@ async function importItems(grid, fname){
     c.base  = pickCol(row,["baseline"],["perday","usage","daily","日均"],null);
     c.pack  = pickCol(row,["pktsperctn","perctn","packsize","pcsperctn","percarton"],["换算率","每箱","入数","箱规"],null);
     c.zone  = pickCol(row,["zone"],["温区","存储区","storagetype","temperature"],null);
+    c.unit  = pickCol(row,["pktunit","innerunit","puom","countedin"],[],null);
     break;
   }
   if(hr<0){ toast("Could not find a name column in that file"); return; }
@@ -3847,6 +4088,7 @@ async function importItems(grid, fname){
       }
       if(has(row,c.min)) it.min = num(get(row,c.min));
       if(has(row,c.base)) it.baseDaily = num(get(row,c.base));
+      if(has(row,c.unit)) it.unit = normUnit(get(row,c.unit));
       if(pp && pp.rack){
         const rack = rackList().find(n=>n.toLowerCase()===pp.rack.toLowerCase()) || pp.rack;
         const moved = (it.store||"")!==rack || (it.level||"1")!==pp.level;
@@ -3915,17 +4157,18 @@ function exportItemTemplate(){
    are appended as a reference list —Product Name left blank on those rows
    means importItems() skips them, they're just there to copy-paste codes
    from, not data to import. */
-const WH_COLS = "Rack Position,Zone,Product Code,Product Name,UOM,Pkts per Ctn,Ctn Qty,Loose Pkt Qty,Min (pkt),Category\n";
+const WH_COLS = "Rack Position,Zone,Product Code,Product Name,UOM,Pkts per Ctn,Pkt Unit,Ctn Qty,Loose Pkt Qty,Min (pkt),Category (optional)\n";
 const csvCell = v => { const s = String(v??""); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
 function exportWarehouseTemplate(){
   const examples =
-    "R1A1L01,Dry,40MTKT1PVT02871,Maggi Tomato Ketchup Refill 美極番茄酱大包装,12x1.5kg/ctn,12,10,2,0,Sauces\n" +
-    "R9A2L03,Dry,,New product name goes here,1kg/pkt,20,0,0,0,\n" +
-    "CHILLER,Chiller,,Chilled product kept in the chiller room,2kg/pkt,6,0,0,0,\n";
+    "R1A1L01,Dry,40MTKT1PVT02871,Maggi Tomato Ketchup Refill 美極番茄酱大包装,12x1.5kg/ctn,12,btl,10,2,0,Sauces\n" +
+    "R4A2L01,Dry,,Canned product in cartons of 24,24x0.4kg/ctn,24,can,0,0,0,\n" +
+    "R9A2L03,Dry,,New product name goes here,1kg/pkt,20,pkt,0,0,0,\n" +
+    "CHILLER,Chiller,,Chilled product kept in the chiller room,2kg/pkt,6,,0,0,0,\n";
   const racks = rackList();
   const legend = racks.length
-    ? ",,,-- existing racks on this board, for reference —blank Product Name rows below are skipped on import --,,,,,,\n"
-      + racks.map(r=>`${csvCell(r)},${zoneInfo(rackZone(r)).label},,,,,,,,`).join("\n") + "\n"
+    ? ",,,-- existing racks on this board, for reference —blank Product Name rows below are skipped on import --,,,,,,,\n"
+      + racks.map(r=>`${csvCell(r)},${zoneInfo(rackZone(r)).label},,,,,,,,,`).join("\n") + "\n"
     : "";
   saveFile((activeDept().code||"warehouse")+"-rack-item-template.csv", "\uFEFF"+WH_COLS+examples+legend, "text/csv;charset=utf-8");
 }
@@ -3936,8 +4179,8 @@ function exportWarehouseItems(){
   const rows = state.items.slice().sort(walkCmp()).map(i=>{
     const s = hasPack(i) ? splitQty(i, i.stock) : {ctn:i.stock, pkt:i.looseQty||0, neg:false};
     const sg = s.neg ? -1 : 1, z = zoneInfo(zoneOf(i));
-    return [posCode(i), z?z.label:"", i.code||"", i.name, i.uom||"", hasPack(i)?i.packSize:"",
-      sg*s.ctn, sg*s.pkt, hasPack(i)?i.min:"", i.cat||""].map(csvCell).join(",");
+    return [posCode(i), z?z.label:"", i.code||"", i.name, i.uom||"", hasPack(i)?i.packSize:"", i.unit||"",
+      sg*s.ctn, sg*s.pkt, hasPack(i)?i.min:"", hasCat(i)?i.cat:""].map(csvCell).join(",");
   });
   saveFile((activeDept().code||"warehouse")+"-items-"+todayStr()+".csv", "\uFEFF"+WH_COLS+rows.join("\n")+"\n", "text/csv;charset=utf-8");
 }
@@ -4280,8 +4523,10 @@ function planFloors(){
 function planObj(kind, key){ return kind==="rack" ? state.racks.find(r=>r.name===key) : (state.floorPlan||[]).find(s=>s.id===key); }
 function planMatch(it, q){ return !!q && (norm(it.name).includes(q) || norm(it.code).includes(q) || norm(posCode(it)).includes(q)); }
 function itemState(it){
+  if(it.stopped || (isWarehouse() && it.preorder)) return "ok";      // not stocked / bought to order: never alerts
   if(it.stock<=0 && !uncounted(it)) return "out";
-  if(it.min>0 && it.stock<it.min) return "low";
+  const mn = effMin(it);
+  if(mn>0 && it.stock<mn) return "low";
   return "ok";
 }
 function rackStats(name){
@@ -4943,6 +5188,244 @@ function renderShelves(){
   });
 }
 
+/* ============================================================
+   WAREHOUSE — LOW STOCK (alerts)
+   What needs reordering, worst first: out of stock, then below minimum by
+   how few days are left. Minimums come from effMin() —automatic from usage
+   unless the product has a manual one— so every product with movement is
+   covered without anyone setting numbers up. "Ordered" marks a reorder as
+   placed (items.ordered_on) so it isn't ordered twice; it clears itself when
+   a delivery for that product is received.
+   ============================================================ */
+const soonDays = () => Math.max(2, Math.round((state.coverTarget||7)/2));
+function lastReceipt(id){
+  let r = null;
+  for(const t of state.tx) if(t.type==="receive" && t.itemId===id && t.qty>0 && (!r || t.ts>r.ts)) r = t;
+  return r;
+}
+/* Enough to bring the balance back to about twice the minimum —the minimum
+   covers the next N days, the order covers the N after that— rounded up to
+   whole cartons. */
+function suggestOrder(it){
+  const mn = effMin(it); if(!(mn>0)) return 0;
+  const q = Math.max(0, 2*mn - Math.max(it.stock, 0)), p = packOf(it);
+  return p>1 ? Math.ceil(q/p)*p : Math.ceil(q);
+}
+function lowRows(zone){
+  const rows = [], soon = [], nomin = [], sd = soonDays();
+  for(const it of active()){
+    if(it.preorder || uncounted(it) || !inZoneSel(it, zone)) continue;
+    const st = itemState(it), mn = effMin(it), u = usageRate(it);
+    if(st!=="ok"){ rows.push({it, st, mn, u, cover: u>0 ? Math.max(it.stock,0)/u : null}); continue; }
+    if(!(mn>0)){ nomin.push(it); continue; }
+    if(u>0){ const d = (it.stock-mn)/u; if(d<=sd) soon.push({it, mn, u, days:d}); }
+  }
+  rows.sort((a,b)=> (a.st==="out"?0:1)-(b.st==="out"?0:1) || (a.cover??9e9)-(b.cover??9e9) || (a.it.stock/(a.mn||1))-(b.it.stock/(b.mn||1)));
+  soon.sort((a,b)=>a.days-b.days);
+  nomin.sort((a,b)=>a.name.localeCompare(b.name));
+  return {rows, soon, nomin};
+}
+const shortDate = d => d ? new Date(d+"T12:00").toLocaleDateString("en-SG",{day:"numeric",month:"short"}) : "";
+function markOrdered(id){
+  const it = item(id); if(!it) return;
+  it.orderedOn = todayStr(); save(); render();
+  toast(it.name+" —marked as ordered. It clears itself when the delivery is received.");
+}
+function clearOrdered(id){
+  const it = item(id); if(!it || !it.orderedOn) return;
+  it.orderedOn = null; save(); render();
+}
+function renderLowStock(){
+  const host = $("#al-body"); if(!host || !isWarehouse()) return;
+  fillZones($("#al-zone"));
+  const zv = $("#al-zone").value || "all";
+  const {rows, soon, nomin} = lowRows(zv);
+  const out = rows.filter(r=>r.st==="out").length, low = rows.length-out;
+  const waiting = rows.filter(r=>r.it.orderedOn).length, sd = soonDays();
+  const nb = $("#btn-notify");
+  if(nb){ const on = desktopAlertsOn(); nb.textContent = on ? "Desktop alerts: on" : "Turn on desktop alerts"; nb.classList.toggle("on", on); }
+  const cards = [
+    {cls:out?"crit":"quiet", k:"Out of stock", v:out, d: out ? "Nothing left —order now" : "Nothing has run out"},
+    {cls:low?"warn":"quiet", k:"Below minimum", v:low, d: low ? "Order soon" : "Everything is above its minimum"},
+    {cls:waiting?"info":"quiet", k:"Ordered", v:waiting, d: waiting ? "Waiting for delivery" : "No orders marked"},
+    {cls:"quiet", k:`Low within ${sd} days`, v:soon.length, d:"Still above minimum, but going fast"}
+  ];
+  const rowHtml = r => {
+    const it = r.it, lr = lastReceipt(it.id), ord = suggestOrder(it);
+    return `<tr class="sev-${r.st==="out"?"crit":"warn"}">
+      <td>${r.st==="out" ? '<span class="tag t-crit">Out</span>' : '<span class="tag t-warn">Low</span>'}</td>
+      <td class="name">${esc(it.name)}<span class="sub">${esc(it.uom||"")}${it.code?" · "+esc(it.code):""}</span></td>
+      <td class="mono" style="font-size:11.5px;white-space:nowrap">${it.store ? zoneChip(zoneOf(it))+" "+esc(posCode(it)) : '<span class="faint">no rack</span>'}</td>
+      <td class="num" style="${it.stock<=0?"color:var(--crit);font-weight:600":""}">${esc(fmtBal(it))}</td>
+      <td class="num">${minCell(it)}</td>
+      <td class="num">${r.st==="out" ? '<span style="color:var(--crit)">out</span>' : r.cover!=null ? fmt1(r.cover)+"d" : '<span class="faint">—</span>'}</td>
+      <td class="num"><b>${ord>0 ? esc(fmtQty(it, ord)) : "—"}</b></td>
+      <td class="dim" style="font-size:12px;white-space:nowrap">${lr ? esc(shortDate(lr.date))+(lr.supplier?" · "+esc(lr.supplier):"") : '<span class="faint">never</span>'}</td>
+      <td class="num" style="white-space:nowrap">${it.orderedOn
+        ? `<span class="tag t-info">Ordered ${esc(shortDate(it.orderedOn))}</span> <button class="xbtn" style="width:auto;padding:2px 6px" title="Not ordered after all" onclick="clearOrdered(${it.id})">✕</button>`
+        : `<button class="btn sm" onclick="markOrdered(${it.id})">Mark ordered</button>`}</td>
+    </tr>`;
+  };
+  const mainTable = rows.length
+    ? `<table><thead><tr><th></th><th>Product</th><th>Rack code</th><th class="num">Balance</th><th class="num">Min ${infoTip(minInfo())}</th><th class="num">Days left</th>
+        <th class="num">Order ${infoTip("A suggestion: enough to bring the balance back to about <b>twice the minimum</b>, rounded up to whole cartons —the minimum covers the next few days, the order covers the stretch after that.")}</th><th>Last received</th><th></th></tr></thead>
+       <tbody>${rows.map(rowHtml).join("")}</tbody></table>`
+    : `<div class="empty" style="padding:30px 14px"><b>Nothing is low</b>Every product${zv!=="all"?" in this zone":""} is above its minimum.</div>`;
+  const soonTable = soon.length
+    ? `<table><thead><tr><th>Product</th><th>Rack code</th><th class="num">Balance</th><th class="num">Min</th><th class="num">Below min in</th><th class="num">Use / day</th></tr></thead><tbody>`
+      + soon.map(r=>`<tr><td class="name">${esc(r.it.name)}<span class="sub">${esc(r.it.uom||"")}</span></td>
+          <td class="mono" style="font-size:11.5px">${r.it.store ? zoneChip(zoneOf(r.it))+" "+esc(posCode(r.it)) : ""}</td>
+          <td class="num">${esc(fmtBal(r.it))}</td><td class="num dim">${esc(fmtQty(r.it, r.mn))}</td>
+          <td class="num"><b>${r.days<1 ? "under a day" : fmt1(r.days)+" days"}</b></td><td class="num dim">${fmt1(r.u)}</td></tr>`).join("")
+      + `</tbody></table>`
+    : `<div class="empty" style="padding:22px 14px">Nothing is about to go below its minimum.</div>`;
+  const nominTable = nomin.length
+    ? `<table><thead><tr><th>Product</th><th>Rack code</th><th class="num">Balance</th><th class="num">Min</th></tr></thead><tbody>`
+      + nomin.slice(0,200).map(it=>`<tr><td class="name">${esc(it.name)}<span class="sub">${esc(it.uom||"")}</span></td>
+          <td class="mono" style="font-size:11.5px">${it.store ? zoneChip(zoneOf(it))+" "+esc(posCode(it)) : ""}</td>
+          <td class="num">${esc(fmtBal(it))}</td><td class="num">${minCell(it)}</td></tr>`).join("")
+      + `</tbody></table>`
+    : "";
+  host.innerHTML = `<div class="alarms">${cards.map(a=>`<div class="al ${a.cls}"><div class="k">${esc(a.k)}</div><div class="v">${a.v}</div><div class="d">${esc(a.d)}</div></div>`).join("")}</div>
+    <div class="panel"><div class="panel-h"><h2>Reorder now</h2><span class="meta">${rows.length} product${rows.length===1?"":"s"} · worst first</span></div>
+      <div class="scroll">${mainTable}</div></div>
+    <div class="panel"><div class="panel-h"><h2>Going low soon</h2><span class="meta">Above minimum today, below it within ${sd} days at the current rate</span></div>
+      <div class="scroll">${soonTable}</div></div>
+    ${nomin.length ? `<div class="panel"><div class="panel-h"><h2>No minimum yet</h2><span class="meta">${nomin.length} product${nomin.length===1?"":"s"} with no usage and no manual minimum —they only alert when they run out. Tap <b>Manual</b> to set one.</span></div>
+      <div class="scroll" style="max-height:420px;overflow-y:auto">${nominTable}</div></div>` : ""}`;
+}
+function reorderSupplierGroups(){
+  const {rows} = lowRows($("#al-zone") ? $("#al-zone").value : "all");
+  const groups = new Map();
+  for(const r of rows){
+    const lr = lastReceipt(r.it.id), k = (lr && lr.supplier) || "No supplier on record";
+    if(!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(r);
+  }
+  return [...groups.entries()].sort((a,b)=> a[0]==="No supplier on record" ? 1 : b[0]==="No supplier on record" ? -1 : a[0].localeCompare(b[0]));
+}
+/* Printable reorder list, grouped by the supplier each product last came from. */
+function printReorderList(){
+  const groups = reorderSupplierGroups();
+  if(!groups.length){ toast("Nothing is low —no reorder list to print"); return; }
+  const ad = activeDept(), dl = new Date().toLocaleDateString("en-SG",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+  let n = 0;
+  const body = groups.map(([sup, rs])=>`<tr class="grp"><td colspan="8">${esc(sup)}<span>${rs.length} 项 items</span></td></tr>`
+    + rs.map(r=>{ n++; const it = r.it; return `<tr><td class="rk">${n}</td>
+        <td><b>${esc(it.name)}</b><span class="u">${esc(it.uom||"")}${it.code?" · "+esc(it.code):""}</span></td>
+        <td class="pc">${esc(posCode(it))}</td><td class="c">${esc(fmtBal(it))}</td><td class="c">${esc(fmtQty(it, r.mn))}</td>
+        <td class="c"><b>${esc(fmtQty(it, suggestOrder(it)))}</b></td><td class="st">${r.st==="out"?"OUT":"LOW"}${it.orderedOn?" · ordered "+esc(shortDate(it.orderedOn)):""}</td><td class="bl"></td></tr>`; }).join("")).join("");
+  const doc = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${esc(ad.code)} Reorder list ${todayStr()}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#12171A;--dim:#586268;--rule:#D6DBD5;--petrol:#0B4F4A}
+*{box-sizing:border-box}body{margin:0;background:#fff;color:var(--ink);font:12.5px/1.4 "IBM Plex Sans","Noto Sans SC",sans-serif;padding:24px 28px}
+.head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid var(--petrol);padding-bottom:9px;gap:16px;flex-wrap:wrap;margin-bottom:12px}
+h1{font-family:"Barlow Condensed",sans-serif;font-size:25px;margin:0}
+.co{font:600 10px "IBM Plex Mono",monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.meta{font:11.5px "IBM Plex Mono",monospace;color:var(--dim);text-align:right;line-height:1.8}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;font:600 9.5px "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);padding:6px;border-bottom:2px solid var(--ink)}
+td{padding:6px;border-bottom:1px solid var(--rule)}
+tr.grp td{background:#EDF1EE;font:600 11px "IBM Plex Sans",sans-serif;border-bottom:1.5px solid #B8C2BB}
+tr.grp span{font-weight:400;color:var(--dim);margin-left:10px}
+.rk{width:24px;color:#8B948F;font-family:"IBM Plex Mono",monospace}
+.pc{font:600 11px "IBM Plex Mono",monospace;white-space:nowrap}
+.u{display:block;font:9.5px "IBM Plex Mono",monospace;color:var(--dim)}
+.c{text-align:right;font-family:"IBM Plex Mono",monospace;white-space:nowrap}
+.st{font:600 10px "IBM Plex Mono",monospace;color:#B8241A;white-space:nowrap}
+.bl{border-left:1px solid var(--rule);width:70px}
+.pb{position:fixed;top:12px;right:12px;background:var(--petrol);color:#fff;border:none;padding:9px 17px;font:600 13px "IBM Plex Sans",sans-serif;cursor:pointer}
+@media screen{.meta{margin-right:124px}}
+@media print{.pb{display:none}body{padding:8px}tr{break-inside:avoid}tr.grp td{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style></head><body>
+<button class="pb" onclick="window.print()">Print / Save PDF</button>
+<div class="head"><div><div class="co">${esc(ad.company||"")}${ad.company?" · ":""}${esc(ad.code)}</div><h1>Reorder list 补货单</h1></div>
+<div class="meta"><b>${dl}</b><br>${n} products</div></div>
+<table><thead><tr><th></th><th>Product 货品</th><th>Rack code</th><th class="c">Balance 库存</th><th class="c">Min 最低</th><th class="c">Order 订货</th><th>Status</th><th>Ordered ✓</th></tr></thead><tbody>${body}</tbody></table>
+</body></html>`;
+  openOrSave(doc, ad.code+"-reorder-"+todayStr()+".html");
+}
+function exportReorderCsv(){
+  const groups = reorderSupplierGroups();
+  let csv = "Supplier,Product Code,Product Name,UOM,Rack Code,Zone,Status,Balance,Balance (pkt),Minimum,Minimum set by,Suggested order,Suggested order (pkt),Ordered on\n";
+  for(const [sup, rs] of groups) for(const r of rs){
+    const it = r.it, z = zoneInfo(zoneOf(it)), o = suggestOrder(it);
+    csv += [sup, it.code||"", it.name, it.uom||"", posCode(it), z?z.label:"", r.st==="out"?"Out":"Low", fmtBal(it), it.stock,
+      fmtQty(it, r.mn), it.min>0?"Manual":"Auto", fmtQty(it, o), o, it.orderedOn||""].map(csvCell).join(",")+"\n";
+  }
+  saveFile(activeDept().code+"-reorder-"+todayStr()+".csv", "﻿"+csv, "text/csv;charset=utf-8");
+}
+
+/* ---------- alerting the warehouse keeper ----------
+   Every render compares what's low / out now with what was low a moment ago.
+   Anything that has just crossed below its minimum (or run out) —from an
+   issue keyed here, a count, an import, or a change made on another device,
+   which arrives live— goes into a banner across the top until it's looked
+   at, and into a desktop notification if those are turned on and the app
+   isn't the window in front. Once a day, opening the app also shows how many
+   products are low. */
+let lowSeen = null, lowFresh = [], lowSummary = null;
+const DESK_KEY = "qf_desktop_alerts";
+function desktopAlertsOn(){ try{ return "Notification" in window && Notification.permission==="granted" && localStorage.getItem(DESK_KEY)==="1"; }catch(e){ return false; } }
+async function enableDesktopAlerts(){
+  if(!("Notification" in window)){ toast("This browser can't show desktop notifications"); return; }
+  if(desktopAlertsOn()){ try{ localStorage.setItem(DESK_KEY, "0"); }catch(e){} toast("Desktop alerts turned off on this device"); render(); return; }
+  let p = Notification.permission;
+  if(p==="default") p = await Notification.requestPermission();
+  if(p!=="granted"){ toast("Notifications are blocked for this site —allow them in the browser's site settings"); return; }
+  try{ localStorage.setItem(DESK_KEY, "1"); }catch(e){}
+  toast("Desktop alerts on —this device will pop up a notice when something goes low");
+  render();
+}
+function checkLowAlerts(){
+  const bar = $("#low-bar"); if(!bar) return;
+  if(!isWarehouse() || !state.items.length){ bar.innerHTML = ""; return; }
+  const now = new Map(active().filter(i=>itemState(i)!=="ok").map(i=>[i.id, itemState(i)]));
+  if(!lowSeen || lowSeen.dept!==dept){
+    lowSeen = {dept, ids:now}; lowFresh = [];
+    let seen = null; try{ seen = localStorage.getItem("qf_low_day_"+dept); }catch(e){}
+    lowSummary = (now.size && seen!==todayStr()) ? {out:[...now.values()].filter(v=>v==="out").length, low:[...now.values()].filter(v=>v==="low").length} : null;
+  } else {
+    const fresh = [];
+    for(const [id, st] of now){
+      const was = lowSeen.ids.get(id);
+      if(was===undefined || (was==="low" && st==="out")){ lowFresh = lowFresh.filter(f=>f.id!==id); lowFresh.push({id, st}); fresh.push({id, st}); }
+    }
+    lowFresh = lowFresh.filter(f=>now.has(f.id));
+    lowSeen.ids = now;
+    if(fresh.length) notifyLow(fresh);
+  }
+  renderLowBar();
+}
+function notifyLow(fresh){
+  if(!desktopAlertsOn() || (!document.hidden && document.hasFocus())) return;
+  const it0 = item(fresh[0].id); if(!it0) return;
+  const title = fresh.length===1 ? `${it0.name} ${fresh[0].st==="out"?"is out of stock":"is low"}` : `${fresh.length} products just went low`;
+  const body = fresh.slice(0,4).map(f=>{ const it = item(f.id); return it ? `${posCode(it)||""} ${it.name} —${fmtBal(it)}` : ""; }).join("\n");
+  try{ new Notification(activeDept().code+": "+title, {body, tag:"low-"+dept}); }catch(e){}
+}
+function renderLowBar(){
+  const bar = $("#low-bar"); if(!bar) return;
+  if(lowFresh.length){
+    const out = lowFresh.some(f=>f.st==="out");
+    const names = lowFresh.slice(-3).reverse().map(f=>{ const it = item(f.id); return it ? `<b>${esc(it.name)}</b> ${f.st==="out"?"is out":"— "+esc(fmtBal(it))+" left"}` : ""; }).filter(Boolean);
+    bar.innerHTML = `<div class="lowbar ${out?"crit":""}"><svg class="ic"><use href="#i-alert"/></svg>
+      <span>${lowFresh.length===1?"Just went low:":lowFresh.length+" products just went low:"} ${names.join(" · ")}${lowFresh.length>3?` · and ${lowFresh.length-3} more`:""}</span>
+      <button class="btn sm" onclick="go('alerts')">View low stock</button><button class="btn sm" onclick="dismissLowBar()">Dismiss</button></div>`;
+  } else if(lowSummary && (lowSummary.out || lowSummary.low)){
+    const s = lowSummary;
+    bar.innerHTML = `<div class="lowbar ${s.out?"crit":""}"><svg class="ic"><use href="#i-alert"/></svg>
+      <span>${s.out?`<b>${s.out} product${s.out===1?" is":"s are"} out of stock</b>`:""}${s.out&&s.low?" and ":""}${s.low?`<b>${s.low} ${s.low===1?"is":"are"} below minimum</b>`:""} —check what needs reordering.</span>
+      <button class="btn sm" onclick="go('alerts')">View low stock</button><button class="btn sm" onclick="dismissLowBar()">Dismiss</button></div>`;
+  } else bar.innerHTML = "";
+}
+function dismissLowBar(){
+  lowFresh = [];
+  if(lowSummary){ lowSummary = null; try{ localStorage.setItem("qf_low_day_"+dept, todayStr()); }catch(e){} }
+  renderLowBar();
+}
+
 /* ---------- shared by Issue Stock and Receive Stock ---------- */
 /* The item picker is a datalist: an entry's text is its exact label, so the
    rack code goes in too —typing "R1A1" narrows to that shelf. */
@@ -5133,6 +5616,7 @@ async function submitReceive(){
         `${fmtQty(it, prev)} of ${it.name} has already been received on ${ref}. Add another ${fmtQty(it, qty)}?`, "Add it anyway")) return;
   }
   it.stock = Math.round((it.stock+qty)*100)/100; it.counted = true;
+  if(it.orderedOn) it.orderedOn = null;                      // the reorder has arrived
   state.tx.push(newTx({ts:Date.now(), date, itemId:it.id, type:"receive", qty, note, supplier:sup||undefined, ref:ref||undefined}));
   save(); render();
   clearMoveForm("rc");
@@ -5165,8 +5649,9 @@ function parseReceipts(grid, fname){
     if((code<0 && name<0) || qty<0) continue;
     hr = r;
     let uom = pickCol(row, ["suom","主计量单位","主计量","主单位"], [], null);
-    if(uom<0) uom = pickCol(row, ["uom"], ["单位","unit"], ["辅","换算","件数","price","单价"]);
+    if(uom<0) uom = pickCol(row, ["uom"], ["单位","unit"], ["辅","换算","件数","price","单价","puom"]);
     c = {code, name, qty, uom,
+      pu:   pickCol(row, ["puom","采购单位"], [], null),
       date: pickCol(row, ["入库日期","单据日期","收货日期","invoicedate","receivedate","receiptdate","docdate"], ["日期","date"],
                          ["生产","失效","有效","保质","expiry","mfg","制单","审核","订单"]),
       ref:  pickCol(row, ["billno","入库单号","收货单号","单据号","grnno","receiptno","docno","dono","invoiceno"], ["单号","编号","grn","deliveryorder","发票号"],
@@ -5190,7 +5675,7 @@ function parseReceipts(grid, fname){
     if(!code && !name) continue;
     const q = parseFloat(get(row,c.qty));
     if(isNaN(q) || q===0) continue;
-    lines.push({code, name, qty:q, uom:str(row,c.uom), date:c.date>=0?toISO(get(row,c.date)):null, ref, sup, co:str(row,c.co)});
+    lines.push({code, name, qty:q, uom:str(row,c.uom), pu:str(row,c.pu), date:c.date>=0?toISO(get(row,c.date)):null, ref, sup, co:str(row,c.co)});
   }
   if(!lines.length){ toast("No receipt lines found in that file"); return; }
   const byCode = new Map(), byName = new Map();
@@ -5225,7 +5710,7 @@ function receiveRows(){
     if(p.co!=="all" && l.co!==p.co) continue;
     const mapped = p.remap[l.lk]!==undefined ? p.remap[l.lk] : l.itemId;
     const key = (l.ref||"") + "§" + (mapped!=null ? "i"+mapped : "r"+l.lk);
-    if(!rows.has(key)) rows.set(key, {key, lk:l.lk, ref:l.ref, date:l.date, sup:l.sup, co:l.co, code:l.code, name:l.name, uom:l.uom, itemId:mapped, fileQty:0});
+    if(!rows.has(key)) rows.set(key, {key, lk:l.lk, ref:l.ref, date:l.date, sup:l.sup, co:l.co, code:l.code, name:l.name, uom:l.uom, pu:l.pu, itemId:mapped, fileQty:0});
     const a = rows.get(key);
     a.fileQty = Math.round((a.fileQty+l.qty)*100)/100;
     if(l.date && (!a.date || l.date>a.date)) a.date = l.date;
@@ -5238,6 +5723,7 @@ function receiveRows(){
     a.delta = Math.round((a.qty - a.prev)*100)/100;
     a.status = !it ? "other" : !a.prev ? "new" : Math.abs(a.delta)<0.001 ? "dup" : "revised";
     a.uomDiff = !!it && !!a.uom && normUom(a.uom)!==normUom(it.uom);
+    a.learn = learnUnit(it, a.pu);          // e.g. bought as "can" -> the carton holds cans
   }
   return [...rows.values()];
 }
@@ -5272,14 +5758,15 @@ function renderReceivePreview(){
     ${coBar}${refBar}${otherBar}
     ${rows.length ? `<div class="scroll"><table><thead><tr><th>Document</th><th>In the file</th><th>Matched item</th><th class="num">Qty in file</th><th class="num">Receive</th><th>Put away at</th><th></th></tr></thead><tbody>
     ${rows.map(r=>{
-      const it = r.itemId!=null ? item(r.itemId) : null;
+      const real = r.itemId!=null ? item(r.itemId) : null;
+      const it = real && r.learn ? Object.assign({}, real, {unit:r.learn}) : real;   // show "can" / "btl" straight away
       const unitSel = it && packOf(it)>1
         ? `<select onchange="rcvPending.units['${esc(r.key)}']=this.value;renderReceivePreview()" style="width:auto;padding:2px 4px">
              <option value="ctn" ${r.unit==="ctn"?"selected":""}>ctn</option><option value="pkt" ${r.unit==="pkt"?"selected":""}>${esc(unitOf(it))}</option></select>`
         : `<span class="dim">${esc(r.uom||"")}</span>`;
       return `<tr style="${r.status==="dup"||r.status==="other"?"opacity:.55":""}">
         <td class="mono" style="font-size:12px;white-space:nowrap">${esc(r.ref||"—")}<span class="sub" style="display:block;font-family:var(--f-ui)">${esc(r.date||"")}${r.sup?" · "+esc(r.sup):""}</span></td>
-        <td class="name">${esc(r.name||r.code)}<span class="sub">${esc(r.uom||"no unit")}${r.code?" · "+esc(r.code):""}${r.co?" · "+esc(r.co):""}</span></td>
+        <td class="name">${esc(r.name||r.code)}<span class="sub">${esc(r.uom||"no unit")}${r.pu&&normUnit(r.pu)!==normUnit(r.uom)?" (bought by the "+esc(r.pu)+")":""}${r.code?" · "+esc(r.code):""}${r.co?" · "+esc(r.co):""}</span></td>
         <td><select data-lk="${esc(r.lk)}" class="rcv-map" style="max-width:260px"><option value="">—not in this warehouse —</option>${opts}</select>
           ${r.uomDiff?`<span class="sub" style="color:var(--warn)">unit in file ${esc(r.uom)} ≠ item ${esc(it.uom)} —check ctn / pkt</span>`:""}</td>
         <td class="num dim" style="white-space:nowrap">${fmt(r.fileQty)} ${unitSel}</td>
@@ -5307,6 +5794,8 @@ function applyReceive(){
   const touched = new Set();
   for(const r of rows){
     const it = item(r.itemId); if(!it) continue;
+    if(r.learn && !it.unit) it.unit = r.learn;
+    if(it.orderedOn && r.delta>0) it.orderedOn = null;       // the reorder has arrived
     it.stock = Math.round((it.stock+r.delta)*100)/100; it.counted = true;
     state.tx.push(newTx({ts:Date.now(), date:r.date||todayStr(), itemId:it.id, type:"receive", qty:r.delta,
       note: fname+(r.status==="revised"?" (revised)":""), supplier:r.sup||undefined, ref:r.ref||undefined, b}));
@@ -5526,7 +6015,7 @@ function exportStockCsv(){
   let csv = "Code,Name,UOM,Storage,Category,Stock,Min,Use per day,Days cover,Pre-order\n";
   for(const i of state.items){
     const c = coverDays(i);
-    csv += `"${i.code||""}","${i.name.replace(/"/g,'""')}","${i.uom}","${i.store||""}","${(i.cat||"").replace(/"/g,'""')}",${i.stock},${i.min},${fmt1(usageRate(i))},${c==null?"":fmt1(c)},${i.preorder?"Y":""}\n`;
+    csv += `"${i.code||""}","${i.name.replace(/"/g,'""')}","${i.uom}","${i.store||""}","${(i.cat||"").replace(/"/g,'""')}",${i.stock},${effMin(i)},${fmt1(usageRate(i))},${c==null?"":fmt1(c)},${i.preorder?"Y":""}\n`;
   }
   saveFile(activeDept().code+"-stock-"+todayStr()+".csv", "﻿"+csv, "text/csv;charset=utf-8");
 }
@@ -5701,6 +6190,12 @@ function renderSetup(){
           </div>
           <p class="dim" style="font-size:11.5px;margin-top:8px">A new department starts empty —load its item list on this page, or add items by hand on station 02. <b>Warehouse</b> departments get the Racks and Issue Stock stations instead of Panel/Cook/Sales.</p>
         </div>`;
+  const st = $("#set-title"), sl = $("#set-cover-l"), sn = $("#set-note");
+  if(st) st.textContent = wh ? "Stock alert settings" : "Line settings";
+  if(sl) sl.textContent = wh ? "Days of usage a minimum should cover —delivery time plus a safety margin" : "Cover target —days of stock a minimum should represent";
+  if(sn) sn.innerHTML = wh
+    ? "Products on <b>Auto</b> get their minimum from what goes out over this many days; when a balance drops below its minimum it shows on <b>Low Stock</b> and an alert pops up."
+    : "Capacity drives the load meter on the cook schedule. The cover target is what <b>Set minimums</b> on the stock page uses to rebuild every minimum from real usage.";
   $("#set-cap").value = state.capacity;
   $("#set-cover").value = state.coverTarget;
   $("#set-head").value = state.prodHead || "";
@@ -5796,6 +6291,10 @@ async function loadDemo(){
 function go(page){
   const nDraft = Object.keys(fpDraft).length;
   if(nDraft && page!=="racks") toast(nDraft+" rack change"+(nDraft===1?" isn't":"s aren't")+" saved yet —go back to Racks and press Save changes");
+  if(page==="alerts" && (lowFresh.length || lowSummary)){
+    lowFresh = [];
+    if(lowSummary){ lowSummary = null; try{ localStorage.setItem("qf_low_day_"+dept, todayStr()); }catch(e){} }
+  }
   $$("#rail button").forEach(b=>b.classList.toggle("active", b.dataset.page===page));
   $$("main > section").forEach(s=>s.classList.add("hidden"));
   const el = $("#page-"+page); if(el) el.classList.remove("hidden");
@@ -5818,11 +6317,13 @@ function applyDeptTypeNav(){
     if(!show && b.classList.contains("active")) hidCurrent = true;
   });
   $$(".wh-only").forEach(el=>el.classList.toggle("hidden", t!=="warehouse"));
-  if(hidCurrent) go(t==="warehouse" ? "stock" : "panel");
+  $$(".kitchen-only").forEach(el=>el.classList.toggle("hidden", t==="warehouse"));
+  if(hidCurrent) go(t==="warehouse" ? "alerts" : "panel");
 }
 
 function render(){
   renderTopbar();
+  renderLowStock();
   renderPanel();
   renderStock();
   renderRacks();
@@ -5835,6 +6336,7 @@ function render(){
   renderIssueSummary();
   renderLog();
   renderSetup();
+  checkLowAlerts();
 }
 
 /* listeners */
@@ -5864,6 +6366,7 @@ $("#log-filter").addEventListener("change", renderLog);
 $("#rk-q").addEventListener("input", ()=>{ fpSel = null; renderRacks(); });
 $("#is-co-filter").addEventListener("change", renderIssueStock);
 $("#rc-sup-filter").addEventListener("change", renderReceive);
+$("#al-zone").addEventListener("change", renderLowStock);
 $("#is-item-q").addEventListener("input", ()=>moveFormHint("is"));
 $("#rc-item-q").addEventListener("input", ()=>moveFormHint("rc"));
 $("#isum-from").addEventListener("change", renderIssueSummary);
