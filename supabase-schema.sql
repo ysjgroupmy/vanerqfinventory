@@ -54,6 +54,12 @@ create table if not exists items (
 alter table items add column if not exists loose_qty numeric not null default 0;
 alter table items add column if not exists level text not null default '1';
 alter table items add column if not exists slot int not null default 0;
+-- Warehouse depts: packets per carton. Once set, `stock` (and `min`) are held
+-- in packets and shown as "cartons + packets"; loose_qty is folded into stock
+-- and no longer used. Null = not set yet —the item still holds whatever unit
+-- it was first counted in (plus loose_qty), exactly as before this existed.
+-- Kitchen depts never set it.
+alter table items add column if not exists pack_size numeric;
 
 create table if not exists tx (
   id          bigint not null,           -- client-assigned (state.txSeq), per department
@@ -77,6 +83,11 @@ alter table tx add column if not exists amount numeric;
 -- Warehouse depts: which outside company an 'issue' movement went to (Quan Feng
 -- Food Supply, Vaner Food Supply, ...). Null for every other tx type.
 alter table tx add column if not exists dest_company text;
+-- Warehouse depts, 'receive' movements: who the stock came from, and the
+-- document it arrived on (GRN / DO / invoice number). `ref` is also what a
+-- re-imported receipt file is de-duplicated against. Null for other types.
+alter table tx add column if not exists supplier text;
+alter table tx add column if not exists ref text;
 create index if not exists tx_dept_date_idx on tx(dept_id, date);
 
 create table if not exists plan (
@@ -111,6 +122,9 @@ create table if not exists settings (
   last_batch        bigint,
   last_batch_bills  jsonb
 );
+-- Warehouse depts: the parts of the floor plan that hold no stock —walls,
+-- doors, labels— as [{id, t:'wall'|'door'|'label', floor, x, y, w, h, text}].
+alter table settings add column if not exists floor_plan jsonb not null default '[]';
 
 -- Warehouse depts only: the set of racks/zones available to file items under,
 -- so a rack can be created ahead of anything being placed in it. A product's
@@ -122,9 +136,20 @@ create table if not exists racks (
   name        text not null,
   sort_order  int  not null default 0,
   row_no      int  not null default 1,   -- which physical row/floor this rack is laid out on
+  zone        text not null default 'dry',  -- storage zone the rack stands in: 'dry' | 'chilled' | 'frozen'
   primary key (dept_id, name)
 );
 alter table racks add column if not exists row_no int not null default 1;
+alter table racks add column if not exists zone text not null default 'dry';
+-- Where the rack is drawn on the Racks floor plan, in grid units (x/y = top-left
+-- corner, w/h = size) and which floor it's on. x null = not on the plan yet.
+-- Rooms that hold stock without labelled shelves (the chiller, the freezer,
+-- CENTER) are racks too, just big ones.
+alter table racks add column if not exists x int;
+alter table racks add column if not exists y int;
+alter table racks add column if not exists w int;
+alter table racks add column if not exists h int;
+alter table racks add column if not exists floor int not null default 1;
 
 -- Warehouse depts only: same idea as `racks`, one level below it —a level
 -- that has ever existed (added by hand, or seen once on an imported row)

@@ -19,7 +19,7 @@ one device appear on every other open tab within about a second.
 1. Go to [supabase.com](https://supabase.com) → New project.
 2. Once it's up, open **SQL Editor** → New query, paste the entire contents of
    `supabase-schema.sql`, and run it. This creates the tables (`departments`,
-   `items`, `tx`, `plan`, `bills`, `settings`), turns on Row Level Security with
+   `items`, `tx`, `plan`, `bills`, `settings`, `racks`, `levels`), turns on Row Level Security with
    policies that allow any signed-in user full read/write, enables Realtime on
    those tables, and seeds one starter department (`0428`).
 3. From **Project Settings → API**, copy:
@@ -79,63 +79,150 @@ signed in, the app itself.
 To reconfigure later (different project, wrong key, etc.), use **Setup → Change
 Supabase / Clerk keys** inside the app, or the equivalent link on the sign-in screen.
 
-## Warehouse departments (Racks & Issue Stock)
+## Warehouse departments (0434)
 
 A department can be `kitchen` (the cook-line pages: Panel/Cook/Sales In/Sales)
-or `warehouse` (Racks/Issue Stock instead). Setup → Departments has a Type
-selector when adding a new one. Stock, Stocktake, Count, Log and Setup are
-shared by both types.
+or `warehouse` (Racks / Receive Stock / Issue Stock / Issued Summary instead).
+Setup → Departments has a Type selector when adding a new one. Stock,
+Stocktake, Count, Log and Setup are shared by both types.
 
-- **Racks** — three levels deep: **Rack → Level → Position**, matching a
-  position code like `R8A1L01` (rack `R8A`, level `1`, position `01`, left to
-  right). A rack is `items.store`, its level is `items.level`, its spot on
-  that level is `items.slot` (the same `store` field kitchen departments
-  already use for the Stock page's location filter). Drag a card onto any
-  position on any level of any rack to move it there —saves and syncs
-  immediately; positions renumber to stay contiguous. **+ Add rack** stages
-  a rack, **+lvl** on a rack stages a level —both are real rows (`racks` /
-  `levels` tables) the moment you add them, so they stay on the board even
-  after everything on them is moved away or deleted; they don't disappear
-  just because they're empty. The ✕ next to a rack or level removes it and
-  moves anything still on it to Unassigned (not deleted). Each card also has
-  inline Physical Qty / Loose Qty fields (no product code shown, to keep
-  cards small).
-  Racks are laid out in **rows** (`racks.row_no`) —e.g. row 1 holds the R#A
-  racks, row 2 the R#B racks plus Center —so the board reads as a real floor
-  plan instead of one long scrolling strip. A new rack defaults to row 1 if
-  its name ends in "A", row 2 otherwise; **⇅** on any rack's header opens
-  **Move rack** to set its row and position directly. Importing a sheet
-  places newly-seen racks the same way automatically.
-  Racks start collapsed —click one to open it and see its levels/positions,
-  click again to close. Multiple can be open at once (needed to drag between
-  two racks). Typing in the search box opens any rack with a match, without
-  changing which ones you had open yourself; **Expand all** / **Collapse
-  all** cover the rest. This open/closed state is a per-browser preference
-  (`localStorage`, per department) —it's not shared between devices or
-  written to Supabase.
-- **Issue Stock** — records stock leaving the warehouse for another company
-  (e.g. Quan Feng Food Supply, Vaner Food Supply). Deducts from the item's
-  balance immediately and keeps a running history, filterable by company.
-  This is a one-sided log: it does not create a matching stock-in entry in
-  the receiving department.
-- **Issued Summary** — total stock issued per company over a date range
-  (This month / Last month / This year / All time, or a custom range;
-  defaults to the current month). Click a company row (or use the filter)
-  to break that company's total down by item. **Export CSV** downloads the
-  by-company table for the selected range.
-- **Setup → Item list import** recognises a `Rack Position` / `Storage`
-  column and a `Loose Qty` column, on top of the columns it already reads.
-  A rack position like `R8A1L01` is split automatically into rack/level/
-  position; anything that doesn't match that pattern (a flat zone like
-  `CENTER`, or a hand-typed rack name) becomes its own rack on a single
-  level. On a warehouse department, any rack found in the sheet is added to
-  the Racks board automatically —so a stocktake sheet exported with a Rack
-  Position column can be dropped straight in to seed the whole board.
-  **Download rack template** (Setup, warehouse departments only) gives a
-  blank CSV with headers matching this exactly —`Rack Position, Product
-  Code, Product Name, UOM, Physical Qty, Loose Qty, Category`— plus every
-  rack currently on the board listed for reference, so a filled-in copy
-  imports cleanly without guessing column names or rack codes.
+> **Updating an existing database:** re-run `supabase-schema.sql` *before*
+> opening this version on a warehouse department. It adds `items.pack_size`,
+> `tx.supplier` / `tx.ref`, `racks.zone` / `x` / `y` / `w` / `h` / `floor` and
+> `settings.floor_plan`, and changes nothing that's already there. Kitchen
+> departments never send those columns, so they keep working either way; a
+> warehouse department shows "the database needs updating" until it's run.
+
+### Storage zones —Dry / Chiller / Freezer
+
+A zone belongs to a **rack**, because a rack stands in one room: an item is in
+whichever zone its rack is in, so moving a product to a freezer rack makes it
+freezer stock with nothing else to update. Set a rack's zone with ⚙ on the
+Racks page (or a `Zone` column in the item sheet). Stock, Stocktake and Count
+all filter by zone, and the Shelves view has a tab per zone.
+
+### Cartons and packets
+
+Each product has a **pack size** —packets per carton (1 = no cartons). Its
+balance, minimum and every movement are then kept in packets, the smallest
+unit it's handled in, and shown as `12 ctn 5 pkt`. Every place a quantity is
+entered (Receive, Issue, Count, the Racks panel, Correct the count) takes
+cartons and packets separately and adds them up, so breaking a carton open
+needs nothing special.
+
+- The unit names come from the YonYou UOM: `10x1kg/ctn` → 10 pkt per ctn,
+  `100pcsx10roll/ctn` → 10 rolls, `5ltr/drum` → drums, `15kg/ctn` → the carton
+  is the unit (nothing to split it into).
+- **Set pack sizes from the UOM** (Stock page banner, or Setup) gives every
+  product without a pack size the one its UOM spells out, in one go, with a
+  preview. Items from before pack sizes existed were counted in the UOM's unit
+  (cartons for a carton UOM) plus a separate Loose Qty; converting rescales the
+  balance, minimum and past movements into packets and folds Loose Qty in, so
+  history and totals stay right. Setting a pack size by hand in **Edit** does
+  the same, asking once whether the old figures were cartons or packets.
+- Until a product has a pack size it behaves exactly as before (one number,
+  plus Loose Qty).
+
+### Racks —floor plan
+
+The Racks page opens on a drawn **floor plan**: the building's walls and
+doors, the chiller and freezer rooms, the no-access areas, R1A–R9A where they
+stand, the area outside the main door, and CENTER on the 2nd floor (floor
+tabs). **Draw the 0434 floor plan** sets it all up in one click; nothing on any
+rack changes.
+
+- Each rack is drawn as a shelving unit with one band per level (1L, 2L, …),
+  coloured by what's on that level: **white** fine, **amber** something below
+  its minimum, **red** something out, dashed empty. A badge on the corner counts
+  problems, so a bad shelf shows from across the map.
+- **Tap a rack** (or the chiller / freezer / CENTER) to open its panel: every
+  level, every product with its rack code, and **− / +** steppers for cartons
+  and packets (or type). Changes stay a **draft** —highlighted, with "was … +2
+  ctn"— until **Save changes**, which logs them together as one count
+  (**Undo** puts the whole save back). Leaving the page with unsaved changes
+  warns first. **+ Add product** on a level opens Add item with the next free
+  rack code filled in.
+- **Search** lists matching products by rack code; tapping one opens its rack
+  with the product highlighted, and the map dims every rack without a match.
+- **Edit layout** moves things to match the floor: drag a rack/wall/door/area
+  to move it, drag its corner square to resize, or type exact numbers in the
+  side panel. Racks not on the plan yet are listed there with **Place**. Rack
+  positions are saved on the rack (`racks.x/y/w/h/floor`); walls, doors,
+  no-access blocks and areas in `settings.floor_plan`.
+
+### Racks —shelves view, and rack codes
+
+The **Shelves** view is the drag-and-drop board: **Rack → Level → Position**,
+matching the shelf labels `R1A | 1L | 01` = rack code `R1A1L01` (rack `R1A`,
+level `1`, position `01`) —one per product. A rack is `items.store`, its level
+`items.level`, its position `items.slot`.
+
+- On a labelled rack (`R1A`, `R10B`, …) a product's position **is** its rack
+  code, so nothing is renumbered: empty positions show as gaps, dropping a card
+  on an empty spot puts it there, and dropping it on another product asks
+  before **swapping** the two. Open areas like CENTER, the chiller and the
+  freezer are plain ordered lists.
+- Two products on the same rack code, or a product on a labelled rack with no
+  position, are flagged in red at the top of the board.
+- Moving a product into a different zone asks first.
+- Typing a rack code in **Edit** (`R1A1L03`, also accepted as `R1A | 1L | 03`)
+  places it there, refusing a code another product already has.
+- Cards have ctn / pkt boxes; a change is logged as a correction.
+- Racks start collapsed —click one to open it. Open/closed state, zone tab and
+  plan/shelves choice are per-browser preferences (`localStorage`).
+
+### Receive Stock
+
+Stock arriving. Drop YonYou's purchase export (**PI_Item**: `MATCODE`,
+`MATERIAL`, `SUPNAME`, `INVOICEDATE`, `COMP`, `BILLNO`, … `TOTALSQTY`,
+`SUOM`), or key a delivery in by hand.
+
+- The export covers every warehouse and has no warehouse column, so a line is
+  taken in only if its `MATCODE` is on **this** warehouse's item list; the
+  rest (other warehouses, services, consumables) are skipped and counted, with
+  **Show them** to map one by hand if needed. A **Bought by** filter narrows
+  the file to one company (`COMP`).
+- Quantities come from `TOTALSQTY` in the stock unit `SUOM` —when that's the
+  product's carton UOM (`12x0.4kg/ctn`) it's converted to packets; each line
+  shows ctn/pkt and can be switched.
+- Rows that leave `MATCODE` blank belong to the product above (the export
+  only names it once); 小计 / 合计 subtotal rows are skipped.
+- Every line is remembered by `BILLNO` + product: importing the same file again
+  adds nothing, and a revised bill adds only the difference. The preview shows
+  where each product is put away.
+- Keying a delivery by hand with a document number that's already been
+  received for that product asks first. Receipts can be deleted with a
+  reason (reverses the balance and logs a correction), like issues.
+
+### Issue Stock / Issued Summary
+
+**Issue Stock** records stock leaving for another company (Quan Feng Food
+Supply, Vaner Food Supply, …) in cartons + packets, showing the balance and
+rack code of the product picked. **Issued Summary** totals it per company over a
+date range, with a by-item breakdown and CSV export. Issues also count as
+**usage**, so Use/day, Cover, trends and **Set minimums** work for a warehouse
+the way sales do for a kitchen.
+
+### Stocktake / Count
+
+In a warehouse both are in **shelf order** —zone, rack as laid out, level,
+position— grouped under zone + rack headings, with a zone filter. Counts are
+keyed as cartons and packets in separate boxes. The printed sheets (Stocktake
+paper and Count sheet) put **each zone on its own page** with Rack code,
+System, Ctn and Pkt columns, so the freezer page can go to whoever is counting
+the freezer.
+
+### Item list import (warehouse)
+
+**Setup → Item list import** reads `Rack Position`, `Zone`, `Product Code`,
+`Product Name`, `UOM`, `Pkts per Ctn`, `Ctn Qty` (or `Physical Qty`),
+`Loose Pkt Qty` (or `Loose Qty`), `Min (pkt)`, `Category`. Blank cells leave
+what's there alone, so **Download current list (to edit)** → fill in pack sizes
+/ zones / counts in Excel → drop it back in. A changed balance is logged and
+can be undone. A rack position like `R8A1L01` is split into rack/level/position
+automatically; anything else (`CENTER`, `CHILLER`) becomes an open area. New
+racks are added to the board automatically. **Download rack template** gives a
+blank sheet with the same columns.
 
 ## Notes on the data model
 
@@ -179,7 +266,7 @@ shared by both types.
 - **Realtime updates don't show up on other tabs**: confirm the `alter publication
   supabase_realtime add table ...` line at the bottom of `supabase-schema.sql`
   actually ran (check **Database → Replication** in the Supabase dashboard — all
-  six tables should be listed).
+  eight tables should be listed, including `racks` and `levels`).
 - **A department created before this version has no `amount` on old `tx` rows**:
   expected, not a bug — re-running `supabase-schema.sql` adds the column with
   `alter table ... add column if not exists`, but it can't retroactively know the
