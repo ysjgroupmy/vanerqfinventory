@@ -437,6 +437,11 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
 .fp-leaf{fill:none;stroke:var(--fp-mute);stroke-width:.8}
 .fp-door-t{font-size:5.2px;letter-spacing:.6px;fill:var(--fp-mute);font-weight:600}
 .fp-label{font-size:8px;fill:var(--fp-mute);font-weight:600;font-family:var(--f-ui)}
+.fp-stairs-b{fill:#E6E8E4;stroke:#9AA39D;stroke-width:1}
+.fp-stairs-t line{stroke:#B3BAB4;stroke-width:.8}
+.fp-stairs-a{fill:none;stroke:#6B7479;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round}
+.fp-stairs-lb{fill:#E6E8E4}
+.fp-stairs-l{font-size:6px;font-weight:700;letter-spacing:1px;fill:#4A5458}
 /* racks: a shelving unit, header + one band per level */
 .fp-rk-b{stroke-width:1.2;transition:stroke-width .1s}
 .fp-rk.z-dry .fp-rk-b{fill:var(--fp-dry);stroke:var(--fp-dry-line)}
@@ -4467,27 +4472,37 @@ let fpFloor = 1, fpSel = null, fpEdit = false, fpEditSel = null, fpDrag = null, 
 let fpDraft = {};
 const FPU = 10;               // SVG units per grid cell
 
-/* 0434, drawn from the layout of the real floor: building walls all round,
-   the chiller and freezer rooms with their entrances, the no-access blocks
-   between them, R7A–R9A down the left aisle, R6A/R5A and R4A in front of the
-   freezer, the main door, and R1A–R3A outside it. CENTER is on the 2nd floor. */
+/* 0434, drawn from the layout of the real floors (one sheet column = 3 grid
+   units, one row = 1). Ground floor: walls all round, the chiller and
+   freezer rooms with their entrances, the no-access blocks between them,
+   R7A–R9A down the left aisle, R6A/R5A and R4A in front of the freezer, the
+   main door, and R1A–R3A outside it. 2nd floor: one rectangular room with
+   the stairwell walled off in the top-left corner, R1B along the top, R2B
+   beside the stairs, CENTER in the middle, R5B down the right wall and
+   R3B/R4B along the bottom-left. */
 const PLAN_0434 = {
   racks: [
-    {name:"R9A", x:1,  y:2,  w:5, h:6,  levels:3},
-    {name:"R8A", x:1,  y:9,  w:5, h:16, levels:5},
-    {name:"R7A", x:1,  y:26, w:5, h:13, levels:6},
-    {name:"R6A", x:12, y:27, w:3, h:10, levels:3},
-    {name:"R5A", x:15, y:27, w:3, h:10, levels:3},
-    {name:"R4A", x:25, y:27, w:5, h:12, levels:3},
-    {name:"R1A", x:1,  y:43, w:5, h:8,  levels:2},
-    {name:"R3A", x:25, y:43, w:5, h:4,  levels:3},
-    {name:"R2A", x:25, y:48, w:5, h:4,  levels:3}
+    {floor:1, name:"R9A", x:1,  y:2,  w:5,  h:6,  levels:3},
+    {floor:1, name:"R8A", x:1,  y:9,  w:5,  h:16, levels:5},
+    {floor:1, name:"R7A", x:1,  y:26, w:5,  h:13, levels:6},
+    {floor:1, name:"R6A", x:12, y:27, w:3,  h:10, levels:3},
+    {floor:1, name:"R5A", x:15, y:27, w:3,  h:10, levels:3},
+    {floor:1, name:"R4A", x:25, y:27, w:5,  h:12, levels:3},
+    {floor:1, name:"R1A", x:1,  y:43, w:5,  h:8,  levels:2},
+    {floor:1, name:"R3A", x:25, y:43, w:5,  h:4,  levels:3},
+    {floor:1, name:"R2A", x:25, y:48, w:5,  h:4,  levels:3},
+    {floor:2, name:"R1B", x:16, y:1,  w:15, h:5,  levels:3},
+    {floor:2, name:"R2B", x:13, y:9,  w:6,  h:11, levels:4},
+    {floor:2, name:"R3B", x:1,  y:25, w:18, h:5,  levels:2},
+    {floor:2, name:"R4B", x:1,  y:30, w:18, h:5,  levels:2},
+    {floor:2, name:"R5B", x:43, y:12, w:6,  h:23, levels:2}
   ],
+  /* storage rooms; an existing area already used for one (e.g. "0434CH") is reused */
   rooms: [
-    {zone:"chilled", name:"CHILLER", x:12, y:1,  w:12, h:10, floor:1},
-    {zone:"frozen",  name:"FREEZER", x:18, y:12, w:12, h:13, floor:1}
+    {floor:1, zone:"chilled", name:"CHILLER", x:12, y:1,  w:12, h:10},
+    {floor:1, zone:"frozen",  name:"FREEZER", x:18, y:12, w:12, h:13},
+    {floor:2, zone:"dry",     name:"CENTER",  x:25, y:11, w:12, h:19, match:/^cent(er|re)$/i}
   ],
-  center: {x:9, y:13, w:13, h:13, floor:2},
   shapes: [
     {t:"area",  floor:1, x:0,  y:41, w:31, h:12, text:"Outside the main door"},
     {t:"floor", floor:1, x:1,  y:1,  w:29, h:39},
@@ -4501,14 +4516,16 @@ const PLAN_0434 = {
     {t:"door",  floor:1, x:9,  y:40, w:12, h:1, text:"Main door", swing:"up"},
     {t:"door",  floor:1, x:11.5, y:3, w:1, h:5, text:"Entrance", swing:"right"},
     {t:"door",  floor:1, x:19, y:24.5, w:4, h:1, text:"Entrance", swing:"up"},
-    {t:"floor", floor:2, x:1,  y:1,  w:29, h:39},
-    {t:"wall",  floor:2, x:0,  y:0,  w:31, h:1},
-    {t:"wall",  floor:2, x:0,  y:40, w:31, h:1},
-    {t:"wall",  floor:2, x:0,  y:1,  w:1,  h:39},
-    {t:"wall",  floor:2, x:30, y:1,  w:1,  h:39}
+    {t:"floor", floor:2, x:1,  y:1,  w:48, h:34},
+    {t:"stairs",floor:2, x:1,  y:1,  w:12, h:14, text:"Stairs"},
+    {t:"wall",  floor:2, x:0,  y:0,  w:50, h:1},
+    {t:"wall",  floor:2, x:0,  y:35, w:50, h:1},
+    {t:"wall",  floor:2, x:0,  y:1,  w:1,  h:34},
+    {t:"wall",  floor:2, x:49, y:1,  w:1,  h:34},
+    {t:"wall",  floor:2, x:1,  y:15, w:12, h:1}
   ]
 };
-const DECO_TYPES = {floor:"Floor", area:"Area", block:"No-access block", wall:"Wall", door:"Door", label:"Label"};
+const DECO_TYPES = {floor:"Floor", area:"Area", block:"No-access block", wall:"Wall", door:"Door", stairs:"Stairs", label:"Label"};
 const PLAN_SUB = `A map of the warehouse. Each rack shows its levels —<b>white</b> = fine, <b style="color:#B7791F">amber</b> = below minimum, <b style="color:var(--crit)">red</b> = out, dashed = empty. Tap a rack (or the chiller / freezer) to see what's on it and adjust quantities with <b>−</b> / <b>+</b> or by typing —changes stay as a draft until you press <b>Save</b>, then go in the log like a count.`;
 const SHELF_SUB = `Rack → Level → Position, same as the shelf labels: <b class="mono">R1A</b> | <b class="mono">1L</b> | <b class="mono">01</b> = rack code <b class="mono">R1A1L01</b>, one per product. Click a rack to open it. Drag a card onto an empty spot to put it there, or onto another product to swap the two —nothing else is renumbered. <b>⚙</b> on a rack sets its zone (Dry / Chiller / Freezer).`;
 
@@ -4589,6 +4606,22 @@ function decoSvg(s){
   else if(s.t==="area") g = `<rect x="${x+1}" y="${y+1}" width="${w-2}" height="${h-2}" rx="4" class="fp-area"/>`
       + (s.text ? `<text class="fp-area-t" x="${x+6}" y="${y+10}">${svgEsc(s.text.toUpperCase())}</text>` : "");
   else if(s.t==="block") g = `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#fp-hatch)" stroke="#BDB6A8" stroke-width=".8"/>`;
+  else if(s.t==="stairs"){
+    /* treads across the flight, an arrow up it, and the label on a plate */
+    const tall = h>=w, n = Math.max(3, Math.round((tall?h:w)/(0.8*U)));
+    let treads = "";
+    for(let i=1;i<n;i++){
+      if(tall){ const yy = y+i*h/n; treads += `<line x1="${x+1.5}" y1="${yy}" x2="${x+w-1.5}" y2="${yy}"/>`; }
+      else { const xx = x+i*w/n; treads += `<line x1="${xx}" y1="${y+1.5}" x2="${xx}" y2="${y+h-1.5}"/>`; }
+    }
+    const cx = x+w/2, cy = y+h/2;
+    const arrow = tall ? `M${cx} ${y+h*.85}V${y+h*.15}M${cx-4} ${y+h*.15+5}L${cx} ${y+h*.15}L${cx+4} ${y+h*.15+5}`
+                       : `M${x+w*.15} ${cy}H${x+w*.85}M${x+w*.85-5} ${cy-4}L${x+w*.85} ${cy}L${x+w*.85-5} ${cy+4}`;
+    const t = String(s.text||"").toUpperCase(), tw = t.length*4.3+8;
+    g = `<rect x="${x}" y="${y}" width="${w}" height="${h}" class="fp-stairs-b"/><g class="fp-stairs-t">${treads}</g>
+      <path d="${arrow}" class="fp-stairs-a"/>`
+      + (t ? `<rect x="${cx-tw/2}" y="${cy-5}" width="${tw}" height="10" rx="1.5" class="fp-stairs-lb"/><text class="fp-stairs-l" x="${cx}" y="${cy+2.2}" text-anchor="middle">${svgEsc(t)}</text>` : "");
+  }
   else if(s.t==="wall") g = `<rect x="${x}" y="${y}" width="${w}" height="${h}" class="fp-wall"/>`;
   else if(s.t==="door") g = doorSvg(s);
   else g = `<text class="fp-label" x="${x+w/2}" y="${y+h/2+3}" text-anchor="middle">${svgEsc(s.text||"")}</text>`;
@@ -4663,7 +4696,7 @@ function planMapHtml(q){
   const deco = (state.floorPlan||[]).filter(s=>(s.floor||1)===fpFloor);
   const all = [...racks, ...deco], pad = fpEdit ? 4 : .5;
   const W = Math.max(12, ...all.map(s=>s.x+s.w)) + pad, H = Math.max(8, ...all.map(s=>s.y+s.h)) + pad;
-  const order = ["area","floor","block"];
+  const order = ["area","floor","block","stairs"];
   const under = order.flatMap(t=>deco.filter(s=>s.t===t)).map(decoSvg).join("");
   const over = ["wall","door","label"].flatMap(t=>deco.filter(s=>s.t===t)).map(decoSvg).join("");
   const stock = racks.map(rk=>rackCoded(rk.name) ? rackSvg(rk, q) : roomSvg(rk, q)).join("");
@@ -4692,9 +4725,10 @@ function renderPlan(){
   const bar = `<div class="fp-bar">${floorTabs}<span class="fp-legend">${legend}</span>
       ${empty&&!fpEdit?"":`<button class="btn sm ${fpEdit?"on":""}" style="margin-left:auto" onclick="setPlanEdit(${!fpEdit})">${fpEdit?"Done editing":"Edit layout"}</button>`}</div>
     ${fpEdit?`<div class="fp-bar fp-tools"><span class="dim" style="font-size:12px">Drag to move · drag the corner square to resize · add:</span>
-      ${["wall","door","block","area","floor","label"].map(t=>`<button class="btn sm" onclick="planAddDeco('${t}')">+ ${DECO_TYPES[t]}</button>`).join("")}</div>`:""}`;
+      ${["wall","door","stairs","block","area","floor","label"].map(t=>`<button class="btn sm" onclick="planAddDeco('${t}')">+ ${DECO_TYPES[t]}</button>`).join("")}
+      ${[...PLAN_0434.racks, ...PLAN_0434.shapes].some(x=>x.floor===fpFloor) ? `<button class="btn sm" style="margin-left:auto" onclick="loadPlan0434(${fpFloor})">Redraw ${ordinal(fpFloor)} floor from the 0434 plan</button>` : ""}</div>`:""}`;
   const map = empty && !fpEdit
-    ? `<div class="empty" style="padding:40px 16px"><b>No floor plan yet</b>Draw 0434 —the walls and doors, the chiller and freezer, R1A to R9A where they stand, and CENTER on the 2nd floor— or start from a blank plan.
+    ? `<div class="empty" style="padding:40px 16px"><b>No floor plan yet</b>Draw 0434 —the ground floor's walls and doors, chiller, freezer and R1A to R9A, and the 2nd floor's stairs, CENTER and R1B to R5B— or start from a blank plan.
         <div style="margin-top:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
           <button class="btn primary" onclick="loadPlan0434()">Draw the 0434 floor plan</button>
           <button class="btn" onclick="setPlanEdit(true)">Start blank</button></div></div>`
@@ -4904,7 +4938,7 @@ function planInspector(){
       ${isRack
         ? `<div class="field" style="margin-top:8px"><label>Zone</label><select onchange="planSetProp('zone', this.value)">${zoneOptions(s.zone||"dry")}</select></div>
            <button class="btn sm" onclick="planUnplace()">Take off the plan</button>`
-        : `${["door","area","label"].includes(s.t)?`<div class="field" style="margin-top:8px"><label>Text</label><input value="${esc(s.text||"")}" onchange="planSetProp('text', this.value)"></div>`:""}
+        : `${["door","area","label","stairs"].includes(s.t)?`<div class="field" style="margin-top:8px"><label>Text</label><input value="${esc(s.text||"")}" onchange="planSetProp('text', this.value)"></div>`:""}
            ${s.t==="door"?`<div class="field"><label>Opens towards</label><select onchange="planSetProp('swing', this.value)">
               ${["up","down","left","right"].map(d=>`<option value="${d}" ${(s.swing||(s.w>=s.h?"up":"right"))===d?"selected":""}>${d}</option>`).join("")}</select></div>`:""}
            <button class="btn sm danger" onclick="planDeleteDeco()">Delete</button>`}`;
@@ -4942,7 +4976,7 @@ function planPlace(name){
 }
 function planAddDeco(t){
   const d = {wall:{w:8,h:1}, door:{w:4,h:1,text:"Door",swing:"up"}, block:{w:4,h:4}, area:{w:10,h:6,text:"Area"},
-             floor:{w:20,h:20}, label:{w:8,h:2,text:"Label"}}[t];
+             floor:{w:20,h:20}, stairs:{w:6,h:8,text:"Stairs"}, label:{w:8,h:2,text:"Label"}}[t];
   const s = Object.assign({id:"s"+Date.now().toString(36)+Math.floor(Math.random()*1e4), t, floor:fpFloor, x:1, y:1}, d);
   if(!state.floorPlan) state.floorPlan = [];
   state.floorPlan.push(s);
@@ -4991,31 +5025,34 @@ function planPointerUp(){
   if(d.n && (d.n.x!==d.o.x || d.n.y!==d.o.y || d.n.w!==d.o.w || d.n.h!==d.o.h)){ Object.assign(d.obj, d.n); save(); }
   renderRacks();
 }
-/* Draws 0434 (and CENTER on the 2nd floor). Racks that already exist keep
-   their zone and everything on them; missing ones are added with their
-   levels. An area already used for the chiller or freezer (e.g. "0434CH")
-   is reused rather than adding a second one. */
-async function loadPlan0434(){
-  if(!await askConfirm("Draw the 0434 floor plan?",
-      "Puts in the building's walls and doors, the chiller and freezer, R1A–R9A where they stand, and CENTER on the 2nd floor. Missing racks are added with their levels; nothing on any rack is changed. Everything can be moved afterwards with Edit layout.", "Draw it")) return;
-  for(const r of PLAN_0434.racks){
+/* Draws 0434 —both floors, or just one (Edit layout → Redraw this floor).
+   Racks that already exist keep their zone and everything on them; missing
+   ones are added with their levels. A room already in use for the chiller,
+   freezer or CENTER (e.g. "0434CH") is reused rather than adding a second
+   one. Redrawing one floor leaves the other exactly as it is. */
+async function loadPlan0434(onlyFloor){
+  const on = f => !onlyFloor || f===onlyFloor;
+  if(!await askConfirm(onlyFloor ? `Redraw the ${ordinal(onlyFloor)} floor?` : "Draw the 0434 floor plan?",
+      onlyFloor
+        ? `Puts the ${ordinal(onlyFloor)} floor's walls, doors and racks back where the 0434 plan has them. Anything moved or added on this floor with Edit layout is reset; racks keep everything on them, and the other floor isn't touched.`
+        : "Draws both floors: the ground floor's walls and doors, the chiller and freezer and R1A–R9A, and the 2nd floor's stairs, CENTER and R1B–R5B. Missing racks are added with their levels; nothing on any rack is changed. Everything can be moved afterwards with Edit layout.",
+      onlyFloor ? "Redraw it" : "Draw it")) return;
+  for(const r of PLAN_0434.racks.filter(r=>on(r.floor))){
     const rk = ensureRack(r.name, "dry");
-    Object.assign(rk, {x:r.x, y:r.y, w:r.w, h:r.h, floor:1});
+    Object.assign(rk, {x:r.x, y:r.y, w:r.w, h:r.h, floor:r.floor});
     for(let l=1; l<=r.levels; l++) registerLevel(r.name, String(l));
   }
-  for(const a of PLAN_0434.rooms){
-    const name = rackList().find(n=>!rackCoded(n) && parseZone(n)===a.zone) || a.name;
+  for(const a of PLAN_0434.rooms.filter(a=>on(a.floor))){
+    const name = rackList().find(n=> a.match ? a.match.test(n) : (!rackCoded(n) && parseZone(n)===a.zone)) || a.name;
     const rk = ensureRack(name, a.zone);
     Object.assign(rk, {zone:a.zone, x:a.x, y:a.y, w:a.w, h:a.h, floor:a.floor});
     registerLevel(name, "1");
   }
-  const center = rackList().find(n=>/^cent(er|re)$/i.test(n)) || "CENTER";
-  Object.assign(ensureRack(center, "dry"), PLAN_0434.center);
-  registerLevel(center, "1");
-  state.floorPlan = PLAN_0434.shapes.map((s,i)=>Object.assign({id:"s"+(i+1)}, s));
-  fpFloor = 1; fpSel = null;
+  const keep = (state.floorPlan||[]).filter(s=>!on(s.floor||1));
+  state.floorPlan = keep.concat(PLAN_0434.shapes.filter(s=>on(s.floor)).map((s,i)=>Object.assign({id:"p"+s.floor+"-"+i}, s)));
+  fpFloor = onlyFloor || 1; fpSel = null; fpEditSel = null;
   save(); render();
-  toast("0434 floor plan drawn —tap a rack to see what's on it");
+  toast(onlyFloor ? ordinal(onlyFloor)+" floor redrawn" : "0434 floor plan drawn —both floors; tap a rack to see what's on it");
 }
 
 /* The Racks page: floor plan or shelves. */
