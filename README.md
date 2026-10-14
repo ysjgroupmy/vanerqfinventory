@@ -184,11 +184,19 @@ appears once a product has one.
 
 ### Racks —floor plan
 
-The Racks page opens on a drawn **floor plan**: the building's walls and
-doors, the chiller and freezer rooms, the no-access areas, R1A–R9A where they
-stand, the area outside the main door, and CENTER on the 2nd floor (floor
-tabs). **Draw the 0434 floor plan** sets it all up in one click; nothing on any
-rack changes.
+The Racks page opens on a drawn **floor plan**, one tab per floor:
+
+- **1st floor:** the building's walls and doors, the chiller and freezer
+  rooms with their entrances, the no-access areas, R1A–R9A where they stand,
+  and the area outside the main door.
+- **2nd floor:** the stairwell in the top-left corner, R1B along the top, R2B
+  beside the stairs, CENTER (dry storage) in the middle, R5B down the right
+  wall, and R3B / R4B along the bottom-left.
+
+**Draw the 0434 floor plan** sets up both floors in one click; nothing on any
+rack changes. In **Edit layout**, **Redraw this floor from the 0434 plan**
+resets just the floor you're on (useful if the plan was drawn before that
+floor's layout was added) and leaves the other floor as it is.
 
 - Each rack is drawn as a shelving unit with one band per level (1L, 2L, …),
   coloured by what's on that level: **white** fine, **amber** something below
@@ -203,9 +211,9 @@ rack changes.
   rack code filled in.
 - **Search** lists matching products by rack code; tapping one opens its rack
   with the product highlighted, and the map dims every rack without a match.
-- **Edit layout** moves things to match the floor: drag a rack/wall/door/area
-  to move it, drag its corner square to resize, or type exact numbers in the
-  side panel. Racks not on the plan yet are listed there with **Place**. Rack
+- **Edit layout** moves things to match the floor: drag a rack/wall/door/
+  stairs/area to move it, drag its corner square to resize, or type exact
+  numbers in the side panel. Racks not on the plan yet are listed there with **Place**. Rack
   positions are saved on the rack (`racks.x/y/w/h/floor`); walls, doors,
   no-access blocks and areas in `settings.floor_plan`.
 
