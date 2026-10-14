@@ -833,6 +833,7 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
       <div><h1>Stocktake</h1><div class="psub">Build the list of items to go and count, print the paper for the floor, then key the figures in on station 04. The list is shared and belongs to the department you are in.</div></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <input id="st-name" placeholder="Sheet title (optional)" style="min-width:170px">
+        <button class="btn wh-only" onclick="openStocktakeReport()">Stocktake report</button>
         <button class="btn primary" onclick="printStocktakePaper()"><svg class="ic"><use href="#i-print"/></svg>Export stocktake paper</button>
       </div>
     </div>
@@ -1063,6 +1064,21 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
         </div>
       </div>
       <div>
+        <div class="panel wh-only" id="setup-report">
+          <div class="panel-h"><h2><svg class="ic" style="width:14px;height:14px"><use href="#i-clip"/></svg>Stocktake report</h2></div>
+          <div class="panel-b">
+            <p class="dim" style="font-size:12.5px;margin-bottom:10px">Once the count is done —on <b>Racks</b>, <b>Count</b> or <b>Stocktake</b>— this is the record of it: every product's balance as it stands now, rack by rack and zone by zone, with what the count changed. Print it to sign off, or download it for Excel.</p>
+            <div class="bar" style="margin-bottom:8px">
+              <label class="lbl" for="sr-from">Count started</label><input type="date" id="sr-from">
+              <select id="sr-zone"><option value="all">All zones</option></select>
+            </div>
+            <div id="sr-sum" class="dim" style="font-size:12.5px;margin-bottom:10px"></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn primary" onclick="printStocktakeReport()"><svg class="ic"><use href="#i-print"/></svg>Print report</button>
+              <button class="btn" onclick="exportStocktakeReport()">Download Excel</button>
+            </div>
+          </div>
+        </div>
         <div class="panel">
           <div class="panel-h"><h2>Where the data lives</h2></div>
           <div class="panel-b" id="setup-storage"></div>
@@ -4351,7 +4367,218 @@ function exportWarehouseItems(){
     return [posCode(i), z?z.label:"", i.code||"", i.name, i.uom||"", hasPack(i)?i.packSize:"", i.unit||"",
       sg*s.ctn, sg*s.pkt, hasPack(i)?i.min:"", hasCat(i)?i.cat:""].map(csvCell).join(",");
   });
-  saveFile((activeDept().code||"warehouse")+"-items-"+todayStr()+".csv", "\uFEFF"+WH_COLS+rows.join("\n")+"\n", "text/csv;charset=utf-8");
+  saveFile((activeDept().code||"warehouse")+"-items-"+todayStr()+".csv", "﻿"+WH_COLS+rows.join("\n")+"\n", "text/csv;charset=utf-8");
+}
+
+/* ---------- stocktake report (warehouse) ----------
+   The record of a finished stocktake: every product's balance as it stands
+   now, in shelf order, zone by zone, with what the count changed —the
+   corrections logged since the count started, whichever page they were keyed
+   on (Racks floor plan, Count, ± Count, an item list import). A product that
+   was checked and already matched logs nothing, so it shows no change. */
+function lastCountDate(){
+  let d = null;
+  for(const t of state.tx) if(t.type==="adjust" && (!d || t.date>d)) d = t.date;
+  return d;
+}
+function stocktakeStatus(it){
+  if(it.stopped) return "Stopped";
+  if(uncounted(it)) return "Not counted";
+  const s = itemState(it);
+  return s==="out" ? "Out" : s==="low" ? "Low" : it.preorder ? "Bought to order" : "OK";
+}
+function stocktakeRows(){
+  const from = ($("#sr-from") && $("#sr-from").value) || lastCountDate() || todayStr();
+  const zv = ($("#sr-zone") && $("#sr-zone").value) || "all";
+  const adj = new Map(), last = new Map();
+  for(const t of state.tx){
+    if(t.type!=="adjust") continue;
+    if(t.date>=from) adj.set(t.itemId, Math.round(((adj.get(t.itemId)||0)+t.qty)*100)/100);
+    if(!last.has(t.itemId) || t.date>last.get(t.itemId)) last.set(t.itemId, t.date);
+  }
+  const rows = state.items.filter(i=>inZoneSel(i, zv)).sort(walkCmp()).map(it=>{
+    const s = hasPack(it) ? splitQty(it, it.stock) : {ctn:it.stock, pkt:it.looseQty||0, neg:false}, sg = s.neg ? -1 : 1;
+    return {it, ctn:sg*s.ctn, pkt:sg*s.pkt, adj:adj.has(it.id) ? adj.get(it.id) : null, last:last.get(it.id)||"", st:stocktakeStatus(it)};
+  });
+  return {from, zv, rows};
+}
+/* Per-zone totals, plus "all". Cartons / loose units only add up products
+   that have a pack size —anything else is held in whatever unit it was counted in. */
+function stocktakeTotals(rows){
+  const m = new Map(), blank = () => ({n:0, stocked:0, chg:0, up:0, down:0, out:0, low:0, ctn:0, pkt:0});
+  m.set("all", blank());
+  for(const r of rows){
+    const z = zoneOf(r.it) || "none";
+    if(!m.has(z)) m.set(z, blank());
+    for(const o of [m.get(z), m.get("all")]){
+      o.n++; if(r.it.stock>0) o.stocked++;
+      if(r.adj){ o.chg++; if(r.adj>0) o.up++; else o.down++; }
+      if(r.st==="Out") o.out++; else if(r.st==="Low") o.low++;
+      if(hasPack(r.it) && r.it.stock>0){ o.ctn += r.ctn; o.pkt += r.pkt; }
+    }
+  }
+  return m;
+}
+function zoneName(z){ const zi = zoneInfo(z); return zi ? zi.label : "Unassigned"; }
+function chgText(it, q){ return q==null ? "" : !q ? "no change" : (q>0?"+":"")+fmtQty(it, q); }
+function renderStocktakeSum(){
+  const el = $("#sr-sum"); if(!el || !isWarehouse()) return;
+  const {from, zv, rows} = stocktakeRows(), t = stocktakeTotals(rows).get("all");
+  el.innerHTML = rows.length
+    ? `<b style="color:var(--ink)">${t.n}</b> product${t.n===1?"":"s"}${zv!=="all"?" in "+esc(zoneName(zv)):""} ·
+       <b style="color:var(--ink)">${t.chg}</b> changed by the count since ${esc(shortDate(from))}${t.chg?` (${t.up} up, ${t.down} down)`:""} ·
+       ${t.out} out of stock · ${t.low} below minimum`
+    : "No products"+(zv!=="all"?" in that zone":"")+" yet.";
+}
+function openStocktakeReport(){
+  go("setup");
+  const p = $("#setup-report"); if(p) p.scrollIntoView({behavior:"smooth", block:"start"});
+}
+function printStocktakeReport(){
+  const {from, zv, rows} = stocktakeRows();
+  if(!rows.length){ toast("No products to report"+(zv!=="all"?" in that zone":"")); return; }
+  const ad = activeDept(), now = new Date(), tot = stocktakeTotals(rows), all = tot.get("all");
+  const dl = now.toLocaleDateString("en-SG",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+  const tm = now.toLocaleTimeString("en-SG",{hour:"2-digit",minute:"2-digit"});
+  const fromL = new Date(from+"T12:00").toLocaleDateString("en-SG",{day:"numeric",month:"long",year:"numeric"});
+  const zones = [...tot.keys()].filter(k=>k!=="all");
+  const sumRow = (label, o, cls) => `<tr class="${cls||""}"><td>${label}</td><td class="n">${o.n}</td><td class="n">${o.stocked}</td>
+    <td class="n">${o.chg}${o.chg?` <span class="dim">(${o.up}↑ ${o.down}↓)</span>`:""}</td><td class="n${o.out?" out":""}">${o.out}</td><td class="n${o.low?" low":""}">${o.low}</td>
+    <td class="n">${fmt(o.ctn)}</td><td class="n">${fmt(o.pkt)}</td></tr>`;
+  const summary = `<table class="sum"><thead><tr><th>Zone 区域</th><th class="n">Products 品项</th><th class="n">In stock 有货</th><th class="n">Changed by count 盘点调整</th>
+      <th class="n">Out 缺货</th><th class="n">Low 低于最低</th><th class="n">Cartons 箱</th><th class="n">Loose 散装</th></tr></thead><tbody>
+    ${zones.map(z=>{ const zi = zoneInfo(z); return sumRow(`<span class="zn ${zi?zi.cls:""}">${esc(zi?zi.label+" "+zi.zh:"Unassigned 未分配")}</span>`, tot.get(z)); }).join("")}
+    ${zones.length>1 ? sumRow("<b>Total 合计</b>", all, "tot") : ""}</tbody></table>`;
+  let n = 0;
+  const pages = zones.map(z=>{
+    const zi = zoneInfo(z), zr = rows.filter(r=>(zoneOf(r.it)||"none")===z);
+    let body = "", last = null;
+    for(const r of zr){
+      const it = r.it, rk = it.store||"";
+      if(rk!==last){
+        last = rk;
+        const k = zr.filter(x=>(x.it.store||"")===rk).length;
+        body += `<tr class="grp"><td colspan="7">${esc(rk||"No rack")}<span>${k} 项 items</span></td></tr>`;
+      }
+      n++;
+      const p = packOf(it), stc = r.st==="Out"?"out":r.st==="Low"?"low":r.st==="OK"?"ok":"off";
+      body += `<tr><td class="rk">${n}</td><td class="pc">${esc(posCode(it))}</td>
+        <td><b>${esc(it.name)}</b><span class="u">${esc(it.uom||"")}${it.code?" · "+esc(it.code):""}${p>1?" · "+p+" "+esc(unitOf(it))+"/ctn":""}</span></td>
+        <td class="c bal">${uncounted(it)?'<span class="dim">—</span>':esc(fmtBal(it))}</td>
+        <td class="c">${hasPack(it)&&p>1&&!uncounted(it)?esc(fmt(it.stock)+" "+unitOf(it)):""}</td>
+        <td class="c chg${r.adj>0?" up":r.adj<0?" dn":""}">${r.adj==null?"":esc(chgText(it, r.adj))}${r.last&&r.adj==null?`<span class="u">last ${esc(shortDate(r.last))}</span>`:""}</td>
+        <td><span class="stt ${stc}">${esc(r.st)}</span></td></tr>`;
+    }
+    const zt = tot.get(z);
+    return `<section class="zpage">
+      <div class="head"><div><div class="co">${esc(ad.company||"")}${ad.company?" · ":""}${esc(ad.code)}</div>
+        <h1>Stocktake Report 盘点报告 <span class="zn ${zi?zi.cls:""}">${esc(zi?zi.label+" "+zi.zh:"Unassigned 未分配")}</span></h1></div>
+        <div class="meta"><b>${dl}</b><br>${zt.n} item${zt.n===1?"":"s"} · ${zt.chg} changed by the count</div></div>
+      <table><thead><tr><th></th><th>Rack code 货位</th><th>Item 货品</th><th class="c">Balance 结存</th><th class="c">Total 总数</th><th class="c">Count change 盘点调整</th><th>Status 状态</th></tr></thead><tbody>${body}</tbody></table>
+    </section>`;
+  }).join("");
+  const doc = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${esc(ad.code)} Stocktake Report ${todayStr()}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#12171A;--dim:#586268;--rule:#D6DBD5;--petrol:#0B4F4A}
+*{box-sizing:border-box}body{margin:0;background:#fff;color:var(--ink);font:12.5px/1.4 "IBM Plex Sans","Noto Sans SC",sans-serif;padding:24px 28px}
+.cover,.zpage{break-after:page;page-break-after:always;margin-bottom:40px}.zpage:last-of-type{break-after:auto;page-break-after:auto}
+.head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid var(--petrol);padding-bottom:9px;gap:16px;flex-wrap:wrap;margin-bottom:12px}
+h1{font-family:"Barlow Condensed",sans-serif;font-size:25px;margin:0}
+h2{font:600 10.5px "IBM Plex Mono",monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin:20px 0 8px}
+.zn{font-size:15px;padding:1px 8px;border:2px solid currentColor;margin-left:6px;vertical-align:3px;font-family:"Barlow Condensed",sans-serif;font-weight:700;white-space:nowrap}
+table.sum .zn{font-size:13px;margin-left:0;vertical-align:0;border-width:1.5px}
+.zn.z-dry{color:#7A5C2E}.zn.z-chill{color:#1B6FA8}.zn.z-frz{color:#0F6A8E}
+.co{font:600 10px "IBM Plex Mono",monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.meta{font:11.5px "IBM Plex Mono",monospace;color:var(--dim);text-align:right;line-height:1.8}
+.meta b{color:var(--ink)}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:4px 0 6px}
+.fact{border:1px solid var(--rule);border-top:3px solid var(--petrol);padding:9px 11px}
+.fact .k{font:600 9.5px "IBM Plex Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.fact .v{font:700 26px/1.1 "Barlow Condensed",sans-serif}
+.fact.out .v{color:#B8241A}.fact.low .v{color:#8F6304}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;font:600 9.5px "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);padding:6px;border-bottom:2px solid var(--ink)}
+td{padding:6px;border-bottom:1px solid var(--rule);vertical-align:top}
+th.n,td.n{text-align:right;font-family:"IBM Plex Mono",monospace}
+td.out{color:#B8241A;font-weight:600}td.low{color:#8F6304;font-weight:600}
+tr.tot td{border-top:2px solid var(--ink);font-weight:600}
+tr.grp td{background:#EDF1EE;font:600 11px "IBM Plex Mono",monospace;letter-spacing:.08em;border-bottom:1.5px solid #B8C2BB}
+tr.grp span{font-weight:400;color:var(--dim);margin-left:10px;letter-spacing:0}
+.rk{width:24px;color:#8B948F;font-family:"IBM Plex Mono",monospace}
+.pc{width:78px;font:600 11.5px "IBM Plex Mono",monospace;white-space:nowrap}
+.u{display:block;font:9.5px "IBM Plex Mono",monospace;color:var(--dim)}
+.c{text-align:right;font-family:"IBM Plex Mono",monospace;white-space:nowrap}
+.bal{font-weight:600}
+.zpage table{table-layout:fixed}
+.zpage th:nth-child(1){width:30px}.zpage th:nth-child(2){width:88px}.zpage th:nth-child(4){width:130px}
+.zpage th:nth-child(5){width:90px}.zpage th:nth-child(6){width:150px}.zpage th:nth-child(7){width:100px}
+.zpage td{overflow-wrap:anywhere}
+.chg{color:var(--dim)}.chg.up{color:#1F6B45;font-weight:600}.chg.dn{color:#B8241A;font-weight:600}
+.dim{color:var(--dim);font-weight:400}
+.stt{font:600 9.5px "IBM Plex Mono",monospace;letter-spacing:.06em;text-transform:uppercase;padding:1px 6px;border:1px solid;white-space:nowrap}
+.stt.ok{color:#1F6B45;border-color:#B3D5C1;background:#E7F2EB}.stt.low{color:#8F6304;border-color:#E4CE96;background:#FCF3DE}
+.stt.out{color:#B8241A;border-color:#E9B7B2;background:#FBEAE8}.stt.off{color:#8B948F;border-color:#D6DBD5}
+.note{font-size:11.5px;color:var(--dim);margin-top:10px;line-height:1.5}
+.sign{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:36px}
+.sign div{border-top:1.5px solid var(--ink);padding-top:6px;font-size:11.5px;color:var(--dim)}
+.pb{position:fixed;top:12px;right:12px;background:var(--petrol);color:#fff;border:none;padding:9px 17px;font:600 13px "IBM Plex Sans",sans-serif;cursor:pointer;z-index:5}
+@media screen{.meta{margin-right:124px}}
+@media print{.pb{display:none}body{padding:8px}tr{break-inside:avoid}tr.grp td,.stt,.fact{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style></head><body>
+<button class="pb" onclick="window.print()">Print / Save PDF</button>
+<section class="cover">
+  <div class="head"><div><div class="co">${esc(ad.company||"")}${ad.company?" · ":""}${esc(ad.code)} ${esc(ad.name||"")}</div>
+    <h1>Stocktake Report 盘点报告${zv!=="all"?` <span class="zn ${(zoneInfo(zv)||{}).cls||""}">${esc(zoneName(zv))}</span>`:""}</h1></div>
+    <div class="meta"><b>${dl}</b><br>Printed ${tm} · count started ${esc(fromL)}</div></div>
+  <div class="facts">
+    <div class="fact"><div class="k">Products 品项</div><div class="v">${all.n}</div></div>
+    <div class="fact"><div class="k">Changed by count</div><div class="v">${all.chg}</div></div>
+    <div class="fact out"><div class="k">Out of stock 缺货</div><div class="v">${all.out}</div></div>
+    <div class="fact low"><div class="k">Below minimum</div><div class="v">${all.low}</div></div>
+  </div>
+  <h2>By zone 按区域</h2>
+  ${summary}
+  <p class="note">Balances are as they stand at the time printed. <b>Count change</b> is the total of the corrections logged since the count started (${esc(fromL)}) —on the Racks floor plan, the Count sheet, ± Count or an item list import. A product that was checked and already matched shows no change. Cartons and loose units add up the products that have a pack size.</p>
+  <div class="sign"><div>盘点人 Counted by</div><div>复核 Checked by</div><div>批准 Approved by</div></div>
+</section>
+${pages}
+</body></html>`;
+  openOrSave(doc, ad.code+"-stocktake-report-"+todayStr()+".html");
+}
+function exportStocktakeReport(){
+  const {from, zv, rows} = stocktakeRows();
+  if(!rows.length){ toast("No products to report"+(zv!=="all"?" in that zone":"")); return; }
+  const ad = activeDept(), base = (ad.code||"warehouse")+"-stocktake-report-"+todayStr(), tot = stocktakeTotals(rows);
+  const head = ["Zone","Rack Code","Product Code","Product Name","UOM","Pkts per Ctn","Unit","Ctn","Loose Pkt","Total (pkt)","Balance",
+    "Count change since "+from+" (pkt)","Count change","Last count change","Min","Status"];
+  const data = rows.map(r=>{
+    const it = r.it;
+    return [zoneName(zoneOf(it)), posCode(it), it.code||"", it.name, it.uom||"", hasPack(it)?it.packSize:"", hasPack(it)?unitOf(it):"",
+      r.ctn, r.pkt, hasPack(it)?it.stock:"", uncounted(it)?"":fmtBal(it), r.adj==null?"":r.adj, chgText(it, r.adj), r.last, effMin(it)||"", r.st];
+  });
+  const sumHead = ["Zone","Products","In stock","Changed by count","Up","Down","Out of stock","Below minimum","Cartons","Loose units"];
+  const sumRow = (label, o) => [label, o.n, o.stocked, o.chg, o.up, o.down, o.out, o.low, Math.round(o.ctn*100)/100, Math.round(o.pkt*100)/100];
+  const summary = [["Stocktake report", (ad.code||"")+" "+(ad.name||"")], ["Company", ad.company||""],
+    ["Report date", todayStr()+" "+new Date().toLocaleTimeString("en-SG",{hour:"2-digit",minute:"2-digit"})], ["Count started", from],
+    ["Zone", zv==="all"?"All zones":zoneName(zv)], [], sumHead,
+    ...[...tot.keys()].filter(k=>k!=="all").map(z=>sumRow(zoneName(z), tot.get(z))), sumRow("Total", tot.get("all"))];
+  if(window.XLSX && XLSX.utils && XLSX.writeFile){
+    try{
+      const wb = XLSX.utils.book_new(), ws = XLSX.utils.aoa_to_sheet([head, ...data]);
+      ws["!cols"] = [10,13,18,40,14,8,6,7,8,9,16,12,16,12,7,12].map(w=>({wch:w}));
+      ws["!autofilter"] = {ref: XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:data.length, c:head.length-1}})};
+      XLSX.utils.book_append_sheet(wb, ws, "Stocktake");
+      const ss = XLSX.utils.aoa_to_sheet(summary);
+      ss["!cols"] = [16,16,9,16,6,6,12,14,9,11].map(w=>({wch:w}));
+      XLSX.utils.book_append_sheet(wb, ss, "Summary");
+      XLSX.writeFile(wb, base+".xlsx");
+      toast("Saved —"+base+".xlsx");
+      return;
+    }catch(e){ /* fall through to CSV */ }
+  }
+  const csv = [head, ...data].map(r=>r.map(csvCell).join(",")).join("\n");
+  saveFile(base+".csv", "﻿"+csv+"\n", "text/csv;charset=utf-8");
 }
 
 /* ============================================================
@@ -6392,6 +6619,13 @@ function renderSetup(){
   if(tk) tk.hidden = wh;
   if(twh) twh.hidden = !wh;
   const xwh = $("#btn-export-warehouse"); if(xwh) xwh.hidden = !wh;
+  if(wh){
+    fillZones($("#sr-zone"));
+    /* "Count started" follows the latest count until someone picks a date */
+    const fr = $("#sr-from");
+    if(fr && (fr.dataset.dept!==dept || !fr.dataset.user)){ fr.value = lastCountDate() || todayStr(); fr.dataset.dept = dept; delete fr.dataset.user; }
+    renderStocktakeSum();
+  }
   const pwh = $("#btn-pack-uom"); if(pwh) pwh.hidden = !wh;
   const dep = $("#setup-depts");
   if(dep) dep.innerHTML = depts.map(d=>`<div class="kv" style="align-items:center">
@@ -6645,6 +6879,8 @@ $("#s-hide").addEventListener("click", ()=>{
   renderStock();
 });
 $("#log-filter").addEventListener("change", renderLog);
+$("#sr-from").addEventListener("change", e=>{ e.target.dataset.user = "1"; renderStocktakeSum(); });
+$("#sr-zone").addEventListener("change", renderStocktakeSum);
 /* On the floor plan, typing a search shows the matches in the side panel. */
 $("#rk-q").addEventListener("input", ()=>{ fpSel = null; renderRacks(); });
 $("#is-co-filter").addEventListener("change", renderIssueStock);

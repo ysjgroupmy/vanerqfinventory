@@ -301,6 +301,31 @@ paper and Count sheet) put **each zone on its own page** with Rack code,
 System, Ctn and Pkt columns, so the freezer page can go to whoever is counting
 the freezer.
 
+### Stocktake report
+
+After a count on any page (Racks floor plan, Count, ± Count), go to
+**Setup → Stocktake report**. The **Stocktake report** button on the Stocktake
+page also goes there. The report lists every product's balance as it stands
+now, in shelf order, zone by zone.
+
+- **Count started:** pick the first day of the count. It defaults to the last
+  day a count was saved. **Count change** for each product is the total of the
+  corrections logged since that date. A product that was checked and already
+  matched logs nothing, so it shows no change.
+- **Zone:** report on all zones or just one.
+- **Print report:**
+  - The cover page has the totals: products, changed by the count, out of
+    stock and below minimum. It also has a per-zone table (with cartons and
+    loose units) and Counted by / Checked by / Approved by lines.
+  - Then there is one page per zone. Each lists Rack code, Item, Balance
+    (ctn + pkt), Total in packets, Count change and Status (OK / Low / Out).
+  - Use **Print / Save PDF** to keep a copy.
+- **Download Excel:**
+  - A **Stocktake** sheet with one row per product: Zone, Rack Code, Product
+    Code, Name, UOM, Pkts per Ctn, Ctn, Loose Pkt, Total (pkt), Count change,
+    Last count change, Min and Status.
+  - A **Summary** sheet with the totals per zone.
+
 ### Item list import (warehouse)
 
 **Setup → Item list import** reads `Rack Position`, `Zone`, `Product Code`,
