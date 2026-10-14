@@ -4734,7 +4734,13 @@ function renderPlan(){
           <button class="btn" onclick="setPlanEdit(true)">Start blank</button></div></div>`
     : planMapHtml(q);
   const side = fpEdit ? planInspector() : fpSel ? planRackPanel(fpSel, q) : planOverview(q, empty);
-  host.innerHTML = `<div class="fp-wrap"><div class="fp-left">${bar}<div class="fp-mapbox" id="fp-mapbox">${map}</div></div>
+  const missing = empty || fpEdit ? [] : floorsNeedingDraw();
+  const drawBar = missing.length ? missing.map(f=>{
+      const names = PLAN_0434.racks.filter(r=>r.floor===f).map(r=>r.name);
+      return `<div class="notebar"><span><b>The ${ordinal(f)} floor's layout is ready</b> —your plan was drawn before it was added, so ${names.join(", ")}${f===2?" and the stairs":""} aren't on it yet.</span>
+        <button class="btn sm primary" onclick="loadPlan0434(${f})">Draw the ${ordinal(f)} floor</button></div>`;
+    }).join("") : "";
+  host.innerHTML = `${drawBar}<div class="fp-wrap"><div class="fp-left">${bar}<div class="fp-mapbox" id="fp-mapbox">${map}</div></div>
     <div class="fp-side" id="fp-side">${side}${planSaveBar()}</div></div>`;
   wirePlanMap();
   wirePlanSide();
@@ -4774,6 +4780,17 @@ function planSelect(name, focusId){
   const b = $("#fp-side-b"); if(b && fpFocus==null) b.scrollTop = 0;
 }
 function setPlanFloor(f){ fpFloor = f; fpEditSel = null; renderRacks(); }
+/* A plan drawn before a floor's layout existed (the 2nd floor used to be a
+   bare outline with CENTER in it) has that floor's walls but none of its
+   racks —those floors get a one-tap "draw it" prompt. */
+function floorsNeedingDraw(){
+  if(!(state.floorPlan||[]).length && !state.racks.some(r=>r.x!=null)) return [];
+  const floors = [...new Set(PLAN_0434.racks.map(r=>r.floor))];
+  return floors.filter(f=>{
+    const placed = new Set(state.racks.filter(r=>r.x!=null && (r.floor||1)===f).map(r=>r.name));
+    return !PLAN_0434.racks.some(r=>r.floor===f && placed.has(r.name));
+  });
+}
 function setPlanEdit(on){ fpEdit = !!on; fpEditSel = null; renderRacks(); }
 
 /* ---------- rack panel: what's on each level, with steppers ---------- */
