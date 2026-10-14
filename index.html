@@ -3980,6 +3980,37 @@ function askChoice(title, body, a, b){
       <button class="btn primary" onclick="_cA()">${esc(a.label)}</button></div>`);
   });
 }
+/* What data cells look like, so a sheet with no header row is never misread:
+   a rack code (R1B1L01, R1A | 1L | 01), a YonYou product code
+   (40HGLT2DVI01480), or a UOM (6x1.75L/ctn, 0.4kg/pkt). */
+const RACKPOS_RE = /^[A-Za-z]{1,3}\d+[A-Za-z]{0,2}\s*[|\-]?\s*\d+\s*L\s*[|\-]?\s*\d+$/i;
+const PCODE_RE = /^\d{2}[A-Za-z0-9]{9,}$/;
+const UOMV_RE = /\d.*\/\s*[A-Za-z\u4e00-\u9fff]+\s*$/;
+function looksLikeData(row){
+  return (row||[]).some(v=>{ const t = String(v??"").trim(); return t && (RACKPOS_RE.test(t) || PCODE_RE.test(t) || UOMV_RE.test(t)); });
+}
+/* A rack sheet typed without headings —rack code | product code | name | UOM
+   in any order— has its columns recognised by what's in them. */
+function guessItemColumns(grid){
+  const rows = grid.filter(r=>r && r.some(v=>String(v??"").trim()!=="")).slice(0,40);
+  if(rows.length<2) return null;
+  const width = Math.max(...rows.map(r=>r.length));
+  const cols = [];
+  for(let c=0;c<width;c++){
+    let n=0, rack=0, code=0, uom=0, text=0, len=0;
+    for(const r of rows){
+      const v = String(r[c]??"").trim(); if(!v) continue; n++;
+      if(RACKPOS_RE.test(v)) rack++; else if(PCODE_RE.test(v)) code++; else if(UOMV_RE.test(v)) uom++;
+      else if(isNaN(Number(v))){ text++; len += v.length; }
+    }
+    cols.push({c, n, rack, code, uom, text, avg: text ? len/text : 0});
+  }
+  const best = k => { const x = cols.filter(o=>o.n && o[k]/o.n>=0.6).sort((a,b)=>b[k]-a[k])[0]; return x ? x.c : -1; };
+  const store = best("rack"), code = best("code"), uom = best("uom");
+  const nameCol = cols.filter(o=>![store,code,uom].includes(o.c) && o.text>=Math.max(2, rows.length*0.5)).sort((a,b)=>b.avg-a.avg)[0];
+  if(!nameCol || (store<0 && code<0 && uom<0)) return null;
+  return {name:nameCol.c, store, code, uom};
+}
 /* Next free position number on a rack level (for placing something at the end). */
 function nextSlot(rack, level, exceptId){
   return state.items.filter(o=>o.id!==exceptId && (o.store||"")===rack && (o.level||"1")===level)
@@ -3987,9 +4018,10 @@ function nextSlot(rack, level, exceptId){
 }
 async function importItems(grid, fname){
   const wh = isWarehouse();
-  let hr=-1, c={};
+  let hr=-1, c={}, guessed=false;
   for(let r=0;r<Math.min(grid.length,12);r++){
     const row = grid[r]||[];
+    if(looksLikeData(row)) continue;            // a product row, not the headings
     const n = pickCol(row,["name"],["product","item","sauce","货品","商品","名称"],["category","cat","类别"]);
     if(n<0) continue;
     hr=r; c.name=n;
@@ -4006,7 +4038,12 @@ async function importItems(grid, fname){
     c.unit  = pickCol(row,["pktunit","innerunit","puom","countedin"],[],null);
     break;
   }
-  if(hr<0){ toast("Could not find a name column in that file"); return; }
+  if(hr<0){
+    const g = guessItemColumns(grid);
+    if(!g){ toast("Could not find a name column in that file —add a header row (Rack Position, Product Code, Product Name, UOM)"); return; }
+    c = {name:g.name, store:g.store, code:g.code, uom:g.uom, stock:-1, min:-1, cat:-1, loose:-1, base:-1, pack:-1, zone:-1, unit:-1};
+    hr = -1; guessed = true;                     // no header row: data starts on the first row
+  }
   const get = (row,i) => i>=0 ? row[i] : null;
   const num = v => { const n=parseFloat(v); return isNaN(n)?0:n; };
   const blank = v => v==null || String(v).trim()==="";
@@ -4078,6 +4115,7 @@ async function importItems(grid, fname){
       else if(!ex) it.cat = CODE_CAT[it.code.slice(0,2)] || "Uncategorised";
       const pk = packIn(row);
       if(pk!=null) convertToPacks(it, pk, wasCartons);
+      else if(!ex){ const g = packFromUom(uom); if(g!=null) it.packSize = g; }   // a new product takes its pack size from the UOM
       const fresh = ex ? Math.round(it.stock*100)/100 : 0;   // balance after any conversion, before this row's count
       if(has(row,c.stock) || has(row,c.loose)){
         const ctn = has(row,c.stock) ? num(get(row,c.stock)) : null, loose = has(row,c.loose) ? num(get(row,c.loose)) : null;
@@ -4139,7 +4177,8 @@ async function importItems(grid, fname){
   for(const [name, z] of rackZones){ const rk = state.racks.find(r=>r.name===name); if(rk) rk.zone = z; }
   state.demo = false;
   save(); render(); go("stock");
-  toast("Loaded "+fname+" —"+added+" added, "+updated+" updated"+(logged?" · "+logged+" balance"+(logged===1?"":"s")+" changed (Undo available)":""));
+  toast("Loaded "+fname+" —"+added+" added, "+updated+" updated"+(logged?" · "+logged+" balance"+(logged===1?"":"s")+" changed (Undo available)":"")
+    +(guessed?" · no header row, so columns were read as "+[c.store>=0?"rack code":"",c.code>=0?"product code":"","name",c.uom>=0?"UOM":""].filter(Boolean).join(", "):""));
 }
 function reloadBase(){
   const r = seedBase();

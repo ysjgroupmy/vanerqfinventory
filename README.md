@@ -287,7 +287,11 @@ the freezer.
 what's there alone, so **Download current list (to edit)** → fill in pack sizes
 / zones / counts in Excel → drop it back in. A changed balance is logged and
 can be undone. A rack position like `R8A1L01` is split into rack/level/position
-automatically; anything else (`CENTER`, `CHILLER`) becomes an open area. New
+automatically; anything else (`CENTER`, `CHILLER`) becomes an open area.
+A sheet typed **without a header row** —rack code | product code | name | UOM,
+in any order— is read too: its columns are recognised by what's in them, and
+a product row is never mistaken for headings. A new product with no
+`Pkts per Ctn` takes its pack size from its UOM. New
 racks are added to the board automatically. **Download rack template** gives a
 blank sheet with the same columns.
 
