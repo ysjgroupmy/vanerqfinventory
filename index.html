@@ -1075,6 +1075,7 @@ const CARTON_RE = /(ctn|carton|case|\bcs\b|\bbox\b|\bbx\b|箱|件)/i;
 const INNER_UNITS = /^(roll|btl|bottle|can|tin|bag|tray|tub|jar|pack|pkt|packet|pail|drum)$/i;
 const PIECE_UNITS = /^(roll|btl|bottle|can|tin|bag|tray|tub|jar|pack|pkt|packet|pail|drum|pcs|pc|piece|pieces)$/i;
 function unitOf(it){
+  if(it && it.unit) return it.unit;                 // set by hand, from the item sheet, or learned from a receipt's PUOM
   const u = String(it && it.uom || "");
   const m = u.match(/(?:^|\/)\s*([A-Za-z\u4e00-\u9fff]+)\s*$/);
   const tail = m ? m[1].toLowerCase() : "";
@@ -1087,6 +1088,18 @@ function unitOf(it){
     return "pkt";
   }
   return tail || "pkt";
+}
+/* Unit names as people write them -> one short form ("bottle" -> btl, "cans" -> can). */
+const UNIT_ALIASES = {bottle:"btl",bottles:"btl",btls:"btl",cans:"can",drums:"drum",tins:"tin",bags:"bag",rolls:"roll",
+  packet:"pkt",packets:"pkt",pack:"pkt",packs:"pkt",pkts:"pkt",boxes:"box",trays:"tray",jars:"jar",pc:"pcs",piece:"pcs",pieces:"pcs"};
+function normUnit(u){ const k = String(u||"").trim().toLowerCase(); return UNIT_ALIASES[k] || k; }
+/* What a carton can hold that's worth naming —a PUOM of "can", "btl" or
+   "drum" on a "24x0.4kg/ctn" product means the carton holds 24 cans. */
+const CONTAINER_RE = /^(btl|can|drum|tin|bag|roll|tray|jar|tub|pail|box)$/;
+function learnUnit(it, pu){
+  if(!it || it.unit || packOf(it)<=1) return null;
+  const u = normUnit(pu);
+  return CONTAINER_RE.test(u) ? u : null;
 }
 /* Packets per carton, as the UOM spells it out: "10x1kg/ctn" -> 10,
    "100pcsx10roll/ctn" -> 10; 1 for anything that isn't split into packs
@@ -1393,12 +1406,13 @@ function itemRow(i){ const r = {id:i.id, dept_id:dept, name:i.name, uom:i.uom||"
   preorder:!!i.preorder, stopped:!!i.stopped, watch:!!i.watch, counted:!!i.counted,
   loose_qty:i.looseQty||0, level:i.level||"1", slot:i.slot||0};
   if(i.packSize!=null) r.pack_size = i.packSize;
+  if(i.unit!=null) r.unit = i.unit;
   return r; }
 function rowItem(r){ return {id:Number(r.id), name:r.name, uom:r.uom, code:r.code, store:r.store, cat:r.cat,
   stock:Number(r.stock), min:Number(r.min), baseDaily:Number(r.base_daily),
   preorder:!!r.preorder, stopped:!!r.stopped, watch:!!r.watch, counted:!!r.counted,
   looseQty:Number(r.loose_qty||0), level:r.level||"1", slot:Number(r.slot||0),
-  packSize:r.pack_size==null?null:Number(r.pack_size)}; }
+  packSize:r.pack_size==null?null:Number(r.pack_size), unit:r.unit??null}; }
 
 function txRow(t){ const r = {id:t.id, dept_id:dept, ts:t.ts, date:t.date, item_id:t.itemId, type:t.type,
   qty:t.qty, note:t.note||"", batch:t.b??null, planned:(t.planned??null), hist:!!t.h, amount:(t.amount??null),
@@ -2369,6 +2383,8 @@ function fillCats(sel){
 function renderStock(){
   fillCats($("#s-cat")); fillStores($("#s-store")); fillZones($("#s-zone"));
   const wh = isWarehouse();
+  /* categories are optional in a warehouse —no filter until some product has one */
+  const sc = $("#s-cat"); if(sc){ const any = state.items.some(hasCat); sc.classList.toggle("hidden", wh && !any); if(wh && !any) sc.value = "all"; }
   const q = norm($("#s-q").value), f = $("#s-filter").value, cat = $("#s-cat").value;
   const sv = $("#s-store").value, zv = zoneSel("#s-zone");
   const sub = $("#stock-sub");
@@ -2420,7 +2436,7 @@ function renderStock(){
         return `<tr class="sev-${s==="data"?"crit":s==="off"?"":s}">
           <td style="width:30px"><button class="star ${i.watch?"on":""}" onclick="toggleWatch(${i.id})" title="${i.watch?"Stop watching":"Watch this sauce"}"><svg class="ic"><use href="#i-star"/></svg></button></td>
           <td class="name"><span style="${i.stopped?"text-decoration:line-through;color:var(--ink-3)":""}">${esc(i.name)}</span>
-            <span class="sub">${esc(i.uom)}${i.code?" · "+esc(i.code):""} · ${esc(i.cat||"Uncategorised")}</span></td>
+            <span class="sub">${esc(i.uom)}${i.code?" · "+esc(i.code):""}${hasCat(i)?" · "+esc(i.cat):""}</span></td>
           <td class="num mono dim" style="font-size:11.5px">${wh ? (i.store ? zoneChip(zoneOf(i))+" "+esc(posCode(i)) : '<span class="faint">Unassigned</span>') : esc(i.store||"—")}</td>
           <td class="num" style="${i.stock<0?"color:var(--crit);font-weight:600":""}">${uncounted(i)?'<span class="faint">—</span>':fmtBal(i)}</td>
           <td class="num dim">${fmtQty(i, i.min)}</td>
@@ -3080,24 +3096,25 @@ tr.grp td{background:#F2F4F1;font:600 11px "IBM Plex Mono",monospace;letter-spac
 /* ============================================================
    ITEM EDITING
    ============================================================ */
-function modal(html){ $("#modal-root").innerHTML = `<div class="mbg" onclick="if(event.target===this)closeModal()"><div class="modal">${html}</div></div>`; }
+/* A dialog only closes from its own buttons (Cancel, Save, ...) —never from a
+   tap outside it or a stray key, so a half-filled form isn't lost by accident. */
+function modal(html){ $("#modal-root").innerHTML = `<div class="mbg"><div class="modal">${html}</div></div>`; }
 function closeModal(){ $("#modal-root").innerHTML=""; }
 function askConfirm(title, body, ok, danger){
   return new Promise(res=>{
     let done=false;
-    const fin = v => { if(done) return; done=true; document.removeEventListener("keydown",key); closeModal(); res(v); };
-    const key = e => { if(e.key==="Escape") fin(false); };
+    const fin = v => { if(done) return; done=true; closeModal(); res(v); };
     window._aY=()=>fin(true); window._aN=()=>fin(false);
     modal(`<h3>${esc(title)}</h3><p class="dim" style="font-size:13px">${esc(body||"")}</p>
       <div class="mfoot"><button class="btn" onclick="_aN()">Cancel</button>
       <button class="btn ${danger?"danger":"primary"}" onclick="_aY()">${esc(ok||"Confirm")}</button></div>`);
-    const bg = $(".mbg"); if(bg) bg.onclick = e => { if(e.target===bg) fin(false); };
-    document.addEventListener("keydown", key);
     const btn = document.querySelector(".modal .mfoot .btn:last-child"); if(btn) btn.focus();
   });
 }
+/* Category is optional —blank is fine, the item just has none. */
+const hasCat = it => !!it.cat && it.cat!=="Uncategorised";
 function catField(v){
-  return `<div class="field"><label>Category</label><input id="m-cat" list="catlist" value="${esc(v||"")}" placeholder="e.g. Chilli &amp; Sambal">
+  return `<div class="field"><label>Category (optional)</label><input id="m-cat" list="catlist" value="${esc(v&&v!=="Uncategorised"?v:"")}" placeholder="leave blank if not needed">
     <datalist id="catlist">${allCats().map(c=>`<option value="${esc(c)}">`).join("")}</datalist></div>`;
 }
 /* ---------- warehouse-only item fields ---------- */
@@ -3119,6 +3136,20 @@ function packField(it){
         <label class="opt"><input type="radio" name="m-was" value="ctn" ${wasC?"checked":""}> cartons</label>
         <label class="opt"><input type="radio" name="m-was" value="pkt" ${wasC?"":"checked"}> packets</label></div>
       <div class="dim" style="font-size:11.5px;margin-top:4px">Setting the pack size converts its balance, minimum and past movements into packets, so totals stay right.</div></div>`:""}`;
+}
+/* What the packets inside a carton are called, when the UOM doesn't say —
+   cans in a "24x0.4kg/ctn", bottles in a "12x0.7ltr/ctn". Blank = from the UOM. */
+function unitField(it){
+  const fromUom = it ? unitOf(Object.assign({}, it, {unit:null})) : "pkt";
+  return `<div class="field"><label>Counted in —what's inside a carton: pkt, btl, can, drum… (optional)</label>
+    <input id="m-unit" list="unitlist" value="${esc(it&&it.unit||"")}" placeholder="${esc(fromUom)} —from the UOM" autocomplete="off">
+    <datalist id="unitlist">${["pkt","btl","can","drum","tin","bag","roll","box","tray","jar","pcs"].map(u=>`<option value="${u}">`).join("")}</datalist></div>`;
+}
+/* Only sets the unit when it changed, so an untouched form never sends the column. */
+function readUnitField(it){
+  const el = $("#m-unit"); if(!el) return;
+  const u = el.value.trim() ? normUnit(el.value) : "";
+  if(u !== (it.unit||"")) it.unit = u;
 }
 /* Blank ctn + pkt boxes for a form where the pack size is typed in the same form. */
 function pairNew(idp){
@@ -3170,7 +3201,7 @@ function openAdd(pos){
     <div class="field"><label>Name 名称</label><input id="m-name" placeholder="e.g. QF Mango Sauce 芒果酱"></div>
     <div class="field"><label>Pack size (UOM)</label><input id="m-uom" placeholder="e.g. 2kg/pkt"></div>
     <div class="field"><label>Code</label><input id="m-code" placeholder="optional"></div>
-    ${wh ? packField(null) + posField(typeof pos==="string" ? pos : "") : `<div class="field"><label>Storage location</label><input id="m-store" list="storelist" placeholder="e.g. 0434FR">
+    ${wh ? packField(null) + unitField(null) + posField(typeof pos==="string" ? pos : "") : `<div class="field"><label>Storage location</label><input id="m-store" list="storelist" placeholder="e.g. 0434FR">
       <datalist id="storelist">${allStores().map(v=>`<option value="${esc(v)}">`).join("")}</datalist></div>`}
     ${catField("")}
     ${wh ? `<div class="field"><label>Opening balance</label>${pairNew("m-stock")}</div>
@@ -3190,6 +3221,7 @@ function doAdd(){
     const pack = readPackInput();
     if(Number.isNaN(pack)){ toast("Packets per carton must be 1 or more"); return; }
     it.packSize = pack==null ? 1 : pack;
+    readUnitField(it);
     const err = placeItem(it, $("#m-pos").value);
     if(err){ toast(err); return; }
     it.stock = readQty(it, "m-stock") || 0;
@@ -3210,7 +3242,7 @@ function openEdit(id){
     <div class="field"><label>Name 名称</label><input id="m-name" value="${esc(it.name)}"></div>
     <div class="field"><label>Pack size (UOM)</label><input id="m-uom" value="${esc(it.uom)}"></div>
     <div class="field"><label>Code</label><input id="m-code" value="${esc(it.code||"")}"></div>
-    ${wh ? packField(it) + posField(posCode(it)) : `<div class="field"><label>Storage location</label><input id="m-store" list="storelist" value="${esc(it.store||"")}">
+    ${wh ? packField(it) + unitField(it) + posField(posCode(it)) : `<div class="field"><label>Storage location</label><input id="m-store" list="storelist" value="${esc(it.store||"")}">
       <datalist id="storelist">${allStores().map(v=>`<option value="${esc(v)}">`).join("")}</datalist></div>`}
     ${catField(it.cat)}
     ${wh ? `<div class="field"><label>Minimum</label>${qtyInputs(it, "m-min", it.min)}</div>`
@@ -3240,6 +3272,7 @@ function doEdit(id){
   if(wh){ const m = readQty(it, "m-min"); it.min = isNaN(m) ? 0 : m; }
   else it.min=parseFloat($("#m-min").value)||0;
   it.baseDaily=parseFloat($("#m-base").value)||0;
+  if(wh) readUnitField(it);
   it.preorder = wh ? false : $("#m-pre").checked;
   if(it.preorder) it.min=0;
   it.stopped=$("#m-stop").checked;
@@ -3724,15 +3757,12 @@ function parseRackPosition(raw){
 function askChoice(title, body, a, b){
   return new Promise(res=>{
     let done=false;
-    const fin = v => { if(done) return; done=true; document.removeEventListener("keydown",key); closeModal(); res(v); };
-    const key = e => { if(e.key==="Escape") fin(null); };
+    const fin = v => { if(done) return; done=true; closeModal(); res(v); };
     window._cA=()=>fin(a.value); window._cB=()=>fin(b.value); window._cN=()=>fin(null);
     modal(`<h3>${esc(title)}</h3><p class="dim" style="font-size:13px">${esc(body)}</p>
       <div class="mfoot"><button class="btn" onclick="_cN()">Cancel</button>
       <button class="btn" onclick="_cB()">${esc(b.label)}</button>
       <button class="btn primary" onclick="_cA()">${esc(a.label)}</button></div>`);
-    const bg = $(".mbg"); if(bg) bg.onclick = e => { if(e.target===bg) fin(null); };
-    document.addEventListener("keydown", key);
   });
 }
 /* Next free position number on a rack level (for placing something at the end). */
@@ -3748,7 +3778,7 @@ async function importItems(grid, fname){
     const n = pickCol(row,["name"],["product","item","sauce","货品","商品","名称"],["category","cat","类别"]);
     if(n<0) continue;
     hr=r; c.name=n;
-    c.uom   = pickCol(row,["uom"],["unit","pack","单位","规格"],["perctn","packsize","换算"]);
+    c.uom   = pickCol(row,["uom"],["unit","pack","单位","规格"],["perctn","packsize","换算","puom","pktunit","innerunit"]);
     c.stock = pickCol(row,["stock","ctnqty","physicalqty"],["balance","qty","onhand","库存","结存"],["min","最低","loose","散","perctn","换算"]);
     c.min   = pickCol(row,["min"],["minimum","reorder","safety","最低","安全"],null);
     c.code  = pickCol(row,["code"],["sku","编码","货号"],null);
@@ -3758,6 +3788,7 @@ async function importItems(grid, fname){
     c.base  = pickCol(row,["baseline"],["perday","usage","daily","日均"],null);
     c.pack  = pickCol(row,["pktsperctn","perctn","packsize","pcsperctn","percarton"],["换算率","每箱","入数","箱规"],null);
     c.zone  = pickCol(row,["zone"],["温区","存储区","storagetype","temperature"],null);
+    c.unit  = pickCol(row,["pktunit","innerunit","puom","countedin"],[],null);
     break;
   }
   if(hr<0){ toast("Could not find a name column in that file"); return; }
@@ -3847,6 +3878,7 @@ async function importItems(grid, fname){
       }
       if(has(row,c.min)) it.min = num(get(row,c.min));
       if(has(row,c.base)) it.baseDaily = num(get(row,c.base));
+      if(has(row,c.unit)) it.unit = normUnit(get(row,c.unit));
       if(pp && pp.rack){
         const rack = rackList().find(n=>n.toLowerCase()===pp.rack.toLowerCase()) || pp.rack;
         const moved = (it.store||"")!==rack || (it.level||"1")!==pp.level;
@@ -3915,17 +3947,18 @@ function exportItemTemplate(){
    are appended as a reference list —Product Name left blank on those rows
    means importItems() skips them, they're just there to copy-paste codes
    from, not data to import. */
-const WH_COLS = "Rack Position,Zone,Product Code,Product Name,UOM,Pkts per Ctn,Ctn Qty,Loose Pkt Qty,Min (pkt),Category\n";
+const WH_COLS = "Rack Position,Zone,Product Code,Product Name,UOM,Pkts per Ctn,Pkt Unit,Ctn Qty,Loose Pkt Qty,Min (pkt),Category (optional)\n";
 const csvCell = v => { const s = String(v??""); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
 function exportWarehouseTemplate(){
   const examples =
-    "R1A1L01,Dry,40MTKT1PVT02871,Maggi Tomato Ketchup Refill 美極番茄酱大包装,12x1.5kg/ctn,12,10,2,0,Sauces\n" +
-    "R9A2L03,Dry,,New product name goes here,1kg/pkt,20,0,0,0,\n" +
-    "CHILLER,Chiller,,Chilled product kept in the chiller room,2kg/pkt,6,0,0,0,\n";
+    "R1A1L01,Dry,40MTKT1PVT02871,Maggi Tomato Ketchup Refill 美極番茄酱大包装,12x1.5kg/ctn,12,btl,10,2,0,Sauces\n" +
+    "R4A2L01,Dry,,Canned product in cartons of 24,24x0.4kg/ctn,24,can,0,0,0,\n" +
+    "R9A2L03,Dry,,New product name goes here,1kg/pkt,20,pkt,0,0,0,\n" +
+    "CHILLER,Chiller,,Chilled product kept in the chiller room,2kg/pkt,6,,0,0,0,\n";
   const racks = rackList();
   const legend = racks.length
-    ? ",,,-- existing racks on this board, for reference —blank Product Name rows below are skipped on import --,,,,,,\n"
-      + racks.map(r=>`${csvCell(r)},${zoneInfo(rackZone(r)).label},,,,,,,,`).join("\n") + "\n"
+    ? ",,,-- existing racks on this board, for reference —blank Product Name rows below are skipped on import --,,,,,,,\n"
+      + racks.map(r=>`${csvCell(r)},${zoneInfo(rackZone(r)).label},,,,,,,,,`).join("\n") + "\n"
     : "";
   saveFile((activeDept().code||"warehouse")+"-rack-item-template.csv", "\uFEFF"+WH_COLS+examples+legend, "text/csv;charset=utf-8");
 }
@@ -3936,8 +3969,8 @@ function exportWarehouseItems(){
   const rows = state.items.slice().sort(walkCmp()).map(i=>{
     const s = hasPack(i) ? splitQty(i, i.stock) : {ctn:i.stock, pkt:i.looseQty||0, neg:false};
     const sg = s.neg ? -1 : 1, z = zoneInfo(zoneOf(i));
-    return [posCode(i), z?z.label:"", i.code||"", i.name, i.uom||"", hasPack(i)?i.packSize:"",
-      sg*s.ctn, sg*s.pkt, hasPack(i)?i.min:"", i.cat||""].map(csvCell).join(",");
+    return [posCode(i), z?z.label:"", i.code||"", i.name, i.uom||"", hasPack(i)?i.packSize:"", i.unit||"",
+      sg*s.ctn, sg*s.pkt, hasPack(i)?i.min:"", hasCat(i)?i.cat:""].map(csvCell).join(",");
   });
   saveFile((activeDept().code||"warehouse")+"-items-"+todayStr()+".csv", "\uFEFF"+WH_COLS+rows.join("\n")+"\n", "text/csv;charset=utf-8");
 }
@@ -5165,8 +5198,9 @@ function parseReceipts(grid, fname){
     if((code<0 && name<0) || qty<0) continue;
     hr = r;
     let uom = pickCol(row, ["suom","主计量单位","主计量","主单位"], [], null);
-    if(uom<0) uom = pickCol(row, ["uom"], ["单位","unit"], ["辅","换算","件数","price","单价"]);
+    if(uom<0) uom = pickCol(row, ["uom"], ["单位","unit"], ["辅","换算","件数","price","单价","puom"]);
     c = {code, name, qty, uom,
+      pu:   pickCol(row, ["puom","采购单位"], [], null),
       date: pickCol(row, ["入库日期","单据日期","收货日期","invoicedate","receivedate","receiptdate","docdate"], ["日期","date"],
                          ["生产","失效","有效","保质","expiry","mfg","制单","审核","订单"]),
       ref:  pickCol(row, ["billno","入库单号","收货单号","单据号","grnno","receiptno","docno","dono","invoiceno"], ["单号","编号","grn","deliveryorder","发票号"],
@@ -5190,7 +5224,7 @@ function parseReceipts(grid, fname){
     if(!code && !name) continue;
     const q = parseFloat(get(row,c.qty));
     if(isNaN(q) || q===0) continue;
-    lines.push({code, name, qty:q, uom:str(row,c.uom), date:c.date>=0?toISO(get(row,c.date)):null, ref, sup, co:str(row,c.co)});
+    lines.push({code, name, qty:q, uom:str(row,c.uom), pu:str(row,c.pu), date:c.date>=0?toISO(get(row,c.date)):null, ref, sup, co:str(row,c.co)});
   }
   if(!lines.length){ toast("No receipt lines found in that file"); return; }
   const byCode = new Map(), byName = new Map();
@@ -5225,7 +5259,7 @@ function receiveRows(){
     if(p.co!=="all" && l.co!==p.co) continue;
     const mapped = p.remap[l.lk]!==undefined ? p.remap[l.lk] : l.itemId;
     const key = (l.ref||"") + "§" + (mapped!=null ? "i"+mapped : "r"+l.lk);
-    if(!rows.has(key)) rows.set(key, {key, lk:l.lk, ref:l.ref, date:l.date, sup:l.sup, co:l.co, code:l.code, name:l.name, uom:l.uom, itemId:mapped, fileQty:0});
+    if(!rows.has(key)) rows.set(key, {key, lk:l.lk, ref:l.ref, date:l.date, sup:l.sup, co:l.co, code:l.code, name:l.name, uom:l.uom, pu:l.pu, itemId:mapped, fileQty:0});
     const a = rows.get(key);
     a.fileQty = Math.round((a.fileQty+l.qty)*100)/100;
     if(l.date && (!a.date || l.date>a.date)) a.date = l.date;
@@ -5238,6 +5272,7 @@ function receiveRows(){
     a.delta = Math.round((a.qty - a.prev)*100)/100;
     a.status = !it ? "other" : !a.prev ? "new" : Math.abs(a.delta)<0.001 ? "dup" : "revised";
     a.uomDiff = !!it && !!a.uom && normUom(a.uom)!==normUom(it.uom);
+    a.learn = learnUnit(it, a.pu);          // e.g. bought as "can" -> the carton holds cans
   }
   return [...rows.values()];
 }
@@ -5272,14 +5307,15 @@ function renderReceivePreview(){
     ${coBar}${refBar}${otherBar}
     ${rows.length ? `<div class="scroll"><table><thead><tr><th>Document</th><th>In the file</th><th>Matched item</th><th class="num">Qty in file</th><th class="num">Receive</th><th>Put away at</th><th></th></tr></thead><tbody>
     ${rows.map(r=>{
-      const it = r.itemId!=null ? item(r.itemId) : null;
+      const real = r.itemId!=null ? item(r.itemId) : null;
+      const it = real && r.learn ? Object.assign({}, real, {unit:r.learn}) : real;   // show "can" / "btl" straight away
       const unitSel = it && packOf(it)>1
         ? `<select onchange="rcvPending.units['${esc(r.key)}']=this.value;renderReceivePreview()" style="width:auto;padding:2px 4px">
              <option value="ctn" ${r.unit==="ctn"?"selected":""}>ctn</option><option value="pkt" ${r.unit==="pkt"?"selected":""}>${esc(unitOf(it))}</option></select>`
         : `<span class="dim">${esc(r.uom||"")}</span>`;
       return `<tr style="${r.status==="dup"||r.status==="other"?"opacity:.55":""}">
         <td class="mono" style="font-size:12px;white-space:nowrap">${esc(r.ref||"—")}<span class="sub" style="display:block;font-family:var(--f-ui)">${esc(r.date||"")}${r.sup?" · "+esc(r.sup):""}</span></td>
-        <td class="name">${esc(r.name||r.code)}<span class="sub">${esc(r.uom||"no unit")}${r.code?" · "+esc(r.code):""}${r.co?" · "+esc(r.co):""}</span></td>
+        <td class="name">${esc(r.name||r.code)}<span class="sub">${esc(r.uom||"no unit")}${r.pu&&normUnit(r.pu)!==normUnit(r.uom)?" (bought by the "+esc(r.pu)+")":""}${r.code?" · "+esc(r.code):""}${r.co?" · "+esc(r.co):""}</span></td>
         <td><select data-lk="${esc(r.lk)}" class="rcv-map" style="max-width:260px"><option value="">—not in this warehouse —</option>${opts}</select>
           ${r.uomDiff?`<span class="sub" style="color:var(--warn)">unit in file ${esc(r.uom)} ≠ item ${esc(it.uom)} —check ctn / pkt</span>`:""}</td>
         <td class="num dim" style="white-space:nowrap">${fmt(r.fileQty)} ${unitSel}</td>
@@ -5307,6 +5343,7 @@ function applyReceive(){
   const touched = new Set();
   for(const r of rows){
     const it = item(r.itemId); if(!it) continue;
+    if(r.learn && !it.unit) it.unit = r.learn;
     it.stock = Math.round((it.stock+r.delta)*100)/100; it.counted = true;
     state.tx.push(newTx({ts:Date.now(), date:r.date||todayStr(), itemId:it.id, type:"receive", qty:r.delta,
       note: fname+(r.status==="revised"?" (revised)":""), supplier:r.sup||undefined, ref:r.ref||undefined, b}));

@@ -88,6 +88,7 @@ Stocktake, Count, Log and Setup are shared by both types.
 
 > **Updating an existing database:** re-run `supabase-schema.sql` *before*
 > opening this version on a warehouse department. It adds `items.pack_size`,
+> `items.unit`,
 > `tx.supplier` / `tx.ref`, `racks.zone` / `x` / `y` / `w` / `h` / `floor` and
 > `settings.floor_plan`, and changes nothing that's already there. Kitchen
 > departments never send those columns, so they keep working either way; a
@@ -122,6 +123,25 @@ needs nothing special.
   the same, asking once whether the old figures were cartons or packets.
 - Until a product has a pack size it behaves exactly as before (one number,
   plus Loose Qty).
+- **What's inside a carton** (`items.unit`) names the small unit when the UOM
+  doesn't: a `24x0.4kg/ctn` of cans shows `2 ctn 5 can`, a `4x5ltr/ctn` of
+  drums `1 ctn 3 drum`. It's learned automatically from YonYou's `PUOM` when a
+  receipt is imported (bought by the can / btl / drum / tin …), read from a
+  `Pkt Unit` column on the item sheet, or set in **Edit**. UOMs that name the
+  unit themselves (`5ltr/drum`, `4ltr/btl`, `0.4kg/can`, `net17kg/tin`) need
+  nothing.
+- The balance is one pool of packets, shown as whole cartons + the rest: with
+  5 pkt to a carton, 1 sealed carton + 6 loose counts as 11 pkt and shows as
+  `2 ctn 1 pkt`. Taking out 8 pkt leaves `3 pkt` —a carton is opened
+  automatically. Taking out more than there is takes the balance negative
+  (shown red as Out, with a "recount it" warning) rather than refusing,
+  because the invoice has already happened.
+
+Dialogs (Add item, Edit, rack settings, confirmations …) close only from their
+own buttons —Cancel, Save and so on— never from a tap outside or the Escape
+key, so a half-filled form can't be lost by accident. **Category** is optional:
+leave it blank and nothing shows; the category filter on the Stock page only
+appears once a product has one.
 
 ### Racks —floor plan
 
