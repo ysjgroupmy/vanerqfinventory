@@ -496,6 +496,23 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
 .fp-side-b{overflow-y:auto;padding:4px 12px 12px;flex:1;min-height:0}
 .fp-lvl-h{display:flex;align-items:center;gap:8px;font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.05em;color:var(--ink-2);padding:10px 0 6px;border-bottom:1.5px solid var(--rule-2)}
 .fp-it{padding:8px 12px 9px;margin:0 -12px;border-bottom:1px solid var(--rule)}
+/* "＋ insert" between two products on a labelled rack level */
+.fp-ins{display:flex;align-items:center;gap:8px;width:100%;margin:0;padding:1px 0;min-height:18px;background:none;border:none;cursor:pointer;
+  color:var(--ink-3);font:600 10.5px var(--f-mono);letter-spacing:.04em;opacity:.55;white-space:nowrap}
+.fp-ins::before,.fp-ins::after{content:"";flex:1;border-top:1px dashed var(--rule-2)}
+.fp-ins:hover,.fp-ins:focus-visible{opacity:1;color:var(--accent);outline:none}
+.fp-ins:hover::before,.fp-ins:hover::after,.fp-ins:focus-visible::before,.fp-ins:focus-visible::after{border-top-color:var(--accent)}
+.rk-ins{align-self:stretch;width:16px;min-height:58px;margin-top:12px;border:1px dashed transparent;background:none;color:var(--ink-3);cursor:pointer;
+  font:600 13px var(--f-mono);padding:0;opacity:.5;flex:none}
+.rk-ins:hover,.rk-ins:focus-visible{opacity:1;color:var(--accent);border-color:var(--accent);background:var(--accent-ink);outline:none}
+.rk-add-slot.rk-empty{cursor:pointer}
+.ins-note{background:var(--accent-ink);border:1px solid #B9D3CF;color:var(--ink);font-size:12.5px;padding:9px 11px;margin:-4px 0 12px;line-height:1.5}
+.ins-note b{font-family:var(--f-mono)}
+.ins-list{list-style:none;margin:6px 0 0;padding:0}
+.ins-list li{display:flex;gap:10px;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--rule);font-size:13px}
+.ins-list li:last-child{border-bottom:none}
+.ins-list .mono{font-weight:600;min-width:78px}
+.ins-list .was{margin-left:auto;color:var(--ink-3);font:11.5px var(--f-mono);white-space:nowrap}
 .fp-it.chg{background:var(--accent-ink)}
 .fp-it.hit{box-shadow:inset 3px 0 0 var(--fp-hit)}
 .fp-it-top{display:flex;gap:7px;align-items:baseline;flex-wrap:wrap;font-size:13px}
@@ -663,6 +680,8 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
   .fp-diff{margin-left:0;flex-basis:100%;text-align:left}
 }
 @media(max-width:860px){
+  .fp-ins{opacity:.85;min-height:32px}
+  .rk-ins{width:24px;opacity:.8}
   .fp-step button{width:42px;height:42px}
   .fp-step input[type=number]{height:42px;width:64px}
 }
@@ -1166,10 +1185,15 @@ const ZH_DICT = /*ZH_DICT*/{
 ", one per product. Click a rack to open it. Drag a card onto an empty spot to put it there, or onto another product to swap the two —nothing else is renumbered.":"，每个货品一个。点击货架即可打开。把卡片拖到空位即可放到该位置，拖到另一个货品上则两者互换 —其他编号都不变。",
 ", rounded up to whole cartons —the minimum covers the next few days, the order covers the stretch after that.":"，并向上取整到整箱 —最低库存应付接下来几天，订货量应付之后的一段时间。",
 ", so their balance isn't split into cartons + packets.":"，因此其结存不会拆分成箱 + 包。",
+", so these products have a new rack code:":"，因此以下货品的货位已更改：",
+", so this product has a new rack code:":"，因此此货品的货位已更改：",
 ", then go in the log like a count.":"，之后会像盘点一样记入库存流水。",
 "-{n} pkt":"-{n} 包",
 ". Automatic would be":"。自动计算值为",
 ". Matching names update in place, new names are added. On a warehouse department, any rack position found in the sheet is added to the Racks board automatically, and it also reads":"。名称相同的会直接更新，新名称会被添加。在仓库部门中，表格里出现的货位会自动加入货架页，同时还会读取",
+". Their shelf labels change.":"。它们的货位标签需要更换。",
+". To make room, these move up one:":"。为腾出位置，以下货品各后移一位：",
+". To make room, this moves up one:":"。为腾出位置，以下货品后移一位：",
 ". With more history the tool switches to the percentile method, which handles lumpy demand far better. Items with no recorded sales have their minimum cleared, which takes them out of the alerts instead of sitting permanently red. Pre-order items are left alone.":"。历史数据更多后，系统会改用百分位法，更能应对波动大的需求。没有销售记录的货品，其最低库存会被清除，这样就不会一直以红色留在提醒里。预订货品不受影响。",
 ".xlsx · .xls · .csv":".xlsx · .xls · .csv",
 "= below minimum,":"= 低于最低库存，",
@@ -1193,6 +1217,8 @@ const ZH_DICT = /*ZH_DICT*/{
 "Actual out":"实际产出",
 "Add a bit of detail for \"Other\"":"请为“其他”补充一些说明",
 "Add a level to R{n}A":"为 R{n}A 添加一层",
+"Add a product at {s}":"在 {s} 添加货品",
+"Add a product at {s} —{s} and the ones after it move up one":"在 {s1} 添加货品 —{s2} 及其后的货品各后移一位",
 "Add a rack":"添加货架",
 "Add all shown":"添加全部显示项",
 "Add an item":"添加货品",
@@ -1425,6 +1451,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "Dismiss":"忽略",
 "Document":"单据",
 "Document no. (GRN / DO / invoice)":"单据号（GRN / DO / 发票）",
+"Done":"完成",
 "Done editing":"完成编辑",
 "Download Excel":"下载 Excel",
 "Download backup (.json)":"下载备份（.json）",
@@ -1457,6 +1484,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "Either way, when the balance drops below the minimum the product goes on":"无论哪种方式，结存低于最低库存时，该货品都会进入",
 "Empty":"空",
 "Empty —drop a product here":"空 —把货品拖到这里",
+"Empty —tap to add a product here, or drop one":"空位 —点击在此添加货品，或拖入货品",
 "Enter a counted balance or a change":"请输入盘点结存或变动数",
 "Enter a level":"请输入层",
 "Enter a minimum above {n} —or keep it on Auto":"请输入大于 {n} 的最低库存 —或保持自动",
@@ -1517,6 +1545,8 @@ const ZH_DICT = /*ZH_DICT*/{
 "Import sales":"导入销售",
 "In stock 有货":"有货",
 "In the file":"文件中",
+"Insert a product at {s} —this one and the ones after it move up one":"在 {s} 插入货品 —此货品及其后的货品各后移一位",
+"Insert undone —the rack codes are back as they were":"已撤销插入 —货位已恢复原样",
 "Invoice lines remembered":"已记录的发票行",
 "Issue Stock":"出库",
 "Issue deleted":"出库已删除",
@@ -1632,6 +1662,8 @@ const ZH_DICT = /*ZH_DICT*/{
 "Name 名称":"名称",
 "Needs a look":"需要查看",
 "New issue":"新建出库",
+"New product goes in at":"新货品放在",
+"New rack code 新货位":"新货位",
 "No cooks or shipments in the last {n} day.":"过去 {n} 天没有烹煮或出货。",
 "No cooks or shipments in the last {n} days.":"过去 {n} 天没有烹煮或出货。",
 "No floor plan yet":"尚无平面图",
@@ -1743,6 +1775,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "Pre-order —{s} is now made to order, no minimum held":"预订 —{s} 现为按单生产，不设最低库存",
 "Preview":"预览",
 "Print / Save PDF":"打印 / 保存 PDF",
+"Print list":"打印清单",
 "Print reorder list":"打印补货清单",
 "Print report":"打印报告",
 "Printed {n}:{n} am · count started {d}":"打印时间 上午 {n}:{n} · 盘点开始于 {d}",
@@ -1944,6 +1977,8 @@ const ZH_DICT = /*ZH_DICT*/{
 "Setup & Backup":"设置与备份",
 "Shared with everyone signed in —changes appear on every open device within a moment.":"与所有已登录用户共享 —更改会在片刻内出现在每台打开的设备上。",
 "Sheet title (optional)":"表格标题（可选）",
+"Shelf labels to change":"需要更换的货位标签",
+"Shelf labels to change 货位标签更改":"货位标签更改",
 "Shelves":"货架视图",
 "Shipped out":"出货",
 "Show them":"显示",
@@ -2048,6 +2083,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "Unassigned":"未分配",
 "Unassigned 未分配":"未分配",
 "Undo":"撤销",
+"Undo insert":"撤销插入",
 "Undo last":"撤销上一步",
 "Undo last import":"撤销上次导入",
 "Undo the last action?":"撤销上一次操作？",
@@ -2094,6 +2130,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "View low stock":"查看低库存",
 "Waiting for delivery":"等待到货",
 "Warehouse":"仓库",
+"Was 原货位":"原货位",
 "Watch this sauce":"关注此酱料",
 "Watched only":"仅显示关注",
 "Wed, {d}":"{d} 周三",
@@ -2224,6 +2261,8 @@ const ZH_DICT = /*ZH_DICT*/{
 "use {n}":"使用 {n}",
 "warehouse":"仓库",
 "was {n} ctn {n} pkt":"原为 {n} 箱 {n} 包",
+"was {s}":"原 {s}",
+"went in at":"已放入",
 "white":"白色",
 "worked out once it has usage":"有用量后自动算出",
 "zone":"温区",
@@ -2380,6 +2419,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "—nothing in this file has been received before.":"—此文件中的内容此前均未收过货。",
 "—product isn't on this warehouse's item list (kept in another warehouse, or not stock at all).":"—货品不在本仓库的货品清单中（存放在其他仓库，或根本不是库存货品）。",
 "—skip —":"—跳过 —",
+"—that spot is empty, nothing else moves.":"—该位置是空的，其他货品不动。",
 "—the system sets the minimum from what goes out: enough stock for":"—系统根据出库量设定最低库存：备足",
 "—you type the minimum and it stays exactly as you set it until you switch back to Auto.":"—由你输入最低库存，它会一直保持你设定的数值，直到你切回自动。",
 "↑ Map":"↑ 平面图",
@@ -2414,7 +2454,8 @@ const ZH_DICT = /*ZH_DICT*/{
 "缺货 OUT":"缺货",
 "要做 Make":"要做",
 "要做公斤 Kg to make":"要做公斤",
-"货品 Item":"货品"
+"货品 Item":"货品",
+"＋ insert {n}":"＋ 插入 {n}"
 }/*/ZH_DICT*/;
 const LANG_KEY = "qf_lang";
 let LANG = (()=>{ try{ return localStorage.getItem(LANG_KEY)==="zh" ? "zh" : "en"; }catch(e){ return "en"; } })();
@@ -5210,9 +5251,10 @@ function placeItem(it, raw){
   ensureRack(rack); registerLevel(rack, level);
   return "";
 }
-function openAdd(pos){
+function openAdd(pos, note){
   const wh = isWarehouse();
-  modal(`<h3>Add an item</h3>
+  addInsert = null;
+  modal(`<h3>Add an item</h3>${note||""}
     <div class="field"><label>Name 名称</label><input id="m-name" placeholder="e.g. QF Mango Sauce 芒果酱"></div>
     <div class="field"><label>Pack size (UOM)</label><input id="m-uom" placeholder="e.g. 2kg/pkt"></div>
     <div class="field"><label>Code</label><input id="m-code" placeholder="optional"></div>
@@ -5229,6 +5271,7 @@ function openAdd(pos){
 function doAdd(){
   const name = $("#m-name").value.trim();
   if(!name){ toast("A name is required"); return; }
+  let moved = [];
   const it = {id:0, name, uom:$("#m-uom").value.trim(), code:$("#m-code").value.trim(),
     store:"", level:"1", slot:0, cat:$("#m-cat").value.trim()||"Uncategorised", preorder:false,
     stock:0, counted:true, min:0, baseDaily:0, stopped:false, looseQty:0};
@@ -5238,8 +5281,12 @@ function doAdd(){
     it.packSize = pack==null ? 1 : pack;
     readUnitField(it);
     const mb = readMinBox(it); if(!mb) return;
+    /* inserting between two products: make room first (only if the rack code
+       offered wasn't changed in the form) */
+    const ins = addInsert && $("#m-pos").value.trim().toUpperCase()===addInsert.code.toUpperCase() ? addInsert : null;
+    moved = ins ? shiftForInsert(ins) : [];
     const err = placeItem(it, $("#m-pos").value);
-    if(err){ toast(err); return; }
+    if(err){ for(const m of moved){ const x = item(m.id); if(x) x.slot = m.from; } toast(err); return; }
     it.stock = readQty(it, "m-stock") || 0;
     it.min = mb.min; it.preorder = mb.preorder;
   } else {
@@ -5249,7 +5296,9 @@ function doAdd(){
   }
   it.id = uid("nextId");
   state.items.push(it);
+  addInsert = null;
   save(); closeModal(); render(); toast("Added —"+name);
+  if(moved.length) showInsertResult(it, moved);
 }
 function openEdit(id){
   const it = item(id); if(!it) return;
@@ -6897,7 +6946,7 @@ function planRackPanel(name, q){
     const rows = its.filter(i=>(i.level||"1")===l).sort((a,b)=>(a.slot||0)-(b.slot||0) || a.name.localeCompare(b.name));
     return `<div class="fp-lvl"><div class="fp-lvl-h">${coded||lv.length>1 ? esc(l)+"L" : "Products"}<span class="dim" style="font-weight:400">${rows.length}</span>
         <button class="btn sm" style="margin-left:auto" onclick="planAddHere('${esc(name)}','${esc(l)}')">+ Add product</button></div>
-      ${rows.length ? rows.map(it=>planItemRow(it, q)).join("") : '<div class="dim" style="font-size:12px;padding:6px 0 8px">Nothing on this level.</div>'}</div>`;
+      ${rows.length ? rows.map((it,k)=>(coded && !q ? insertLine(name, l, rows[k-1], it) : "")+planItemRow(it, q)).join("") : '<div class="dim" style="font-size:12px;padding:6px 0 8px">Nothing on this level.</div>'}</div>`;
   }).join("");
   return head + `<div class="fp-side-b" id="fp-side-b">${body}</div>`;
 }
@@ -6992,6 +7041,79 @@ async function discardPlanDraft(){
   if(!await askConfirm("Discard "+n+" unsaved change"+(n===1?"":"s")+"?", "The quantities go back to what's saved. Nothing is logged.", "Discard", true)) return;
   fpDraft = {}; renderRacks();
 }
+/* ---------- inserting a product between two others ----------
+   The shelf runs 01, 02, 03… and one was missed: "＋ insert" between 02 and
+   03 puts the new product at 03 and moves 03 and the ones after it up one
+   —only as far as the next empty spot, so as few shelf labels as possible
+   change. Where there's already an empty spot between the two, the new
+   product simply takes it and nothing moves. */
+let addInsert = null, lastInsert = null;
+/* what moves to make room at `slot`: the unbroken run of products from there up */
+function insertPlan(rack, level, slot){
+  const on = state.items.filter(i=>(i.store||"")===rack && (i.level||"1")===level && i.slot>0);
+  const taken = new Set(on.map(i=>i.slot)), moves = [];
+  for(let s = slot; taken.has(s); s++) for(const it of on.filter(i=>i.slot===s)) moves.push({it, from:s, to:s+1});
+  return moves;
+}
+function insertLine(rack, level, prev, it){
+  if(!(it.slot>0)) return "";
+  const before = prev && prev.slot>0 ? prev.slot : 0;
+  const slot = it.slot-1 > before ? it.slot-1 : it.slot;      // an empty spot right before it, or its own
+  const code = rack+level+"L"+pad2(slot);
+  return `<button type="button" class="fp-ins" onclick="openInsert('${esc(rack)}','${esc(level)}',${slot})"
+    title="Add a product at ${esc(code)}${slot===it.slot?" —"+esc(it.name)+" and the ones after it move up one":""}">＋ insert ${pad2(slot)}</button>`;
+}
+function openInsert(rack, level, slot){
+  const code = rack+level+"L"+pad2(slot), moves = insertPlan(rack, level, slot);
+  const note = moves.length
+    ? `<div class="ins-note">New product goes in at <b>${esc(code)}</b>. To make room, ${moves.length===1?"this moves":"these move"} up one:
+        ${moves.map(m=>`<span>${esc(m.it.name)}</span> <b>${pad2(m.from)}→${pad2(m.to)}</b>`).join(" · ")}. Their shelf labels change.</div>`
+    : `<div class="ins-note">New product goes in at <b>${esc(code)}</b> —that spot is empty, nothing else moves.</div>`;
+  openAdd(code, note);
+  addInsert = {rack, level, slot, code};
+}
+/* make room (called by doAdd when the rack code is still the one offered) */
+function shiftForInsert(ins){
+  const moves = insertPlan(ins.rack, ins.level, ins.slot);
+  for(const m of moves.slice().reverse()) m.it.slot = m.to;
+  return moves.map(m=>({id:m.it.id, from:m.from, to:m.to}));
+}
+function showInsertResult(it, moved){
+  lastInsert = {id:it.id, moved};
+  const rack = it.store, lv = it.level||"1", code = s => rack+lv+"L"+pad2(s);
+  modal(`<h3>Shelf labels to change</h3>
+    <p class="dim" style="font-size:12.5px;margin-bottom:6px"><b style="color:var(--ink)">${esc(it.name)}</b> went in at <b class="mono" style="color:var(--ink)">${esc(posCode(it))}</b>, so ${moved.length===1?"this product has":"these products have"} a new rack code:</p>
+    <ul class="ins-list">${moved.slice().sort((a,b)=>a.to-b.to).map(m=>{ const x = item(m.id);
+      return `<li><span class="mono">${esc(code(m.to))}</span><span>${esc(x?x.name:"")}</span><span class="was">was ${esc(code(m.from))}</span></li>`; }).join("")}</ul>
+    <div class="mfoot"><button class="btn" onclick="undoInsert()">Undo insert</button>
+      <button class="btn" onclick="printInsertLabels()"><svg class="ic"><use href="#i-print"/></svg>Print list</button>
+      <button class="btn primary" onclick="closeModal()">Done</button></div>`);
+}
+function undoInsert(){
+  const u = lastInsert; if(!u) return;
+  state.items = state.items.filter(i=>i.id!==u.id);
+  for(const m of u.moved){ const x = item(m.id); if(x && x.slot===m.to) x.slot = m.from; }
+  lastInsert = null;
+  save(); closeModal(); render(); toast("Insert undone —the rack codes are back as they were");
+}
+function printInsertLabels(){
+  const u = lastInsert; if(!u) return;
+  const it = item(u.id); if(!it) return;
+  const ad = activeDept(), rack = it.store, lv = it.level||"1", code = s => rack+lv+"L"+pad2(s);
+  const rows = [{name:it.name, now:posCode(it), was:"new"}, ...u.moved.map(m=>({name:(item(m.id)||{}).name||"", now:code(m.to), was:code(m.from)}))]
+    .sort((a,b)=>a.now.localeCompare(b.now));
+  const doc = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${esc(ad.code)} shelf labels ${todayStr()}</title>
+<style>body{font:13px/1.4 "IBM Plex Sans","Noto Sans SC",sans-serif;padding:24px 28px;color:#12171A}h1{font-size:22px;margin:0 0 4px}
+p{color:#586268;margin:0 0 14px}table{border-collapse:collapse;width:100%}th{text-align:left;font:600 10px monospace;letter-spacing:.1em;text-transform:uppercase;color:#586268;border-bottom:2px solid #12171A;padding:6px}
+td{padding:9px 6px;border-bottom:1px solid #D6DBD5}td.c{font:700 20px monospace}td.w{color:#8B948F;font-family:monospace}
+.pb{position:fixed;top:12px;right:12px;background:#0B4F4A;color:#fff;border:none;padding:9px 17px;font:600 13px sans-serif;cursor:pointer}@media print{.pb{display:none}}</style></head><body>
+<button class="pb" onclick="window.print()">Print / Save PDF</button>
+<h1>Shelf labels to change 货位标签更改</h1><p>${esc(ad.code)} · ${esc(rack)} level ${esc(lv)} · ${todayStr()}</p>
+<table><thead><tr><th>New rack code 新货位</th><th>Product 货品</th><th>Was 原货位</th></tr></thead><tbody>
+${rows.map(r=>`<tr><td class="c">${esc(r.now)}</td><td>${esc(r.name)}</td><td class="w">${esc(r.was)}</td></tr>`).join("")}</tbody></table></body></html>`;
+  openOrSave(doc, ad.code+"-shelf-labels-"+todayStr()+".html");
+}
+
 /* "+ Add product" on a level: the Add item form with the next free rack code filled in. */
 function planAddHere(rack, level){
   const code = rackCoded(rack) ? rack+level+"L"+pad2(nextSlot(rack, level)) : rack;
@@ -7246,10 +7368,14 @@ function renderShelves(){
       const bySlot = new Map();
       for(const i of placed){ if(!bySlot.has(i.slot)) bySlot.set(i.slot, []); bySlot.get(i.slot).push(i); }
       let out = "";
+      const lvl = (items[0] && items[0].level) || "1";
       for(let s=1; s<=max; s++){
         const here = bySlot.get(s)||[];
+        /* between two products side by side (or before 01): insert, moving this one and the next ones up */
+        if(here.length && (s===1 || bySlot.has(s-1)))
+          out += `<button type="button" class="rk-ins" onclick="openInsert('${esc(rackName)}','${esc(lvl)}',${s})" title="Insert a product at ${esc(rackName+lvl+"L"+pad2(s))} —this one and the ones after it move up one">＋</button>`;
         out += here.length ? here.map(i=>pos(pad2(s), card(i, here.length>1), s)).join("")
-                           : pos(pad2(s), '<div class="rk-add-slot rk-empty" title="Empty —drop a product here">empty</div>', s);
+                           : pos(pad2(s), `<div class="rk-add-slot rk-empty" title="Empty —tap to add a product here, or drop one" onclick="openAdd('${esc(rackName+lvl+"L"+pad2(s))}')">empty</div>`, s);
       }
       out += items.filter(i=>!(i.slot>0)).map(i=>pos("—", card(i), max+1)).join("");
       return {html: out + pos(pad2(max+1), addSlot, max+1), next:max+1, coded:true};

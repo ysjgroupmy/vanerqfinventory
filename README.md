@@ -276,6 +276,23 @@ level `1`, position `01`) —one per product. A rack is `items.store`, its level
 - Moving a product into a different zone asks first.
 - Typing a rack code in **Edit** (`R1A1L03`, also accepted as `R1A | 1L | 03`)
   places it there, refusing a code another product already has.
+- **Inserting a missed product.** On a labelled rack, both the floor-plan panel
+  and the Shelves view have a **＋ insert** between neighbouring products
+  (and before 01).
+  - Tapping the one between 02 and 03 opens **Add item** with `…L03` filled in.
+    The form says which products move.
+  - On save, the new product takes 03. The product at 03 and the unbroken run
+    after it each move up one, stopping at the first empty position, so as few
+    shelf labels as possible change.
+  - If there's already an empty spot between the two products, the new product
+    just takes it and nothing moves.
+  - Afterwards a dialog lists the shelf labels that changed. **Print list** gives
+    a sheet for relabelling, and **Undo insert** puts every code back.
+  - Changing the rack code in the form makes it a normal add, with no shifting.
+  - In the Shelves view, an **empty** spot can also be tapped to add a product
+    there.
+  - Stock, history and product codes belong to the product, not the position,
+    so nothing else is affected.
 - Cards have ctn / pkt boxes; a change is logged as a correction.
 - Racks start collapsed —click one to open it. Open/closed state, zone tab and
   plan/shelves choice are per-browser preferences (`localStorage`).
