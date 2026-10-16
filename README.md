@@ -367,22 +367,48 @@ blank sheet with the same columns.
 - Each **department** (e.g. `0428`, `0227`) has its own items, movement log, cook
   plan, invoice registry and settings — exactly like the original design's
   Firestore subcollections, just as Postgres rows scoped by a `dept_id` column.
-- Item, movement-log and cook-plan IDs are assigned client-side by small
-  per-department counters (kept in the `settings` row), not by Postgres identity
-  columns. This is intentional — it's what lets every action in the app (adding
-  an item, logging a cook, importing sales) update the screen immediately without
-  waiting on a round trip, while a debounced background sync pushes only the rows
-  that actually changed. Because the counters are per-department, `items`/`tx`/`plan`
-  use a **composite primary key** `(dept_id, id)` — don't "simplify" that back to a
-  plain `id` primary key, item #1 in two different departments would collide.
+- Item, movement-log, cook-plan and batch IDs are assigned on the device, not by
+  Postgres identity columns. That lets every action (adding an item, logging a
+  cook, importing sales) update the screen immediately without waiting on a round
+  trip; a background sync then pushes only the rows that changed.
+  - **Unique across devices:** each ID is the time in milliseconds × 1000 plus a
+    random 0–999. Two phones that haven't heard from each other yet can't pick the
+    same number, so one can't overwrite the other's product or log entry. An
+    earlier version took "the next number" from a shared counter, and that did
+    happen.
+  - **Size:** IDs stay under 2^53, so they're exact in JavaScript and in `bigint`.
+  - **Composite primary key:** `items`/`tx`/`plan` keep the `(dept_id, id)` key.
+- **Saving only what changed:** a product that's already on the server sends only
+  the columns that changed. A count sends the balance, not an old copy of the
+  rack, the "ordered" mark or the name. Settings likewise send only the fields
+  that changed.
 - Removing a department (Setup → Departments) is a real, permanent delete —
   Postgres cascades and removes its items, log, plan and settings. The original
   Firestore version only removed it from the switcher; this one is unforgiving,
   matching how a real relational schema behaves. Export a backup first.
-- A copy of the current department's data is mirrored into `localStorage` purely
-  so the page still shows the last-seen numbers if the connection drops — Supabase
-  is always the source of truth once reachable, there's no "which copy wins"
-  reconciliation flow to worry about like the original artifact version had.
+- **Copy on the device:** the current department's data is mirrored into
+  `localStorage`, so the page shows the last-seen numbers straight away and if
+  the connection drops. Supabase is the source of truth once reachable.
+- **Unsaved changes are never thrown away:** anything changed on a device that
+  the server hasn't confirmed yet is also kept in `localStorage`. This covers a
+  product added while the app is still loading, a save that failed for lack of
+  signal, and the app closed before the save went through.
+  - When fresh server data arrives (another device saved, the app reopened, the
+    connection came back), the page is rebuilt from it and those changes are put
+    back on top, field by field. Then they're sent again.
+  - After a successful save, the device updates its own copy straight away
+    instead of waiting for the live update to echo back.
+- **Live on every device:** each save reaches every open device through
+  Supabase Realtime, usually within a second.
+  - **Catching up:** coming back to the app after 30+ seconds, or the connection
+    returning, re-reads everything.
+  - **Fallback:** every save is expected to come straight back to the device
+    that made it. If it doesn't within a few seconds, live updates aren't getting
+    through to that device, so it reads the server every 20 seconds until they
+    do.
+  - **Status:** the top bar shows **live · all devices** or **every 20 s**.
+- **Undo is per device:** it reverses only what that device last did, never
+  another device's action.
 - A sale's `tx` row carries an optional `amount` (revenue for that line), captured
   from a sales import only when the file has a recognisable total/amount column
   (TOTALAMT / AMOUNT / 金额 — a per-unit price column is deliberately not picked up,
