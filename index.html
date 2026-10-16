@@ -1559,6 +1559,8 @@ const ZH_DICT = /*ZH_DICT*/{
 "Line settings":"产线设置",
 "Line status, today's cook list, and what is about to run short.":"产线状态、今日烹煮清单，以及即将短缺的货品。",
 "Line summary":"产线概况",
+"Live updates aren't reaching this device right now, so it checks the server every {n} second instead —changes made elsewhere can take that long to show.":"目前实时更新无法到达此设备，因此改为每 {n} 秒检查一次服务器 —其他设备的更改可能需要这么久才会显示。",
+"Live updates aren't reaching this device right now, so it checks the server every {n} seconds instead —changes made elsewhere can take that long to show.":"目前实时更新无法到达此设备，因此改为每 {n} 秒检查一次服务器 —其他设备的更改可能需要这么久才会显示。",
 "Load example data":"载入示例数据",
 "Load the item list":"导入货品清单",
 "Load the item list for the department you are in, set its line capacity, and keep a backup.":"导入你当前所在部门的货品清单，设置产线产能，并保留备份。",
@@ -1940,6 +1942,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "Settings saved":"设置已保存",
 "Setup":"设置",
 "Setup & Backup":"设置与备份",
+"Shared with everyone signed in —changes appear on every open device within a moment.":"与所有已登录用户共享 —更改会在片刻内出现在每台打开的设备上。",
 "Sheet title (optional)":"表格标题（可选）",
 "Shelves":"货架视图",
 "Shipped out":"出货",
@@ -2138,6 +2141,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "e.g. {n}FR":"例如 {n}FR",
 "e.g. {n}kg/pkt":"例如 {n}kg/pkt",
 "empty":"空位",
+"every {n} s":"每 {n} 秒更新",
 "example":"示例",
 "eyJhbGciOi...":"eyJhbGciOi...",
 "get their minimum from what goes out over this many days; when a balance drops below its minimum it shows on":"的货品按这段天数内的出库量得出最低库存；结存低于最低库存时，会显示在",
@@ -2153,6 +2157,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "kg":"kg",
 "leads":"领先",
 "leave blank if not needed":"不需要可留空",
+"live · all devices":"实时 · 所有设备",
 "loose pkt qty":"散装包数",
 "loose qty":"散装数量",
 "mean daily usage × days of cover":"日均用量 × 可用天数",
@@ -2416,19 +2421,20 @@ let LANG = (()=>{ try{ return localStorage.getItem(LANG_KEY)==="zh" ? "zh" : "en
 const I18N_DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const I18N_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const I18N_FULLD = new RegExp(`(?:(${I18N_DAYS.join("|")}), )?(\\d{1,2}) (${I18N_MONTHS.join("|")})(?: (\\d{4}))?`, "g");
-const I18N_SHORTD = new RegExp(`\\b(\\d{1,2}) (${I18N_MONTHS.map(m=>m.slice(0,3)).join("|")})\\b(?: (\\d{4}))?`, "g");
+const I18N_SHORTD = new RegExp(`(?:\\b(${I18N_DAYS.map(d=>d.slice(0,3)).join("|")}), )?\\b(\\d{1,2}) (${I18N_MONTHS.map(m=>m.slice(0,3)).join("|")})\\b(?: (\\d{4}))?`, "g");
 const I18N_ISO = /\b\d{4}-\d{2}-\d{2}\b/g;
 const I18N_NUM = /\d+(?:[.,]\d+)*/g;
 const ZH_WEEK = "日一二三四五六";
 function zhDate(day, mon, yr, wd){
   const m = I18N_MONTHS.findIndex(x=>x.slice(0,3)===mon.slice(0,3))+1;
-  return (yr ? yr+"年" : "")+m+"月"+(+day)+"日"+(wd ? " 星期"+ZH_WEEK[I18N_DAYS.indexOf(wd)] : "");
+  const w = wd ? I18N_DAYS.findIndex(x=>x.slice(0,3)===wd.slice(0,3)) : -1;
+  return (yr ? yr+"年" : "")+m+"月"+(+day)+"日"+(w<0 ? "" : (wd.length>3 ? " 星期" : " 周")+ZH_WEEK[w]);
 }
 /* "Saved 3 changes on 14 Oct" → key "Saved {n} changes on {d}", n:["3"], d:["10月14日"] */
 function i18nSplit(s){
   const ds = [], ns = [];
   let k = s.replace(I18N_FULLD, (m, wd, d, mo, y)=>{ ds.push(zhDate(d, mo, y, wd)); return "{d}"; })
-           .replace(I18N_SHORTD, (m, d, mo, y)=>{ ds.push(zhDate(d, mo, y)); return "{d}"; })
+           .replace(I18N_SHORTD, (m, wd, d, mo, y)=>{ ds.push(zhDate(d, mo, y, wd)); return "{d}"; })
            .replace(I18N_ISO, m=>{ ds.push(m); return "{d}"; });
   k = k.replace(I18N_NUM, m=>{ ns.push(m); return "{n}"; });
   return {k, ds, ns};
@@ -2663,7 +2669,20 @@ function defaultState(){
 }
 /* Every tx entry needs a stable id (per department) so the sync layer can
    diff and upsert/delete individual rows instead of whole-log blobs. */
-function newTx(o){ return Object.assign({id:state.txSeq++}, o); }
+/* A new item, movement, plan line or batch needs an id no other device can
+   hand out at the same moment. Taking "the next number" from this device's
+   copy of a shared counter isn't enough: two phones that haven't heard from
+   each other yet pick the same number, and the second save overwrites the
+   first —a product added on one simply vanishes. So an id is the time in ms
+   x1000 plus a random 0-999 (two devices would have to pick the same random
+   number in the same millisecond), and never below this device's last one.
+   Stays under 2^53 —exact in JavaScript and in Postgres bigint— until 2255. */
+function uid(key){
+  const v = Math.max(Number(state[key])||1, Date.now()*1000 + Math.floor(Math.random()*1000));
+  state[key] = v + 1;
+  return v;
+}
+function newTx(o){ return Object.assign({id:uid("txSeq")}, o); }
 /* Load (or top up) the supplied list without disturbing counted balances. */
 function seedBase(){
   const have = new Map(state.items.map(i=>[keyNU(i.name, i.uom), i]));
@@ -2678,7 +2697,7 @@ function seedBase(){
       if(!ex.min && !ex.baseDaily){ ex.min=b.min||0; ex.baseDaily=b.baseDaily||0; touched++; }
       continue;
     }
-    state.items.push({id:state.nextId++, name:b.name, uom:b.uom, code:b.code, store:b.store,
+    state.items.push({id:uid("nextId"), name:b.name, uom:b.uom, code:b.code, store:b.store,
       cat:b.cat, stock:0, min:b.min||0, baseDaily:b.baseDaily||0, preorder:!!b.preorder,
       stopped:false, watch:false, counted:false});
     added++;
@@ -3124,6 +3143,13 @@ let flushTimer=null, dataTimer=null, firstLoad=false, applying=false;
 let deptChannel=null, deptRosterChannel=null;
 
 let depts = [];
+/* The department list is kept on this device too, so while the app is still
+   loading from the server it already knows 0434 is a warehouse —otherwise the
+   first few seconds on a slow connection show the kitchen pages (and an Add
+   form with no rack field). */
+const DEPTS_KEY = "qf_depts_v1";
+function readDeptsCache(){ try{ const a = JSON.parse(localStorage.getItem(DEPTS_KEY)||"null"); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
+function writeDeptsCache(){ try{ localStorage.setItem(DEPTS_KEY, JSON.stringify(depts)); }catch(e){} }
 let dept = null;
 const DKEY = "qf_active_dept";
 function readDeptPref(){ try{ return localStorage.getItem(DKEY)||null; }catch(e){ return null; } }
@@ -3246,17 +3272,109 @@ function stateFromCache(){
      cannot affect row a second time". Clamping the counters to one past the
      highest id actually present makes that impossible, regardless of how the
      drift happened. */
-  const maxId = arr => arr.reduce((m,x)=>x.id>m?x.id:m, 0);
-  s.nextId = Math.max(s.nextId, maxId(s.items)+1);
-  s.txSeq  = Math.max(s.txSeq,  maxId(s.tx)+1);
-  s.planSeq= Math.max(s.planSeq,maxId(s.plan)+1);
+  clampCounters(s);
   return s;
 }
+function clampCounters(s){
+  const maxId = arr => arr.reduce((m,x)=>x.id>m?x.id:m, 0);
+  s.nextId = Math.max(Number(s.nextId)||1, maxId(s.items)+1);
+  s.txSeq  = Math.max(Number(s.txSeq)||1,  maxId(s.tx)+1);
+  s.planSeq= Math.max(Number(s.planSeq)||1,maxId(s.plan)+1);
+}
 
+/* ---------- changes this device hasn't got onto the server yet ----------
+   `persisted` is what the server is known to hold; anything in `state` that
+   differs from it was changed here and isn't confirmed yet. When fresh data
+   arrives from the server (another device saved, the app reopened, the
+   connection came back) the page is rebuilt from it —and these changes are
+   put back on top instead of being thrown away, then sent again. They are
+   also kept in this browser's storage until the server confirms them, so a
+   phone that loses signal, or closes the app before the save went through,
+   still has them next time it opens. Row by row: a changed product carries
+   its whole row; settings carry only the fields that changed. */
+/* the tables kept row by row: [name, list, set list, to row, from row, key] */
+function syncTables(){ return [
+  ["items",  ()=>state.items,       v=>{ state.items = v; },  itemRow,  rowItem,  x=>x.id],
+  ["tx",     ()=>state.tx,          v=>{ state.tx = v; },     txRow,    rowTx,    x=>x.id],
+  ["plan",   ()=>state.plan,        v=>{ state.plan = v; },   planRow,  rowPlan,  x=>x.id],
+  ["racks",  ()=>state.racks||[],   v=>{ state.racks = v; },  rackRow,  rowRack,  x=>x.name],
+  ["levels", ()=>state.levels||[],  v=>{ state.levels = v; }, levelRow, rowLevel, x=>lvKey(x.rack,x.level)]
+]; }
+/* the columns of `row` that differ from the stored (serialised) version */
+function rowDiff(oldSer, row){
+  const o = JSON.parse(oldSer), cols = {};
+  for(const k of new Set([...Object.keys(o), ...Object.keys(row)])) if(ser(o[k])!==ser(row[k])) cols[k] = row[k] ?? null;
+  return cols;
+}
+function localChanges(now){
+  if(!persisted || !state) return null;
+  now = now || snapshotOf(state);
+  const ch = {};
+  for(const [name, list, , toRow, , keyOf] of syncTables()){
+    const up = [], del = [...persisted[name].keys()].filter(k=>!now[name].has(k));
+    for(const x of list()){
+      const k = keyOf(x), was = persisted[name].get(k);
+      if(was===now[name].get(k)) continue;
+      const row = toRow(x);
+      up.push({k, row, cols: was ? rowDiff(was, row) : null});   // cols: just what changed; row: all of it, if the server has none
+    }
+    if(up.length || del.length) ch[name] = {up, del};
+  }
+  const bup = [...now.bills.keys()].filter(k=>persisted.bills.get(k)!==now.bills.get(k));
+  const bdel = [...persisted.bills.keys()].filter(k=>!now.bills.has(k));
+  if(bup.length || bdel.length){
+    const up = {};
+    for(const k of bup){ up[k] = state.bills[k]; if(state.bills[k+"@d"]!=null) up[k+"@d"] = state.bills[k+"@d"]; }
+    ch.bills = {up, del:bdel};
+  }
+  if(now.settings !== persisted.settings){
+    const f = settingsChanges();
+    if(Object.keys(f).length) ch.settings = f;
+  }
+  return Object.keys(ch).length ? ch : null;
+}
+/* Put changes back on top of freshly loaded server data —only the fields
+   that were changed here, so a field someone else changed meanwhile (a
+   product marked ordered, moved to another rack) keeps their value. */
+function replayChanges(ch){
+  if(!ch) return;
+  for(const [name, list, setList, toRow, fromRow, keyOf] of syncTables()){
+    const c = ch[name]; if(!c) continue;
+    const m = new Map(list().map(x=>[keyOf(x), x]));
+    for(const k of c.del||[]) m.delete(k);
+    for(const u of c.up||[]){
+      const base = m.get(u.k);
+      m.set(u.k, fromRow(base && u.cols ? Object.assign(toRow(base), u.cols) : u.row));
+    }
+    setList([...m.values()]);
+  }
+  if(ch.bills){
+    for(const k of ch.bills.del||[]){ delete state.bills[k]; delete state.bills[k+"@d"]; }
+    Object.assign(state.bills, ch.bills.up||{});
+  }
+  if(ch.settings) Object.assign(state, rowSettings(Object.assign(settingsRow(state), ch.settings)));
+  clampCounters(state);
+}
+function pendKey(){ return "qf_pending_v1_"+(dept||"none"); }
+function writePending(ch){ try{ if(ch) localStorage.setItem(pendKey(), JSON.stringify(ch)); else localStorage.removeItem(pendKey()); }catch(e){} }
+function readPending(){ try{ const r = localStorage.getItem(pendKey()); return r ? JSON.parse(r) : null; }catch(e){ return null; } }
+/* Undo (last_batch) belongs to the device that did the action —it isn't
+   sent, so one phone's Undo never reverses what another phone just did. */
+const LOCAL_ONLY = new Set(["dept_id", "last_batch", "last_batch_bills"]);
+function settingsChanges(){
+  const was = persisted && persisted.settings ? JSON.parse(persisted.settings) : {}, cur = settingsRow(state), f = {};
+  for(const k of Object.keys(cur)) if(!LOCAL_ONLY.has(k) && ser(cur[k])!==ser(was[k])) f[k] = cur[k];
+  return f;
+}
+
+let saveSeq = 0;
 function save(){
   stateVer++;                      // anything worked out from the data (automatic minimums) is stale now
+  saveSeq++;
   mirrorLocal();
-  if(!DB_READY) return;
+  /* still loading from the server (slow signal, app just opened): keep the
+     change as unsaved —it goes on top of the server data once that arrives */
+  if(!DB_READY){ writePending(localChanges()); return; }
   dirty = true;
   clearTimeout(flushTimer);
   flushTimer = setTimeout(runFlush, 250);
@@ -3282,8 +3400,10 @@ async function runFlush(){
   if(!DB_READY) return;
   if(flushing){ clearTimeout(flushTimer); flushTimer=setTimeout(runFlush,200); return; }
   flushing = true;
+  const seq = saveSeq;
   try{
     const now = snapshotOf(state), jobs=[];
+    writePending(localChanges(now));     // kept until the server confirms it
 
     /* Postgres' ON CONFLICT DO UPDATE errors ("...cannot affect row a second
        time") if the same conflict key appears twice in one upsert batch. That
@@ -3294,11 +3414,24 @@ async function runFlush(){
        the whole flush and blocking every other pending change behind it. */
     const dedupe = (arr, keyFn) => [...new Map(arr.map(x=>[keyFn(x), x])).values()];
 
+    /* A product already on the server sends only the columns that changed
+       (plus its name, which Postgres needs to accept the row) —a count sends
+       the balance, not an old copy of the rack, the "ordered" mark or the
+       name that another device may have changed meanwhile. Rows going up
+       together must carry the same columns, or the missing ones would be
+       written as empty, so they're grouped by which columns they carry. */
     const itemsUp=[], itemsDel=[];
-    for(const i of state.items){ if(persisted.items.get(i.id)!==now.items.get(i.id)) itemsUp.push(itemRow(i)); }
+    for(const i of state.items){
+      const was = persisted.items.get(i.id);
+      if(was===now.items.get(i.id)) continue;
+      const row = itemRow(i);
+      itemsUp.push(was ? Object.assign({id:row.id, dept_id:row.dept_id, name:row.name}, rowDiff(was, row)) : row);
+    }
     for(const id of persisted.items.keys()) if(!now.items.has(id)) itemsDel.push(id);
     const itemsUpD = dedupe(itemsUp, r=>r.id);
-    if(itemsUpD.length) jobs.push(sb.from("items").upsert(itemsUpD, {onConflict:"dept_id,id"}));
+    const byCols = new Map();
+    for(const r of itemsUpD){ const sig = Object.keys(r).sort().join(","); if(!byCols.has(sig)) byCols.set(sig, []); byCols.get(sig).push(r); }
+    for(const grp of byCols.values()) jobs.push(sb.from("items").upsert(grp, {onConflict:"dept_id,id"}));
     if(itemsDel.length) jobs.push(sb.from("items").delete().eq("dept_id",dept).in("id",itemsDel));
 
     const txUp=[], txDel=[];
@@ -3339,15 +3472,35 @@ async function runFlush(){
       return sb.from("levels").delete().eq("dept_id",dept).eq("rack",rack).eq("level",level);
     }));
 
-    if(persisted.settings !== now.settings) jobs.push(sb.from("settings").upsert(settingsRow(state), {onConflict:"dept_id"}));
+    /* only the settings that changed —a device that's behind can't put back
+       an old stocktake list or floor plan just because it saved a count */
+    let setRow = null;
+    if(persisted.settings !== now.settings){
+      setRow = Object.assign({dept_id:dept}, settingsChanges());
+      if(Object.keys(setRow).length > 1) jobs.push(sb.from("settings").upsert(setRow, {onConflict:"dept_id"}));
+    }
 
     if(jobs.length){
       const results = await Promise.all(jobs);
       const bad = results.find(r=>r && r.error);
       if(bad) throw bad.error;
+      expectEcho();
     }
+    /* The server has these rows now —so does the local copy of it. Waiting for
+       the live update to echo them back isn't enough: a phone whose connection
+       hiccups never gets that echo, and the next rebuild from the cache would
+       quietly take the product it just added off the screen. */
+    const put = (map, rows, keyOf) => { for(const r of rows){ const k = keyOf(r); map.set(k, Object.assign({}, map.get(k)||{}, r)); } };
+    put(cache.items, itemsUpD, r=>Number(r.id));  for(const id of itemsDel) cache.items.delete(Number(id));
+    put(cache.tx, txUpD, r=>Number(r.id));        for(const id of txDel) cache.tx.delete(Number(id));
+    put(cache.plan, planUpD, r=>Number(r.id));    for(const id of planDel) cache.plan.delete(Number(id));
+    put(cache.bills, billsUp, r=>r.bill_key);     for(const k of billsDel) cache.bills.delete(k);
+    put(cache.racks, racksUpD, r=>r.name);        for(const k of racksDel) cache.racks.delete(k);
+    put(cache.levels, levelsUpD, r=>lvKey(r.rack,r.level)); for(const k of levelsDel) cache.levels.delete(k);
+    if(setRow) cache.settings = Object.assign({}, cache.settings||{}, setRow);
     persisted = now;
-    dirty = false;
+    dirty = saveSeq !== seq;               // changed again while this was on its way —the next flush sends it
+    if(!dirty) writePending(null);
     flushErrorShown = false;
     setSync("shared");
   }catch(e){
@@ -3373,42 +3526,60 @@ async function runFlush(){
 function onStoreData(){
   clearTimeout(dataTimer);
   dataTimer = setTimeout(()=>{
-    if(dirty||flushing){ needRebuild=true; return; }   // never clobber an unsaved edit
+    if(flushing){ needRebuild=true; return; }   // rebuild once the write on its way has landed
     applyStore();
   }, 60);
 }
-function applyStore(){
+/* Rebuild the page from the server's data, then put back on top whatever was
+   changed here and isn't on the server yet (`extra`: changes kept from an
+   earlier visit that never got through). */
+function applyStore(extra){
+  const mine = localChanges();
+  const undo = state ? [state.lastBatch, state.lastBatchBills] : [null, null];   // this device's own Undo
   applying = true;
   state = stateFromCache();
   persisted = snapshotOf(state);
+  if(extra) replayChanges(extra);
+  if(mine) replayChanges(mine);
+  [state.lastBatch, state.lastBatchBills] = undo;
   applying = false;
+  const left = (extra || mine) ? localChanges() : null;
+  dirty = !!left;
+  writePending(left);
   mirrorLocal();
   setSync("shared");
   firstLoad = true;
   render();
+  if(dirty && DB_READY){ clearTimeout(flushTimer); flushTimer = setTimeout(runFlush, 250); }
 }
 function setSync(mode, note){
   syncMode = mode; syncNote = note||"";
+  const live = mode==="shared" && liveOk;
   const rf = $("#rail-foot");
-  if(rf) rf.textContent = mode==="shared"
-    ? "Shared with everyone signed in —changes appear on every open tab within a moment."
+  if(rf) rf.textContent = live
+    ? "Shared with everyone signed in —changes appear on every open device within a moment."
+    : mode==="shared" ? "Live updates aren't reaching this device right now, so it checks the server every 20 seconds instead —changes made elsewhere can take that long to show."
     : mode==="error" ? "Connection problem —"+(note||"")+". The last-seen figures are shown below."
     : "Connecting to Supabase—";
   const el = $("#tb-sync"); if(!el) return;
-  el.textContent = mode==="shared" ? "all devices" : mode==="error" ? (syncNote||"error") : "connecting—";
-  el.parentElement.classList.toggle("warnread", mode!=="shared");
+  el.textContent = live ? "live · all devices" : mode==="shared" ? "every 20 s" : mode==="error" ? (syncNote||"error") : "connecting—";
+  el.parentElement.classList.toggle("warnread", !live);
 }
 
 async function initStorage(){
   dept = readDeptPref() || "0428";
+  if(!depts.length) depts = readDeptsCache();
   const mirror = readMirror();
   state = mirror ? Object.assign(defaultState(), mirror) : defaultState();
+  persisted = snapshotOf(state); dirty = false;
+  applyDeptTypeNav();
   render();
   setSync("starting");
 
   const { data: deptRows, error: deptErr } = await sb.from("departments").select("*").order("sort_order").order("id");
   if(deptErr){ setSync("error", deptErr.message); toast("Could not reach Supabase: "+deptErr.message); return; }
   depts = (deptRows||[]).map(d=>({id:d.id, code:d.code, name:d.name, company:d.company, order:d.sort_order, type:d.type||"kitchen"}));
+  writeDeptsCache();
   if(!depts.length){ await createDept("0428","Sauce Production","Quan Feng Food Supply","kitchen"); return; }
   if(!dept || !depts.some(d=>d.id===dept)){ dept = depts[0].id; writeDeptPref(); }
   applyDeptTypeNav();
@@ -3423,6 +3594,7 @@ function subscribeDeptRoster(){
     .on("postgres_changes", {event:"*", schema:"public", table:"departments"}, async ()=>{
       const { data } = await sb.from("departments").select("*").order("sort_order").order("id");
       depts = (data||[]).map(d=>({id:d.id, code:d.code, name:d.name, company:d.company, order:d.sort_order, type:d.type||"kitchen"}));
+      writeDeptsCache();
       applyDeptTypeNav(); renderTopbar(); renderSetup();
     })
     .subscribe();
@@ -3447,7 +3619,7 @@ async function fetchAllRows(table, deptId, orderCol){
 async function subscribeDept(){
   if(deptChannel){ try{ await sb.removeChannel(deptChannel); }catch(e){} deptChannel=null; }
   cache.items=new Map(); cache.tx=new Map(); cache.plan=new Map(); cache.bills=new Map(); cache.racks=new Map(); cache.levels=new Map(); cache.settings=null;
-  firstLoad=false; persisted=null; dirty=false; DB_READY=false; flushErrorShown=false;
+  firstLoad=false; DB_READY=false; flushErrorShown=false; chanUp=false;
   setSync("starting");
 
   const mirror = readMirror();
@@ -3491,41 +3663,112 @@ async function subscribeDept(){
     cache.settings = fresh;
   }
 
-  applyStore();
+  applyStore(readPending());
   DB_READY = true;
+  if(dirty){ clearTimeout(flushTimer); flushTimer = setTimeout(runFlush, 250); }   // send what was kept / added while loading
 
   const filt = "dept_id=eq."+dept;
   deptChannel = sb.channel("dept-"+dept)
     .on("postgres_changes", {event:"*", schema:"public", table:"items", filter:filt}, p=>{
+      noteRealtime();
       if(p.eventType==="DELETE") cache.items.delete(Number(p.old.id)); else cache.items.set(Number(p.new.id), p.new);
       onStoreData();
     })
     .on("postgres_changes", {event:"*", schema:"public", table:"tx", filter:filt}, p=>{
+      noteRealtime();
       if(p.eventType==="DELETE") cache.tx.delete(Number(p.old.id)); else cache.tx.set(Number(p.new.id), p.new);
       onStoreData();
     })
     .on("postgres_changes", {event:"*", schema:"public", table:"plan", filter:filt}, p=>{
+      noteRealtime();
       if(p.eventType==="DELETE") cache.plan.delete(Number(p.old.id)); else cache.plan.set(Number(p.new.id), p.new);
       onStoreData();
     })
     .on("postgres_changes", {event:"*", schema:"public", table:"bills", filter:filt}, p=>{
+      noteRealtime();
       if(p.eventType==="DELETE") cache.bills.delete(p.old.bill_key); else cache.bills.set(p.new.bill_key, p.new);
       onStoreData();
     })
     .on("postgres_changes", {event:"*", schema:"public", table:"racks", filter:filt}, p=>{
+      noteRealtime();
       if(p.eventType==="DELETE") cache.racks.delete(p.old.name); else cache.racks.set(p.new.name, p.new);
       onStoreData();
     })
     .on("postgres_changes", {event:"*", schema:"public", table:"levels", filter:filt}, p=>{
+      noteRealtime();
       if(p.eventType==="DELETE") cache.levels.delete(lvKey(p.old.rack,p.old.level)); else cache.levels.set(lvKey(p.new.rack,p.new.level), p.new);
       onStoreData();
     })
     .on("postgres_changes", {event:"*", schema:"public", table:"settings", filter:filt}, p=>{
+      noteRealtime();
       cache.settings = p.eventType==="DELETE" ? null : p.new;
       onStoreData();
     })
-    .subscribe();
+    .subscribe(status=>{
+      /* the live connection came back after dropping: whatever changed in
+         between was never sent to this device —read it all again */
+      if(status==="SUBSCRIBED"){ if(chanUp) refetchDept(); chanUp = true; }
+      else if(status==="CHANNEL_ERROR" || status==="TIMED_OUT" || status==="CLOSED") setLive(false);
+    });
 }
+
+/* ---------- catching up ----------
+   Phones drop the live connection when the screen locks or the app goes to
+   the background, and changes made elsewhere meanwhile never arrive. Coming
+   back after more than half a minute, or the connection coming back, reads
+   everything from the server again; unsaved changes here stay on top. */
+let chanUp = false, hiddenAt = 0, refetching = false;
+async function refetchDept(){
+  if(!DB_READY || refetching || !sb) return;
+  refetching = true;
+  const d = dept;
+  try{
+    const res = await Promise.all([
+      fetchAllRows("items", d, "id"), fetchAllRows("tx", d, "id"), fetchAllRows("plan", d, "id"),
+      fetchAllRows("bills", d, "bill_key"), fetchAllRows("racks", d, "sort_order"), fetchAllRows("levels", d, "sort_order"),
+      sb.from("settings").select("*").eq("dept_id", d).maybeSingle()
+    ]);
+    if(d!==dept || !DB_READY || res.some(r=>r.error)) return;
+    const [itemsR, txR, planR, billsR, racksR, levelsR, setR] = res;
+    if(!(itemsR.data||[]).length && cache.items.size) return;      // never take an empty read over real data
+    cache.items  = new Map((itemsR.data||[]).map(r=>[Number(r.id), r]));
+    cache.tx     = new Map((txR.data||[]).map(r=>[Number(r.id), r]));
+    cache.plan   = new Map((planR.data||[]).map(r=>[Number(r.id), r]));
+    cache.bills  = new Map((billsR.data||[]).map(r=>[r.bill_key, r]));
+    cache.racks  = new Map((racksR.data||[]).map(r=>[r.name, r]));
+    cache.levels = new Map((levelsR.data||[]).map(r=>[lvKey(r.rack,r.level), r]));
+    if(setR.data) cache.settings = setR.data;
+    onStoreData();
+  }catch(e){ /* stays as it was; the next wake or reconnect tries again */ }
+  finally{ refetching = false; }
+}
+document.addEventListener("visibilitychange", ()=>{
+  if(document.visibilityState==="hidden"){ hiddenAt = Date.now(); return; }
+  if(hiddenAt && Date.now()-hiddenAt > 30000) refetchDept();
+  hiddenAt = 0;
+});
+window.addEventListener("online", ()=>refetchDept());
+
+/* ---------- is this device really live? ----------
+   Every save comes straight back to the device that made it as a live
+   update —the same channel that brings everyone else's changes. If it
+   doesn't arrive within a few seconds, live updates aren't getting through
+   here (blocked network, a phone that keeps dropping the connection, live
+   updates not permitted for this login), so the device reads the server
+   every 20 seconds instead until they flow again, and the top bar says so. */
+let liveOk = true, rtSeen = 0, echoSince = 0, pollTimer = null;
+function noteRealtime(){ rtSeen = Date.now(); echoSince = 0; if(!liveOk) setLive(true); }
+function expectEcho(){ if(!echoSince) echoSince = Date.now(); }
+function setLive(on){
+  if(liveOk===on) return;
+  liveOk = on;
+  clearInterval(pollTimer); pollTimer = null;
+  if(!on){ pollTimer = setInterval(()=>{ if(document.visibilityState!=="hidden") refetchDept(); }, 20000); refetchDept(); }
+  setSync(syncMode, syncNote);
+}
+setInterval(()=>{
+  if(DB_READY && echoSince && rtSeen < echoSince && Date.now()-echoSince > 8000){ echoSince = 0; setLive(false); }
+}, 2000);
 
 async function switchDept(id){
   closeDeptMenu();
@@ -3545,6 +3788,7 @@ async function switchDept(id){
   fpDraft = {}; fpSel = null; fpEdit = false; fpEditSel = null; fpFloor = 1; rcvPending = null;
   const mirror = readMirror();
   state = mirror ? Object.assign(defaultState(), mirror) : defaultState();
+  persisted = snapshotOf(state); dirty = false; clearTimeout(flushTimer);
   applyDeptTypeNav();
   loadExpandedRacks();
   setSync("starting"); render();
@@ -3563,6 +3807,7 @@ async function createDept(code, name, company, type){
   toast("Department "+code+" created");
   const { data } = await sb.from("departments").select("*").order("sort_order").order("id");
   depts = (data||[]).map(d=>({id:d.id, code:d.code, name:d.name, company:d.company, order:d.sort_order, type:d.type||"kitchen"}));
+  writeDeptsCache();
   subscribeDeptRoster();
   dept = code; writeDeptPref();
   applyDeptTypeNav();
@@ -4248,7 +4493,7 @@ function planAdd(itemId, qty, d){
   const date = d || todayStr();
   const ex = state.plan.find(p=>p.date===date && p.itemId===itemId && !p.done);
   if(ex){ ex.qty = Math.round((ex.qty+qty)*100)/100; }
-  else state.plan.push({id:state.planSeq++, date, itemId, qty:Math.round(qty*100)/100, done:false});
+  else state.plan.push({id:uid("planSeq"), date, itemId, qty:Math.round(qty*100)/100, done:false});
   save(); render();
   const it = item(itemId);
   toast("Scheduled " + fmt(qty) + " —" + (it?it.name:"item"));
@@ -4263,7 +4508,7 @@ function planFillFromShort(){
     if(state.capacity>0 && k>0 && kg+k > state.capacity){ skipped++; continue; }
     const ex = state.plan.find(p=>p.date===d && p.itemId===m.it.id && !p.done);
     if(ex) ex.qty = Math.max(ex.qty, m.need);
-    else state.plan.push({id:state.planSeq++, date:d, itemId:m.it.id, qty:m.need, done:false});
+    else state.plan.push({id:uid("planSeq"), date:d, itemId:m.it.id, qty:m.need, done:false});
     kg += k; added++;
   }
   save(); render();
@@ -4386,7 +4631,7 @@ function cookYield(i){
   el.style.color = y<90?"var(--crit)":y<98?"var(--warn)":"var(--ok)";
 }
 function cookSave(){
-  const d = cookDate(), b = state.batchSeq++;
+  const d = cookDate(), b = uid("batchSeq");
   let n=0, tot=0, low=[];
   for(const l of cookLines){
     const a = parseFloat(l.actual), p = parseFloat(l.planned);
@@ -4700,7 +4945,7 @@ function renderCount(){
   });
 }
 function applyCounts(){
-  const b = state.batchSeq++;
+  const b = uid("batchSeq");
   let n=0, up=0, down=0;
   for(const id of Object.keys(countDraft)){
     const it = item(+id); if(!it) continue;
@@ -5002,7 +5247,7 @@ function doAdd(){
     it.stock = parseFloat($("#m-stock").value)||0;
     it.min = parseFloat($("#m-min").value)||0;
   }
-  it.id = state.nextId++;
+  it.id = uid("nextId");
   state.items.push(it);
   save(); closeModal(); render(); toast("Added —"+name);
 }
@@ -5076,7 +5321,7 @@ function doAdjust(id){
   else { toast("Enter a counted balance or a change"); return; }
   if(!q){ toast("That leaves the balance unchanged"); return; }
   it.stock = Math.round((it.stock+q)*100)/100;
-  const b = state.batchSeq++;
+  const b = uid("batchSeq");
   state.tx.push(newTx({ts:Date.now(), date:todayStr(), itemId:id, type:"adjust", qty:q, note:$("#m-note").value||"", b}));
   state.lastBatch=b; state.lastBatchBills=null;
   save(); closeModal(); render();
@@ -5510,7 +5755,7 @@ function renderPreview(){
 function applyImport(){
   if(!pending) return;
   const hist = !!pending.hist, hasBills = !!pending.hasBills && !!pending.duplicateProtection;
-  const lines = aggregate(), b = state.batchSeq++, roll = {};
+  const lines = aggregate(), b = uid("batchSeq"), roll = {};
   let n=0, tot=0, dups=0, neg=[];
   for(const l of lines){
     dups += l.dup;
@@ -5665,7 +5910,7 @@ async function importItems(grid, fname){
   }
 
   let added=0, updated=0, logged=0;
-  const b = state.batchSeq++;
+  const b = uid("batchSeq");
   const touchedRacks = new Set();
   const touchedLevels = new Set();   // "rack\u0001level" pairs
   const rackZones = new Map();
@@ -5688,7 +5933,7 @@ async function importItems(grid, fname){
         updated++;
       } else {
         const code = String(get(row,c.code)??"").trim();
-        const it = {id:state.nextId++, name, uom, code, store:pp?pp.rack:"",
+        const it = {id:uid("nextId"), name, uom, code, store:pp?pp.rack:"",
           level:pp?pp.level:"1", slot:pp?(pp.pos||r):r,
           cat:String(get(row,c.cat)??"").trim() || CODE_CAT[code.slice(0,2)] || "Uncategorised",
           stock:num(get(row,c.stock)), min:num(get(row,c.min)), counted:c.stock>=0,
@@ -5698,7 +5943,7 @@ async function importItems(grid, fname){
       }
     } else {
       /* Warehouse: Ctn Qty (or Physical Qty) is full cartons, Loose is packets. */
-      const it = ex || {id:state.nextId++, name, uom, code:"", store:"", level:"1", slot:0,
+      const it = ex || {id:uid("nextId"), name, uom, code:"", store:"", level:"1", slot:0,
         cat:"Uncategorised", stock:0, min:0, counted:false, looseQty:0, baseDaily:0, stopped:false, packSize:null};
       if(has(row,c.code)) it.code = String(get(row,c.code)).trim();
       if(has(row,c.cat)) it.cat = String(get(row,c.cat)).trim();
@@ -6726,7 +6971,7 @@ function planRefreshSaveBar(){
   $("#fp-save-n").innerHTML = `<b>${n}</b> unsaved change${n===1?"":"s"}`;
 }
 function savePlanDraft(){
-  const b = state.batchSeq++;
+  const b = uid("batchSeq");
   let n = 0;
   for(const k of Object.keys(fpDraft)){
     const it = item(+k); if(!it) continue;
@@ -7688,7 +7933,7 @@ function applyReceive(){
   if(!rcvPending) return;
   const rows = receiveRows().filter(r=>r.status==="new" || r.status==="revised");
   if(!rows.length){ toast("Nothing new to receive"); return; }
-  const b = state.batchSeq++, fname = rcvPending.fname;
+  const b = uid("batchSeq"), fname = rcvPending.fname;
   let n=0, unplaced=0;
   const touched = new Set();
   for(const r of rows){
@@ -8164,7 +8409,7 @@ async function loadDemo(){
   state.demo = true;
   state.capacity = 420;
   D.forEach(([name,uom,code,cat,stock,base])=>{
-    state.items.push({id:state.nextId++, name, uom, code, cat, stock, min:Math.max(1,Math.ceil(base*7)),
+    state.items.push({id:uid("nextId"), name, uom, code, cat, stock, min:Math.max(1,Math.ceil(base*7)),
       baseDaily:base, stopped:false, watch:false});
   });
   /* 14 days of plausible movement so the charts and yield have something to show */
@@ -8174,13 +8419,13 @@ async function loadDemo(){
     const date = dayAdd(todayStr(), -d);
     const dow = new Date(date+"T12:00").getDay();
     if(dow===0) continue;                                  // no Sunday shipments
-    const b1 = state.batchSeq++;
+    const b1 = uid("batchSeq");
     for(const it of state.items){
       const q = Math.round(it.baseDaily * (0.55 + rnd()*0.95));
       if(q>0) state.tx.push(newTx({ts:Date.now()-d*86400000, date, itemId:it.id, type:"sale", qty:-q, note:"example", b:b1}));
     }
     if(dow===2 || dow===5){                                 // cook days
-      const b2 = state.batchSeq++;
+      const b2 = uid("batchSeq");
       for(const it of state.items){
         if(rnd()<0.55) continue;
         const planned = Math.max(4, Math.round(it.baseDaily*4));
