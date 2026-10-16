@@ -5129,6 +5129,21 @@ tr.grp td{background:#F2F4F1;font:600 11px "IBM Plex Mono",monospace;letter-spac
    tap outside it or a stray key, so a half-filled form isn't lost by accident. */
 function modal(html){ $("#modal-root").innerHTML = `<div class="mbg"><div class="modal">${html}</div></div>`; }
 function closeModal(){ $("#modal-root").innerHTML=""; }
+/* Enter in a dialog's box presses its main button —type a product name in
+   Add item, press Enter, it's added. Never a red (deleting) button, never in
+   a multi-line box, and not while a Chinese input method is still composing
+   (there Enter confirms the characters). A box with suggestions (datalist)
+   lets the browser fill in the picked suggestion first. */
+$("#modal-root").addEventListener("keydown", e=>{
+  if(e.key!=="Enter" || e.isComposing || e.keyCode===229 || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return;
+  const t = e.target;
+  if(!t || t.tagName!=="INPUT" || /^(checkbox|radio|button|submit|reset|file)$/i.test(t.type)) return;
+  const m = t.closest(".modal"); if(!m) return;
+  const btn = m.querySelector(".mfoot .btn.primary:not(.danger):not(:disabled)");
+  if(!btn) return;
+  if(t.hasAttribute("list")) setTimeout(()=>{ if(btn.isConnected) btn.click(); }, 0);
+  else { e.preventDefault(); btn.click(); }
+});
 function askConfirm(title, body, ok, danger){
   return new Promise(res=>{
     let done=false;
