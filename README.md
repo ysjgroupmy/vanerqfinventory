@@ -220,7 +220,15 @@ needs nothing special.
 
 Dialogs (Add item, Edit, rack settings, confirmations …) close only from their
 own buttons —Cancel, Save and so on— never from a tap outside or the Escape
-key, so a half-filled form can't be lost by accident. **Category** is optional:
+key, so a half-filled form can't be lost by accident.
+
+**Enter** in a dialog's box presses its main button. For example, type a
+product name in **Add item** and press Enter to add it, or press Enter in
+**Edit** to save.
+- It never presses a red, deleting button.
+- It doesn't fire while a Chinese input method is still composing characters.
+
+**Category** is optional:
 leave it blank and nothing shows; the category filter on the Stock page only
 appears once a product has one.
 
