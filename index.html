@@ -278,6 +278,9 @@ input,select,textarea{background:var(--panel);border:1px solid var(--rule-2);col
 input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px #0B4F4A1F}
 input[type=number]{width:88px;text-align:right;font-family:var(--f-mono)}
 input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px}
+/* On a phone, tapping + then + again quickly (a rack's stock steppers) is two
+   taps, never a double-tap zoom. Pinching to zoom still works. */
+button,a,input,select,textarea,label,summary,[onclick],.fp-svg{touch-action:manipulation}
 textarea{width:100%;resize:vertical;font-family:var(--f-mono);font-size:12px;line-height:1.5}
 .bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
 .bar input[type=search]{flex:1;min-width:180px}
@@ -567,6 +570,10 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
    (labels come from the column headings —see labelTables()). */
 .psub-more{display:none}
 .psub-more.no{display:none!important}
+/* iPhones zoom in on a box with text under 16px when it's tapped; a phone on
+   its side is wider than the 860px phone layout, so the stock boxes keep 16px
+   on any touch screen. */
+@media(pointer:coarse){ .fp-step input[type=number],.rk-card-qty input{font-size:16px} }
 @media(min-width:861px){ .m-only{display:none!important} }
 @media(max-width:860px){
   .shell{flex-direction:column;align-items:stretch;min-height:0}
