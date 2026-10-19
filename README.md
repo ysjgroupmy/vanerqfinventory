@@ -124,8 +124,10 @@ Every page fits the screen width, with no sideways scrolling:
 ## Warehouse departments (0434)
 
 A department can be `kitchen` (the cook-line pages: Panel/Cook/Sales In/Sales)
-or `warehouse` (Low Stock / Racks / Receive Stock / Issue Stock / Issued Summary
-instead).
+or `warehouse` (Low Stock / Racks / Receive Stock / Issue Stock / Sales
+Deduction / Issued Summary instead). A warehouse numbers its stations on from
+Sales Deduction (10): Issued Summary 11, Log 12, Setup 13. A kitchen keeps Log
+11 and Setup 12.
 Setup → Departments has a Type selector when adding a new one. Stock,
 Stocktake, Count, Log and Setup are shared by both types.
 
@@ -345,6 +347,50 @@ date range, with a by-item breakdown and CSV export. Issues also count as
 **usage**, so Use/day, Cover, trends and **Set minimums** work for a warehouse
 the way sales do for a kitchen.
 
+### Sales Deduction
+
+Takes what was sold off the stock on hand. Drop YonYou's sales export
+(**SI_Item**: `INVOICEDATE`, `BILLTYPENAME`, `COMP`, `BILLNO`, … `MATCODE`,
+`MATERIAL`, `UOM`, `TOTALQTY`).
+
+- **Bill protection, always on:** every line is remembered by `BILLNO` +
+  product, in the same bill registry the kitchen's sales import uses.
+  - Importing the same file again, or one that overlaps, takes nothing off
+    twice.
+  - A bill edited in YonYou since applies only the difference.
+  - A file without a bill number column is refused.
+- **Only this warehouse's products:** the export covers both companies and every
+  warehouse. A line is taken off only if its `MATCODE` is on **this**
+  warehouse's item list; the rest are skipped and counted, with **Show them**
+  to map one by hand.
+  - **Sold by:** ticks for each company (`COMP`) narrow the file to the
+    companies whose sales come out of this warehouse.
+- **Units:** `UOM` is what was sold.
+  - A single can (`0.425kg/can`) of a product stocked by the carton
+    (`24x0.425kg/ctn`) is one can, and the carton UOM is 24 of them.
+  - **Count as** shows the choice for each product and can be switched.
+  - A product sold in a different pack size from the one stocked (sold
+    `0.1kg/pkt`, stocked `0.5kg/pkt`) isn't taken off until someone picks how
+    to count it.
+- **Subtotals and returns:** 分节小计 subtotal rows (they carry the product
+  code and its total for the whole file) are skipped. 退换货 return lines have a
+  negative quantity and put stock back.
+- **Trends only:** records the sales (usage, trends, Set minimums) and remembers
+  the bills, without changing any balance.
+- **First import:** the first file usually reaches back months, long before the
+  stock was counted. So the first import starts on **Only sales from** the day
+  after the last count: earlier sales are recorded for trends only, later ones
+  come off. After that, every new bill comes off. The date can be changed or
+  unticked.
+  - Import the latest sales before a stocktake. A sale dated on or before a
+    count but imported after it would otherwise come off twice.
+- **Issue Stock overlap:** if **Issue Stock** has issues of the same products to
+  the same company over the same days, the preview warns. An issue and a sale
+  of the same goods would come off twice.
+- **Sales on record:** lists what's been taken off. **Undo last import**
+  reverses an import: balances, the bill registry and the log go back as they
+  were.
+
 ### Stocktake / Count
 
 In a warehouse both are in **shelf order** —zone, rack as laid out, level,
@@ -442,6 +488,10 @@ blank sheet with the same columns.
   - **Status:** the top bar shows **live · all devices** or **every 20 s**.
 - **Undo is per device:** it reverses only what that device last did, never
   another device's action.
+- **Big imports are saved in batches:** a sales export can add thousands of
+  bills and log rows. They go to the server a few hundred rows per request, and
+  deletes (an Undo of such an import) name at most 150 keys per request. A
+  delete lists its keys in the URL, and that has a length limit.
 - A sale's `tx` row carries an optional `amount` (revenue for that line), captured
   from a sales import only when the file has a recognisable total/amount column
   (TOTALAMT / AMOUNT / 金额 — a per-unit price column is deliberately not picked up,
