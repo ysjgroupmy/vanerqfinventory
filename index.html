@@ -278,6 +278,9 @@ input,select,textarea{background:var(--panel);border:1px solid var(--rule-2);col
 input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px #0B4F4A1F}
 input[type=number]{width:88px;text-align:right;font-family:var(--f-mono)}
 input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px}
+/* On a phone, tapping + then + again quickly (a rack's stock steppers) is two
+   taps, never a double-tap zoom. Pinching to zoom still works. */
+button,a,input,select,textarea,label,summary,[onclick],.fp-svg{touch-action:manipulation}
 textarea{width:100%;resize:vertical;font-family:var(--f-mono);font-size:12px;line-height:1.5}
 .bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
 .bar input[type=search]{flex:1;min-width:180px}
@@ -567,6 +570,10 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
    (labels come from the column headings —see labelTables()). */
 .psub-more{display:none}
 .psub-more.no{display:none!important}
+/* iPhones zoom in on a box with text under 16px when it's tapped; a phone on
+   its side is wider than the 860px phone layout, so the stock boxes keep 16px
+   on any touch screen. */
+@media(pointer:coarse){ .fp-step input[type=number],.rk-card-qty input{font-size:16px} }
 @media(min-width:861px){ .m-only{display:none!important} }
 @media(max-width:860px){
   .shell{flex-direction:column;align-items:stretch;min-height:0}
@@ -5142,8 +5149,19 @@ tr.grp td{background:#F2F4F1;font:600 11px "IBM Plex Mono",monospace;letter-spac
    ============================================================ */
 /* A dialog only closes from its own buttons (Cancel, Save, ...) —never from a
    tap outside it or a stray key, so a half-filled form isn't lost by accident. */
-function modal(html){ $("#modal-root").innerHTML = `<div class="mbg"><div class="modal">${html}</div></div>`; }
-function closeModal(){ $("#modal-root").innerHTML=""; }
+/* On a phone the page behind a dialog can move while it's open (the keyboard
+   coming up for the first box, iOS scrolling a box inside a fixed dialog into
+   view) —closing the dialog puts the page back where it was. */
+let modalY = null;
+function modal(html){
+  if(modalY==null) modalY = window.scrollY;
+  $("#modal-root").innerHTML = `<div class="mbg"><div class="modal">${html}</div></div>`;
+}
+function closeModal(){
+  $("#modal-root").innerHTML="";
+  if(modalY!=null && Math.abs(window.scrollY-modalY)>1) window.scrollTo({top:modalY, behavior:"instant"});
+  modalY = null;
+}
 /* Enter in a dialog's box presses its main button —type a product name in
    Add item, press Enter, it's added. Never a red (deleting) button, never in
    a multi-line box, and not while a Chinese input method is still composing
@@ -6905,10 +6923,12 @@ function renderPlan(){
       return `<div class="notebar"><span><b>The ${ordinal(f)} floor's layout is ready</b> —your plan was drawn before it was added, so ${names.join(", ")}${f===2?" and the stairs":""} aren't on it yet.</span>
         <button class="btn sm primary" onclick="loadPlan0434(${f})">Draw the ${ordinal(f)} floor</button></div>`;
     }).join("") : "";
-  host.innerHTML = `${drawBar}<div class="fp-wrap"><div class="fp-left">${bar}<div class="fp-mapbox${fpZoom?" zoom":""}" id="fp-mapbox">${map}</div></div>
+  const marks = scrollMarks(host);
+  host.innerHTML = `${drawBar}<div class="fp-wrap"><div class="fp-left">${bar}<div class="fp-mapbox${fpZoom?" zoom":""}" id="fp-mapbox" data-keep="map:${fpFloor}:${fpZoom?1:0}:${fpEdit?1:0}">${map}</div></div>
     <div class="fp-side" id="fp-side">${side}${planSaveBar()}</div></div>`;
   wirePlanMap();
   wirePlanSide();
+  restoreScroll(host, marks);
   if(fpFocus!=null){
     const row = document.querySelector(`.fp-it[data-id="${fpFocus}"]`); fpFocus = null;
     if(row){ row.scrollIntoView({block:"center"}); row.classList.add("hit"); }
@@ -6977,7 +6997,7 @@ function planRackPanel(name, q){
         <button class="btn sm" style="margin-left:auto" onclick="planAddHere('${esc(name)}','${esc(l)}')">+ Add product</button></div>
       ${rows.length ? rows.map((it,k)=>(coded && !q ? insertLine(name, l, rows[k-1], it) : "")+planItemRow(it, q)).join("") : '<div class="dim" style="font-size:12px;padding:6px 0 8px">Nothing on this level.</div>'}</div>`;
   }).join("");
-  return head + `<div class="fp-side-b" id="fp-side-b">${body}</div>`;
+  return head + `<div class="fp-side-b" id="fp-side-b" data-keep="rack:${esc(name)}">${body}</div>`;
 }
 function planItemRow(it, q){
   const v = fpDraft[it.id]!==undefined ? fpDraft[it.id] : it.stock;
@@ -7152,7 +7172,7 @@ function planAddHere(rack, level){
 
 /* ---------- overview (nothing selected) ---------- */
 function planOverview(q, empty){
-  let html = `<div class="fp-side-h"><b>${q?"Search":"Overview"}</b></div><div class="fp-side-b" id="fp-side-b">`;
+  let html = `<div class="fp-side-h"><b>${q?"Search":"Overview"}</b></div><div class="fp-side-b" id="fp-side-b" data-keep="overview:${esc(q)}">`;
   if(q){
     const hits = state.items.filter(i=>planMatch(i,q)).sort(walkCmp()).slice(0,40);
     html += hits.length ? hits.map(i=>`<button class="fp-hit" onclick="${i.store?`planSelect('${esc(i.store)}', ${i.id})`:`openEdit(${i.id})`}">
@@ -7336,6 +7356,20 @@ function upgradePlan0434(){
   return changed;
 }
 
+/* A redraw replaces the Racks views' HTML, which would send every box that
+   scrolls on its own —the rack panel's product list, each open rack on
+   Shelves, the zoomed-in map— back to the top after every add, edit or save
+   arriving from another device. Each such box is tagged data-keep with what
+   it shows; if the same thing is shown again it goes back to where it was. */
+function scrollMarks(host){
+  const m = new Map();
+  if(host) for(const el of host.querySelectorAll("[data-keep]")) if(el.scrollTop || el.scrollLeft) m.set(el.dataset.keep, [el.scrollTop, el.scrollLeft]);
+  return m;
+}
+function restoreScroll(host, m){
+  if(!host || !m.size) return;
+  for(const el of host.querySelectorAll("[data-keep]")){ const p = m.get(el.dataset.keep); if(p){ el.scrollTop = p[0]; el.scrollLeft = p[1]; } }
+}
 /* The Racks page: floor plan or shelves. */
 function renderRacks(){
   if(!isWarehouse() || !$("#rk-plan")) return;
@@ -7458,14 +7492,14 @@ function renderShelves(){
         <button class="xbtn" onclick="event.stopPropagation();promptMoveRack('${esc(name)}')" title="Rack settings —zone, row, position" style="margin-left:auto">⚙</button>
         <button class="xbtn" onclick="event.stopPropagation();promptAddLevel('${esc(name)}')" title="Add level">+lvl</button>
         <button class="xbtn" onclick="event.stopPropagation();removeRack('${esc(name)}')" title="Remove rack">✕</button></div>
-      ${open ? `<div class="rk-col-b">${levelsOf(name).map(lv=>levelSection(name, lv, byLevel.get(lv)||[])).join("")}</div>` : ""}
+      ${open ? `<div class="rk-col-b" data-keep="col:${esc(name)}">${levelsOf(name).map(lv=>levelSection(name, lv, byLevel.get(lv)||[])).join("")}</div>` : ""}
     </div>`;
   };
   const unOpen = expandedRacks.has("Unassigned") || (!!q && unassigned.length>0);
   const unassignedCol = `<div class="rk-col${unOpen?" open":""}">
       <div class="rk-col-h" onclick="toggleRackExpanded('Unassigned')">
         <span class="rk-chev">${unOpen?"▾":"▸"}</span><b>Unassigned</b><span class="dim${unassigned.length?" rk-warn":""}" style="font-size:10.5px">${unassigned.length}</span></div>
-      ${unOpen ? `<div class="rk-col-b"><div class="rk-lvl"><div class="rk-lvl-b" data-rack="" data-level="1" data-coded="0">
+      ${unOpen ? `<div class="rk-col-b" data-keep="col:"><div class="rk-lvl"><div class="rk-lvl-b" data-rack="" data-level="1" data-coded="0">
         ${unassigned.map((it,n)=>pos(pad2(n+1), card(it))).join("")}${pos(pad2(unassigned.length+1), addSlot)}
       </div></div></div>` : ""}
     </div>`;
@@ -7476,8 +7510,10 @@ function renderShelves(){
     </div>`).join("")
     : `<div class="empty" style="padding:26px 14px">No racks in the ${esc((zoneInfo(tab)||{label:""}).label.toLowerCase())} yet —set a rack's zone with ⚙ on its header, or add one.</div>`;
 
+  const marks = scrollMarks(board);
   board.innerHTML = tabs + alerts + rowsHtml
     + `<div class="rk-row"><div class="rk-row-label">Unassigned</div><div class="rk-row-b">${unassignedCol}</div></div>`;
+  restoreScroll(board, marks);
 
   $$(".rk-lvl-b").forEach(zone=>{
     zone.addEventListener("dragover", e=>{ e.preventDefault(); zone.classList.add("over"); });
