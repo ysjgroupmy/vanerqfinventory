@@ -517,6 +517,11 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
 .fp-it.hit{box-shadow:inset 3px 0 0 var(--fp-hit)}
 .fp-it-top{display:flex;gap:7px;align-items:baseline;flex-wrap:wrap;font-size:13px}
 .fp-code{font-size:11px;font-weight:600;color:var(--ink-2)}
+.fp-acts{margin-left:auto;display:inline-flex;gap:4px;align-self:center}
+.rk-card-acts{display:flex;justify-content:flex-end;gap:3px;margin-top:4px}
+.rk-act{border:1px solid var(--rule-2);background:var(--panel);color:var(--ink-2);font:12px/1 var(--f-ui);width:24px;height:22px;padding:0;cursor:pointer}
+.rk-act:hover{border-color:var(--accent);color:var(--accent)}
+.rk-act.del:hover{border-color:var(--crit-rule);color:var(--crit);background:var(--crit-bg)}
 .fp-it-sub{font-family:var(--f-mono);font-size:10px;color:var(--ink-3);margin:1px 0 6px}
 .fp-it-q{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .fp-step{display:inline-flex;align-items:center}
@@ -628,6 +633,7 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
   .rk-card{width:128px}
   .rk-add-slot{width:128px}
   .rk-card-qty input{font-size:16px;min-height:34px;padding:2px 4px}
+  .rk-act{width:34px;height:32px;font-size:14px}
   #toast{bottom:calc(16px + env(safe-area-inset-bottom))}
 }
 @media(max-width:760px){
@@ -3404,18 +3410,22 @@ function readPending(){ try{ const r = localStorage.getItem(pendKey()); return r
 const LOCAL_ONLY = new Set(["dept_id", "last_batch", "last_batch_bills"]);
 function settingsChanges(){
   const was = persisted && persisted.settings ? JSON.parse(persisted.settings) : {}, cur = settingsRow(state), f = {};
-  for(const k of Object.keys(cur)) if(!LOCAL_ONLY.has(k) && ser(cur[k])!==ser(was[k])) f[k] = cur[k];
+  /* A field the stored copy doesn't have at all isn't a change made here —
+     e.g. the floor plan, which only belongs to warehouses: a device opening
+     for the first time doesn't know yet that it's in one, and its empty
+     starting plan must never be mistaken for an edit and sent over the real one. */
+  for(const k of Object.keys(cur)) if(!LOCAL_ONLY.has(k) && k in was && ser(cur[k])!==ser(was[k])) f[k] = cur[k];
   return f;
 }
 
-let saveSeq = 0;
+let saveSeq = 0, editedWhileLoading = false;
 function save(){
   stateVer++;                      // anything worked out from the data (automatic minimums) is stale now
   saveSeq++;
   mirrorLocal();
   /* still loading from the server (slow signal, app just opened): keep the
      change as unsaved —it goes on top of the server data once that arrives */
-  if(!DB_READY){ writePending(localChanges()); return; }
+  if(!DB_READY){ editedWhileLoading = true; writePending(localChanges()); return; }
   dirty = true;
   clearTimeout(flushTimer);
   flushTimer = setTimeout(runFlush, 250);
@@ -3575,7 +3585,11 @@ function onStoreData(){
    changed here and isn't on the server yet (`extra`: changes kept from an
    earlier visit that never got through). */
 function applyStore(extra){
-  const mine = localChanges();
+  /* Before the first load is in, `persisted` is only this device's own copy
+     (or an empty start) —compare against it only if something was actually
+     edited meanwhile, never just because the copy differs from the server. */
+  const mine = (DB_READY || editedWhileLoading) ? localChanges() : null;
+  editedWhileLoading = false;
   const undo = state ? [state.lastBatch, state.lastBatchBills] : [null, null];   // this device's own Undo
   applying = true;
   state = stateFromCache();
@@ -3706,6 +3720,7 @@ async function subscribeDept(){
 
   applyStore(readPending());
   DB_READY = true;
+  if(upgradePlan0434()){ save(); render(); }
   if(dirty){ clearTimeout(flushTimer); flushTimer = setTimeout(runFlush, 250); }   // send what was kept / added while loading
 
   const filt = "dept_id=eq."+dept;
@@ -5436,6 +5451,7 @@ async function delItem(id){
   if(!await askConfirm("Remove “"+it.name+"”", "Its movement history stays in the log.", "Remove", true)) return;
   state.items = state.items.filter(i=>i.id!==id);
   state.plan = state.plan.filter(p=>p.itemId!==id);
+  if(typeof fpDraft!=="undefined") delete fpDraft[id];
   save(); render(); toast("Removed —"+it.name);
 }
 
@@ -6649,20 +6665,18 @@ const PLAN_0434 = {
   ],
   /* storage rooms; an existing area already used for one (e.g. "0434CH") is reused */
   rooms: [
-    {floor:1, zone:"chilled", name:"CHILLER", x:12, y:1,  w:12, h:10},
-    {floor:1, zone:"frozen",  name:"FREEZER", x:18, y:12, w:12, h:13},
+    {floor:1, zone:"chilled", name:"CHILLER", x:12, y:1,  w:18, h:10},
+    {floor:1, zone:"frozen",  name:"FREEZER", x:12, y:12, w:18, h:13},
     {floor:2, zone:"dry",     name:"CENTER",  x:25, y:11, w:12, h:19, match:/^cent(er|re)$/i}
   ],
   shapes: [
     {t:"area",  floor:1, x:0,  y:41, w:31, h:12, text:"Outside the main door"},
     {t:"floor", floor:1, x:1,  y:1,  w:29, h:39},
-    {t:"block", floor:1, x:24, y:1,  w:6,  h:10},
-    {t:"block", floor:1, x:12, y:11, w:6,  h:14},
     {t:"wall",  floor:1, x:0,  y:0,  w:31, h:1},
     {t:"wall",  floor:1, x:0,  y:40, w:31, h:1},
     {t:"wall",  floor:1, x:0,  y:1,  w:1,  h:39},
     {t:"wall",  floor:1, x:30, y:1,  w:1,  h:39},
-    {t:"wall",  floor:1, x:18, y:11, w:12, h:1},
+    {t:"wall",  floor:1, x:12, y:11, w:18, h:1},
     {t:"door",  floor:1, x:9,  y:40, w:12, h:1, text:"Main door", swing:"up"},
     {t:"door",  floor:1, x:11.5, y:3, w:1, h:5, text:"Entrance", swing:"right"},
     {t:"door",  floor:1, x:19, y:24.5, w:4, h:1, text:"Entrance", swing:"up"},
@@ -6972,7 +6986,8 @@ function planItemRow(it, q){
   const qty = p>1 ? step("c", sg*s.ctn, "ctn") + step("p", sg*s.pkt, unitOf(it)) : step("p", v, hasPack(it) ? unitOf(it) : "qty");
   const d = planDiff(it), pc = posCode(it);
   return `<div class="fp-it${d.chg?" chg":""}${planMatch(it,q)?" hit":""}" data-id="${it.id}">
-    <div class="fp-it-top">${pc&&rackCoded(it.store)?`<span class="mono fp-code">${esc(pc)}</span>`:""}<b>${esc(it.name)}</b>${stockFlag(it)}</div>
+    <div class="fp-it-top">${pc&&rackCoded(it.store)?`<span class="mono fp-code">${esc(pc)}</span>`:""}<b>${esc(it.name)}</b>${stockFlag(it)}
+      <span class="fp-acts"><button type="button" class="btn sm" onclick="openEdit(${it.id})">Edit</button><button type="button" class="btn sm danger" onclick="delItem(${it.id})">Delete</button></span></div>
     <div class="fp-it-sub">${esc(it.uom||"")}${p>1?` · ${p} ${esc(unitOf(it))}/ctn`:""}${it.code?" · "+esc(it.code):""}${!hasPack(it)&&it.looseQty?` · +${fmt(it.looseQty)} loose (set a pack size to merge)`:""}</div>
     <div class="fp-it-q">${qty}<span class="fp-diff" data-diff>${d.html}</span></div>
   </div>`;
@@ -7299,6 +7314,28 @@ async function loadPlan0434(onlyFloor){
   toast(onlyFloor ? ordinal(onlyFloor)+" floor redrawn" : "0434 floor plan drawn —both floors; tap a rack to see what's on it");
 }
 
+/* The chiller and freezer were first drawn narrower, each beside a hatched
+   no-access block; they really run the full width (chiller to the right-hand
+   wall, freezer out to the left under it). A plan still exactly in that
+   first shape is brought up to date once —on whichever device opens it
+   first, and the change syncs— while a layout changed by hand is left alone. */
+function upgradePlan0434(){
+  if(!isWarehouse()) return false;
+  const at = (o, x, y, w, h) => !!o && (o.floor||1)===1 && o.x===x && o.y===y && o.w===w && o.h===h;
+  const fp = state.floorPlan||[];
+  const ch = state.racks.find(r=>at(r, 12, 1, 12, 10)), fz = state.racks.find(r=>at(r, 18, 12, 12, 13));
+  const chBlock = fp.find(s=>s.t==="block" && at(s, 24, 1, 6, 10)), fzBlock = fp.find(s=>s.t==="block" && at(s, 12, 11, 6, 14));
+  const wall = fp.find(s=>s.t==="wall" && at(s, 18, 11, 12, 1));
+  let changed = false;
+  if(ch && chBlock){ ch.w = 18; state.floorPlan = state.floorPlan.filter(s=>s!==chBlock); changed = true; }
+  if(fz && fzBlock){
+    fz.x = 12; fz.w = 18; state.floorPlan = state.floorPlan.filter(s=>s!==fzBlock);
+    if(wall){ wall.x = 12; wall.w = 18; }
+    changed = true;
+  }
+  return changed;
+}
+
 /* The Racks page: floor plan or shelves. */
 function renderRacks(){
   if(!isWarehouse() || !$("#rk-plan")) return;
@@ -7369,6 +7406,7 @@ function renderShelves(){
       <div class="rk-card-top"><b>${esc(it.name)}</b></div>
       <div class="rk-card-meta">${code&&rackCoded(it.store)?`<span class="mono">${esc(code)}</span> `:""}${esc(it.uom||"")}${p>1?` · ${p}/ctn`:""}</div>
       <div class="rk-card-qty">${qty}</div>
+      <div class="rk-card-acts"><button type="button" class="rk-act" draggable="false" onclick="openEdit(${it.id})" title="Edit" aria-label="Edit">✎</button><button type="button" class="rk-act del" draggable="false" onclick="delItem(${it.id})" title="Delete" aria-label="Delete">✕</button></div>
     </div>`;
   };
   const pos = (label, inner, slot) => `<div class="rk-pos"${slot!=null?` data-slot="${slot}"`:""}><span class="rk-pos-n">${label}</span>${inner}</div>`;
