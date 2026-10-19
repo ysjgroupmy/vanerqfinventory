@@ -779,9 +779,10 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
     <button data-page="salesview" data-scope="kitchen"><span class="st">08</span><svg class="ic"><use href="#i-chart"/></svg>Sales</button>
     <button data-page="receive" data-scope="warehouse"><span class="st">08</span><svg class="ic"><use href="#i-in"/></svg>Receive Stock</button>
     <button data-page="issue" data-scope="warehouse"><span class="st">09</span><svg class="ic"><use href="#i-truck"/></svg>Issue Stock</button>
-    <button data-page="issuesum" data-scope="warehouse"><span class="st">10</span><svg class="ic"><use href="#i-chart"/></svg>Issued Summary</button>
-    <button data-page="log"><span class="st">11</span><svg class="ic"><use href="#i-log"/></svg>Log</button>
-    <button data-page="setup"><span class="st">12</span><svg class="ic"><use href="#i-setup"/></svg>Setup</button>
+    <button data-page="salesded" data-scope="warehouse"><span class="st">10</span><svg class="ic"><use href="#i-sales"/></svg>Sales Deduction</button>
+    <button data-page="issuesum" data-scope="warehouse"><span class="st">11</span><svg class="ic"><use href="#i-chart"/></svg>Issued Summary</button>
+    <button data-page="log" data-st-wh="12"><span class="st">11</span><svg class="ic"><use href="#i-log"/></svg>Log</button>
+    <button data-page="setup" data-st-wh="13"><span class="st">12</span><svg class="ic"><use href="#i-setup"/></svg>Setup</button>
     <div class="rail-foot" id="rail-foot">Export a backup from Setup regularly.</div>
   </nav>
 
@@ -1012,7 +1013,26 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
     </div>
   </section>
 
-  <!-- ======== 10 ISSUED SUMMARY (warehouse) ======== -->
+  <!-- ======== 10 SALES DEDUCTION (warehouse) ======== -->
+  <section id="page-salesded" class="hidden">
+    <div class="phead"><div><h1>Sales Deduction</h1><div class="psub">Takes what was sold off the stock on hand. Drop YonYou's sales export (<span class="mono" data-notr>SI_Item</span>). Every line is remembered by its bill number, so a bill only ever comes off once —the same file again, or one that overlaps, skips what's already in. Only products on this warehouse's item list are taken off. Import the latest sales before a stocktake.</div></div>
+      <button class="btn" onclick="undoLast()"><svg class="ic"><use href="#i-undo"/></svg>Undo last import</button></div>
+    <div class="drop" id="drop-sd">
+      <b>Drop the YonYou sales export (SI_Item) here</b>or click to choose
+      <div class="mono faint" style="font-size:11.5px;margin-top:4px" data-notr>.xlsx · .xls · .csv</div>
+      <input type="file" id="sd-file" accept=".xlsx,.xls,.csv" style="display:none">
+    </div>
+    <div id="sd-preview"></div>
+    <div class="panel">
+      <div class="panel-h"><h2>Sales on record</h2><span class="meta" id="sd-meta"></span>
+        <select id="sd-filter" style="margin-left:auto" onchange="renderSalesDeduction()">
+          <option value="all">All sales</option><option value="ded">Taken off stock</option><option value="trend">Trends only</option></select>
+      </div>
+      <div class="scroll" id="sd-table"></div>
+    </div>
+  </section>
+
+  <!-- ======== 11 ISSUED SUMMARY (warehouse) ======== -->
   <section id="page-issuesum" class="hidden">
     <div class="phead"><div><h1>Issued Summary</h1><div class="psub">Total stock issued to each company over a period —defaults to the current month.</div></div>
       <button class="btn" onclick="exportIssueSummaryCsv()"><svg class="ic"><use href="#i-print"/></svg>Export CSV</button></div>
@@ -1179,6 +1199,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "({n} days of usage).":"（{n} 天用量）。",
 "), or key a delivery in by hand. The export covers every warehouse —only products on this warehouse's item list are taken in, the rest are skipped. Quantities are read in the stock unit (":"），或手动录入送货。该导出包含所有仓库 —只导入本仓库货品清单上的货品，其余跳过。数量按库存单位读取（",
 "), so cartons become packets automatically. Every line is remembered by its bill number: importing the same file again adds nothing, and a revised bill adds only the difference.":"），因此箱会自动换算成包。每一行都按单据号记录：重复导入同一文件不会重复添加，修改过的单据只添加差异部分。",
+"). Every line is remembered by its bill number, so a bill only ever comes off once —the same file again, or one that overlaps, skips what's already in. Only products on this warehouse's item list are taken off. Import the latest sales before a stocktake.":"）。每一行都按单号记住，同一张单只会扣一次——再导入同一个文件或有重叠的文件，已导入的会跳过。只扣本仓库货品清单上的产品。盘点前请先导入最新的销售。",
 "+ Add":"+ 添加",
 "+ Add line":"+ 添加一行",
 "+ Add product":"+ 添加货品",
@@ -1258,6 +1279,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "All locations":"全部位置",
 "All movements":"全部流水",
 "All racks":"全部货架",
+"All sales":"全部销售",
 "All suppliers":"全部供应商",
 "All three fields are required":"三个字段都必须填写",
 "All time":"全部时间",
@@ -1297,6 +1319,11 @@ const ZH_DICT = /*ZH_DICT*/{
 "Below min in":"距低于最低库存",
 "Below minimum":"低于最低库存",
 "Below minimum —see Low Stock":"低于最低库存 —见低库存",
+"Bill protection is on —nothing in this file has been imported before.":"单号防重复已开启——这个文件里的单都还没导入过。",
+"Bill protection is on —{n} bill was already imported and is skipped, {n} changed since —only the difference applies.":"单号防重复已开启——{n} 张单已导入过，跳过；{n} 张之后有改动——只计差额。",
+"Bill protection is on —{n} bill was already imported and is skipped.":"单号防重复已开启——{n} 张单已导入过，跳过。",
+"Bill protection is on —{n} bills were already imported and are skipped, {n} changed since —only the difference applies.":"单号防重复已开启——{n} 张单已导入过，跳过；{n} 张之后有改动——只计差额。",
+"Bill protection is on —{n} bills were already imported and are skipped.":"单号防重复已开启——{n} 张单已导入过，跳过。",
 "Blank count sheet":"空白盘点表",
 "Body":"内容",
 "Bought to order —no minimum":"按单订购 —无最低库存",
@@ -1390,6 +1417,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "Count applied —{n} balanc changed ({n} up, {n} down) · Undo available":"盘点已应用 —{n} 项结存已更改（{n} 项增加，{n} 项减少）· 可撤销",
 "Count applied —{n} balance changed ({n} up, {n} down) · Undo available":"盘点已应用 —{n} 项结存已更改（{n} 项增加，{n} 项减少）· 可撤销",
 "Count applied —{n} balances changed ({n} up, {n} down) · Undo available":"盘点已应用 —{n} 项结存已更改（{n} 项增加，{n} 项减少）· 可撤销",
+"Count as":"计为",
 "Count change":"盘点调整",
 "Count change 盘点调整":"盘点调整",
 "Count sheet":"盘点表",
@@ -1481,6 +1509,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "Drop here":"拖到这里",
 "Drop the SI_Item export (or any sheet with a product and a quantity column). The system reads INVOICEDATE / MATERIAL / UOM / TOTALQTY, skips 合计小计 subtotal rows, and combines invoice lines per item. Every line is remembered by Bill No, so re-importing the same file skips duplicates and a revised invoice applies only the difference.":"拖入 SI_Item 导出文件（或任何含货品列和数量列的表格）。系统读取 INVOICEDATE / MATERIAL / UOM / TOTALQTY，跳过“合计小计”行，并按货品合并发票行。每一行都按 Bill No 记录，因此重复导入同一文件会跳过重复项，修改过的发票只应用差异部分。",
 "Drop the YonYou purchase export (PI_Item) here":"将 YonYou 采购导出文件（PI_Item）拖到这里",
+"Drop the YonYou sales export (SI_Item) here":"把用友销售导出（SI_Item）拖到这里",
 "Drop the item list":"拖入货品清单",
 "Drop the sales file here":"将销售文件拖到这里",
 "Dry":"干货",
@@ -1553,6 +1582,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "Height":"高",
 "Held for this department":"本部门数据",
 "Hide stopped":"隐藏已停用",
+"Hide them":"收起",
 "How were these counted until now?":"这些货品之前是按什么单位盘点的？",
 "Import cancelled —nothing changed":"已取消导入 —未做任何更改",
 "Import sales":"导入销售",
@@ -1562,6 +1592,8 @@ const ZH_DICT = /*ZH_DICT*/{
 "Insert undone —the rack codes are back as they were":"已撤销插入 —货位已恢复原样",
 "Invoice lines remembered":"已记录的发票行",
 "Issue Stock":"出库",
+"Issue Stock also has {n} issue of these products to the same company in the same days. If an issue and a sale are the same goods, they come off twice —check before taking these off.":"发货记录里同一时段也有 {n} 笔这些产品发给同一公司的记录。如果发货和销售是同一批货，就会扣两次——扣之前请先核对。",
+"Issue Stock also has {n} issues of these products to the same company in the same days. If an issue and a sale are the same goods, they come off twice —check before taking these off.":"发货记录里同一时段也有 {n} 笔这些产品发给同一公司的记录。如果发货和销售是同一批货，就会扣两次——扣之前请先核对。",
 "Issue deleted":"出库已删除",
 "Issue deleted —{s} restored to stock":"出库已删除 —{s} 已退回库存",
 "Issue stock":"出库",
@@ -1700,8 +1732,10 @@ const ZH_DICT = /*ZH_DICT*/{
 "No rack":"无货架",
 "No receipt lines found in that file":"该文件中未找到收货单行",
 "No sales imported yet —cover figures use baseline rates":"尚未导入销售 —可用天数按基准用量计算",
+"No sales imported yet.":"还没有导入销售。",
 "No sales in this range":"此范围内无销售",
 "No sales in this range.":"此范围内无销售。",
+"No sales lines found in that file":"这个文件里没有找到销售行",
 "No sales recorded in this range.":"此范围内无销售记录。",
 "No sales recorded yet":"尚无销售记录",
 "No stock issued in this range.":"此期间没有出库。",
@@ -1714,6 +1748,8 @@ const ZH_DICT = /*ZH_DICT*/{
 "Note":"备注",
 "Note (optional)":"备注（可选）",
 "Nothing has run out":"没有缺货",
+"Nothing here with this filter.":"这个筛选下没有记录。",
+"Nothing in this file is for this warehouse's products.":"这个文件里没有本仓库的产品。",
 "Nothing is about to go below its minimum.":"没有即将低于最低库存的货品。",
 "Nothing is low":"没有低库存",
 "Nothing is low —no reorder list to print":"没有低库存 —无补货清单可打印",
@@ -1723,6 +1759,8 @@ const ZH_DICT = /*ZH_DICT*/{
 "Nothing matched —map the rows first":"没有匹配项 —请先对应各行",
 "Nothing matches that filter.":"没有符合筛选条件的结果。",
 "Nothing moved in this range":"此范围内无货品售出",
+"Nothing new":"没有新的",
+"Nothing new in this file":"这个文件里没有新的",
 "Nothing new to receive":"没有新的收货内容",
 "Nothing on this level.":"此层没有货品。",
 "Nothing received yet.":"还没有收货记录。",
@@ -1731,6 +1769,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "Nothing runs out inside {n} hours":"{n} 小时内没有货品会用完",
 "Nothing scheduled for today":"今日无计划",
 "Nothing scheduled for {d}.":"{d} 无计划。",
+"Nothing taken off stock":"没有扣减库存",
 "Nothing to cook":"无需烹煮",
 "Nothing to save":"没有需要保存的内容",
 "Nothing to save —enter an actual quantity":"没有可保存的内容 —请输入实际数量",
@@ -1745,6 +1784,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "On Auto":"设为自动",
 "Once the count is done —on":"盘点完成后 —在",
 "One-time setup for this browser. These values are stored only in this browser's local storage and sent only to Supabase and Clerk directly —never anywhere else.":"仅需在此浏览器设置一次。这些值只保存在此浏览器的本地存储中，并且只直接发送给 Supabase 和 Clerk —不会发送到其他任何地方。",
+"Only sales from":"只扣这天起的销售：",
 "Open":"打开",
 "Opening balance":"期初结存",
 "Opening counts entered":"已录入期初盘点",
@@ -1872,6 +1912,8 @@ const ZH_DICT = /*ZH_DICT*/{
 "Recent receipts":"最近收货",
 "Record for trends only —do not change balances":"仅记录用于趋势 —不更改结存",
 "Record stock leaving this warehouse for another company. Deducts from the item's balance immediately and keeps a running history per company.":"记录从本仓库发往其他公司的库存。立即从货品结存中扣除，并按公司保留历史记录。",
+"Record {n} bill for trends":"{n} 张单只记趋势",
+"Record {n} bills for trends":"{n} 张单只记趋势",
 "Recorded {n} unit across {n} item · Undo available":"已记录 {n} 单位，涉及 {n} 个货品 · 可撤销",
 "Recorded {n} unit across {n} item · {n} duplicate line skipped · Undo available":"已记录 {n} 单位，涉及 {n} 个货品 · 已跳过 {n} 行重复 · 可撤销",
 "Recorded {n} unit across {n} item · {n} duplicate line skipped · {n} now negative, recount · Undo available":"已记录 {n} 单位，涉及 {n} 个货品 · 已跳过 {n} 行重复 · {n} 个现为负数，请重新盘点 · 可撤销",
@@ -1946,12 +1988,14 @@ const ZH_DICT = /*ZH_DICT*/{
 "Sale lines":"销售记录数",
 "Sale out":"销售出库",
 "Sales":"销售",
+"Sales Deduction":"销售扣减",
 "Sales Import":"销售导入",
 "Sales In":"销售导入",
 "Sales are only current through":"销售数据仅更新至",
 "Sales data":"销售数据",
 "Sales date":"销售日期",
 "Sales history imported":"已导入销售历史",
+"Sales on record":"已记录的销售",
 "Sales out":"销售出库",
 "Save":"保存",
 "Save and continue":"保存并继续",
@@ -1995,9 +2039,12 @@ const ZH_DICT = /*ZH_DICT*/{
 "Shelves":"货架视图",
 "Shipped out":"出货",
 "Show them":"显示",
+"Showing the newest {n} of {n} —the Log has them all.":"显示最新的 {n} 条（共 {n} 条）——日志里有全部记录。",
 "Sign in to open the line.":"请登录以打开产线。",
 "Sign out":"退出登录",
 "Signed in as":"当前登录",
+"Sold":"已售",
+"Sold by":"销售公司",
 "Sold, {n} day":"{n} 天销量",
 "Sold, {n} days":"{n} 天销量",
 "Sorted by days of cover · quantity closes the gap to minimum":"按可用天数排序 · 数量为补足最低库存的差额",
@@ -2047,11 +2094,18 @@ const ZH_DICT = /*ZH_DICT*/{
 "System":"系统数",
 "System 系统":"系统",
 "TO COOK":"待烹煮",
+"Take off":"扣减",
+"Take off stock":"扣库存",
 "Take off the plan":"从平面图移除",
+"Take off {n} bill":"扣减 {n} 张单",
+"Take off {n} bills":"扣减 {n} 张单",
+"Taken off stock":"已扣库存",
+"Takes what was sold off the stock on hand. Drop YonYou's sales export (":"把已售出的货从现有库存中扣除。拖入用友的销售导出（",
 "Takes {s} off {s}'s balance and removes this record. A correction is logged so the change stays auditable.":"从 {s2} 的结存中扣除 {s1}，并删除此记录。系统会记录一条调整，以便日后核查。",
 "Tap a rack to see what's on each level and adjust quantities. Changes stay as a draft until you press":"点击货架可查看每层的货品并调整数量。更改会保存为草稿，直到您按下",
 "Tap something on the plan to set its exact place and size. Drag it to move it; drag the small square on its corner to resize. Everything snaps to the grid and saves as you go.":"点击平面图上的对象可设置其精确位置和大小。拖动可移动；拖动角上的小方块可调整大小。所有对象都会对齐网格，并随时自动保存。",
 "Text":"文字",
+"That file has no bill number column (BILLNO) —without it a sale could come off twice, so it can't be used here":"这个文件没有单号列（BILLNO）——没有单号同一笔销售可能会扣两次，所以不能在这里用",
 "That leaves the balance unchanged":"结存不会有变化",
 "That level already exists":"该层已存在",
 "That rack already exists":"该货架已存在",
@@ -2061,6 +2115,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "The line is empty. Load your item list on station {n} and the panel fills in —stock, minimums, cook schedule and yield all run off it.":"生产线还是空的。在 {n} 号站导入货品清单后面板就会显示内容 —库存、最低库存、烹煮计划和出品率都以它为基础。",
 "The log holds only":"库存流水仅有",
 "The quantities go back to what's saved. Nothing is logged.":"数量将恢复为已保存的值。不记录任何流水。",
+"The sales are recorded for trends, usage and minimums, and the bills are remembered —nothing comes off the stock.":"销售记入趋势、用量和最低库存，单号也会记住——不扣任何库存。",
 "The spreadsheet reader did not load —check the connection and reopen the page":"表格读取器未加载 —请检查网络连接并重新打开页面",
 "The stocktake list is empty":"盘点清单为空",
 "The {n} item on this rack count as stock in whichever zone it's set to.":"此货架上的 {n} 个货品计入该货架所设区域的库存。",
@@ -2083,6 +2138,10 @@ const ZH_DICT = /*ZH_DICT*/{
 "To":"发往",
 "To cook":"待烹煮",
 "Today's schedule":"今日计划",
+"Took {n} bill off {n} product":"已扣减 {n} 张单，涉及 {n} 个产品",
+"Took {n} bill off {n} products":"已扣减 {n} 张单，涉及 {n} 个产品",
+"Took {n} bills off {n} product":"已扣减 {n} 张单，涉及 {n} 个产品",
+"Took {n} bills off {n} products":"已扣减 {n} 张单，涉及 {n} 个产品",
 "Top":"上",
 "Top company":"出库最多的公司",
 "Top item":"销量最高的货品",
@@ -2091,11 +2150,14 @@ const ZH_DICT = /*ZH_DICT*/{
 "Total 合计":"合计",
 "Total 总数":"总数",
 "Transactions":"笔数",
+"Trends only":"只记趋势",
+"Trends only —don't change any balance":"只记趋势——不改任何结存",
 "Turn on desktop alerts":"开启桌面提醒",
 "Type":"类型",
 "Unassigned":"未分配",
 "Unassigned 未分配":"未分配",
 "Undo":"撤销",
+"Undo available":"可撤销",
 "Undo insert":"撤销插入",
 "Undo last":"撤销上一步",
 "Undo last import":"撤销上次导入",
@@ -2167,12 +2229,16 @@ const ZH_DICT = /*ZH_DICT*/{
 "Zone 区域":"区域",
 "Zoom in":"放大",
 "active":"当前",
+"already in":"已导入",
 "amber":"橙黄色",
 "and an alert pops up.":"中，并弹出提醒。",
 "and you get an alert. The {n} day can be changed in":"中，并向你发出提醒。如需修改这 {n} 天，请前往",
 "and you get an alert. The {n} days can be changed in":"中，并向你发出提醒。如需修改这 {n} 天，请前往",
 "bag":"袋",
 "balances still uncounted —alarms start once they are keyed in":"个结存尚未盘点 —录入后才开始提醒",
+"box":"盒",
+"btl":"瓶",
+"can":"罐",
 "cartons":"箱",
 "category":"类别",
 "changed by the count since {d} ({n} up, {n} down) · {n} out of stock · {n} below minimum":"项自 {d} 起因盘点而变动（增 {n}，减 {n}）· 缺货 {n} · 低于最低库存 {n}",
@@ -2180,10 +2246,15 @@ const ZH_DICT = /*ZH_DICT*/{
 "code":"编码",
 "connecting—":"连接中—",
 "count":"盘点数",
+"counted by the carton":"按箱计数",
 "ctn":"箱",
 "ctn qty":"库存箱数",
+"ctn ×{n}":"箱 ×{n}",
 "departments get the Racks and Issue Stock stations instead of Panel/Cook/Sales.":"类部门使用货架和出库站点，而不是面板/烹煮/销售。",
+"different pack size":"包装规格不同",
+"don't take off":"不扣",
 "driver, condition, etc.":"司机、货物状况等",
+"drum":"桶",
 "dry storage":"干货区",
 "e.g. QF Mango Sauce 芒果酱":"例如 QF Mango Sauce 芒果酱",
 "e.g. R{n}A or CENTER":"例如 R{n}A 或 CENTER",
@@ -2194,6 +2265,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "every {n} s":"每 {n} 秒更新",
 "example":"示例",
 "eyJhbGciOi...":"eyJhbGciOi...",
+"file covers {d} —{d}":"文件范围 {d} —{d}",
 "get their minimum from what goes out over this many days; when a balance drops below its minimum it shows on":"的货品按这段天数内的出库量得出最低库存；结存低于最低库存时，会显示在",
 "get their minimum from what goes out —average usage × {n} day for now ({n} day on record); with about {n} more days of history it switches to the {n}th percentile of rolling {n}-day demand, which copes better with uneven weeks. It's recalculated continuously;":"的货品按出库量得出最低库存 —目前用平均用量 × {n1} 天（已有 {n2} 天记录）；再积累约 {n3} 天历史后，会改用滚动 {n5} 天需求的第 {n4} 百分位数，更能应对忙闲不均的周。最低库存会持续重新计算；",
 "get their minimum from what goes out —average usage × {n} day for now ({n} days on record); with about {n} more days of history it switches to the {n}th percentile of rolling {n}-day demand, which copes better with uneven weeks. It's recalculated continuously;":"的货品按出库量得出最低库存 —目前用平均用量 × {n1} 天（已有 {n2} 天记录）；再积累约 {n3} 天历史后，会改用滚动 {n5} 天需求的第 {n4} 百分位数，更能应对忙闲不均的周。最低库存会持续重新计算；",
@@ -2204,6 +2276,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "in your Supabase project's SQL editor, and connect Clerk to Supabase as a Third-Party Auth provider. Full steps are in":"（在你的 Supabase 项目的 SQL 编辑器中），并将 Clerk 作为第三方认证（Third-Party Auth）提供方连接到 Supabase。完整步骤见",
 "is out":"已缺货",
 "is the total of the corrections logged since the count started ({d}) —on the Racks floor plan, the Count sheet, ± Count or an item list import. A product that was checked and already matched shows no change. Cartons and loose units add up the products that have a pack size.":"是自盘点开始（{d}）以来记录的所有调整合计——包括货架平面图、盘点表、± 盘点或货品清单导入。已核对且数量一致的货品不显示调整。箱数和散装数只合计已设包装规格的货品。",
+"jar":"瓶",
 "kg":"kg",
 "leads":"领先",
 "leave blank if not needed":"不需要可留空",
@@ -2218,6 +2291,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "new":"新增",
 "no rack":"无货架",
 "none imported":"未导入",
+"not in this warehouse":"不在本仓库",
 "not on the list":"不在清单中",
 "nothing yet":"暂无",
 "now":"当前",
@@ -2240,6 +2314,8 @@ const ZH_DICT = /*ZH_DICT*/{
 "or click to choose a file":"或点击选择文件",
 "out":"缺货",
 "packets":"包",
+"pail":"桶",
+"pcs":"件",
 "per carton —":"个 —",
 "pill). When a balance drops below it, the product shows here and a banner pops up across the top of every page, on every device using the app.":"切换键）。结存低于最低库存时，货品就会显示在这里，并且在所有使用本应用的设备上，每个页面顶部都会弹出横幅提醒。",
 "pk_live_... or pk_test_...":"pk_live_... 或 pk_test_...",
@@ -2252,20 +2328,29 @@ const ZH_DICT = /*ZH_DICT*/{
 "rebuilds them from real sales —the {n}th percentile of rolling {n}-day demand, enough for a bad week in {n} weeks out of {n}.":"会按实际销售重新计算 —取滚动 {n2} 天需求的第 {n1} 百分位数，每 {n4} 周中有 {n3} 周即使遇到用量高峰也够用。",
 "red":"红色",
 "removes this record. A correction is logged so the change stays auditable.":"删除此记录。系统会记录一条调整，以便日后核查。",
+"returns":"有退货",
+"revised":"有改动",
+"roll":"卷",
 "says":"表示每箱",
 "si.xlsx":"si.xlsx",
+"sold as":"售出规格",
 "starting":"启动中",
 "station for revenue by item.":"站点中各货品的营业额。",
 "stock / 库存 / physical qty":"库存",
+"stocked as":"库存规格",
 "storage / rack position":"货位",
 "supabase-schema.sql":"supabase-schema.sql",
 "the chiller":"冷藏库",
 "the freezer":"冷冻库",
+"tin":"罐",
 "to":"至",
 "to bring every item back to minimum":"可使所有货品补回最低库存",
 "to set one.":"即可设置。",
 "today":"今天",
 "tops up anything missing from the list originally supplied, without touching balances you have already counted. Categories come from the first two digits of the item code.":"会补回最初提供的清单中缺少的货品，不会改动你已盘点的结存。类别取自货品编码的前两位数字。",
+"tray":"盘",
+"trend only":"只记趋势",
+"tub":"桶",
 "twice the minimum":"最低库存的两倍",
 "unit in file 箱 ≠ item {n}x{n}kg/ctn —check ctn / pkt":"文件单位 箱 ≠ 货品 {n}x{n}kg/ctn —请核对箱 / 包",
 "unsaved change":"项改动未保存",
@@ -2289,6 +2374,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "{n} Cook Sheet 生产计划":"{n} 生产计划",
 "{n} Sauce Line —Setup":"{n} Sauce Line —设置",
 "{n} Stock Count 盘点表":"{n} 盘点表",
+"{n} already in, skipped":"{n} 张已导入，跳过",
 "{n} bag":"{n} 袋",
 "{n} batch planned":"已计划 {n} 批",
 "{n} batch · {n} kg":"{n} 批 · {n} kg",
@@ -2296,6 +2382,17 @@ const ZH_DICT = /*ZH_DICT*/{
 "{n} batche · {n} kg":"{n} 批 · {n} kg",
 "{n} batches planned":"已计划 {n} 批",
 "{n} batches · {n} kg":"{n} 批 · {n} kg",
+"{n} bill":"{n} 张单",
+"{n} bill comes off the stock of {n} product":"{n} 张单扣减 {n} 个产品的库存",
+"{n} bill comes off the stock of {n} products":"{n} 张单扣减 {n} 个产品的库存",
+"{n} bill recorded for trends":"{n} 张单记入趋势",
+"{n} bill recorded for trends only":"{n} 张单只记趋势",
+"{n} bills":"{n} 张单",
+"{n} bills come off the stock of {n} product":"{n} 张单扣减 {n} 个产品的库存",
+"{n} bills come off the stock of {n} products":"{n} 张单扣减 {n} 个产品的库存",
+"{n} bills recorded for trends":"{n} 张单记入趋势",
+"{n} bills recorded for trends only":"{n} 张单只记趋势",
+"{n} bills remembered · latest sale {d}":"已记住 {n} 张单 · 最近销售 {d}",
 "{n} ctn":"{n} 箱",
 "{n} ctn {n} pkt":"{n} 箱 {n} 包",
 "{n} day":"{n} 天",
@@ -2337,6 +2434,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "{n} line left out —{n} unit.":"{n} 行被排除 —共 {n} 单位。",
 "{n} line left out —{n} units.":"{n} 行被排除 —共 {n} 单位。",
 "{n} line skipped":"已跳过 {n} 行",
+"{n} lines":"{n} 行",
 "{n} lines left out —{n} unit.":"{n} 行被排除 —共 {n} 单位。",
 "{n} lines left out —{n} units.":"{n} 行被排除 —共 {n} 单位。",
 "{n} list reloaded —{n} item added":"{n} 清单已重新载入 —新增 {n} 个货品",
@@ -2350,6 +2448,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "{n} minimums back on Auto":"{n} 个最低库存已改回自动",
 "{n} minimums would change":"{n} 个最低库存将会变更",
 "{n} not yet on the list":"{n} 个尚未在清单中",
+"{n} now below zero —recount":"{n} 个低于零——请重新盘点",
 "{n} of {n} counted":"已盘点 {n} / {n}",
 "{n} of {n} done":"已完成 {n} / {n}",
 "{n} of {n} matched":"已匹配 {n} / {n}",
@@ -2359,18 +2458,24 @@ const ZH_DICT = /*ZH_DICT*/{
 "{n} product":"{n} 个货品",
 "{n} product has no rack yet":"{n} 个货品尚未分配货架",
 "{n} product have no pack size yet":"{n} 个货品还没有包装规格",
+"{n} product in this warehouse · {n} bills":"本仓库 {n} 个产品 · {n} 张单",
+"{n} product isn't on this warehouse's item list —skipped.":"{n} 个产品不在本仓库的货品清单上——已跳过。",
 "{n} product just went low:":"{n} 个货品刚变为低库存：",
 "{n} product need a pack size set by hand (Edit) —the UOM doesn't say":"{n} 个货品需要手动设置包装规格（编辑）—UOM 中未注明",
 "{n} product needs a pack size set by hand (Edit) —the UOM doesn't say":"{n} 个货品需要手动设置包装规格（编辑）—UOM 中未注明",
+"{n} product was sold in a different pack size from the one stocked —it isn't taken off until you pick how to count it under Count as.":"{n} 个产品的销售包装规格和库存不同——在“计为”里选好怎么算之前不会扣。",
 "{n} product with no usage and no manual minimum —they only alert when they run out. Tap":"{n} 个货品没有用量也没有手动最低库存 —只有缺货时才会提醒。点按",
 "{n} product without a pack size —their YonYou UOM says what it is. Each balance so far is taken as counted in the UOM's unit (cartons for a carton UOM) plus any Loose Qty as packets, and converted along with its minimum and past movements. {n} other can't be worked out from the UOM —set it with Edit.":"{n} 个货品没有包装规格 —它们的 YonYou 单位(UOM) 已写明包装。目前的每个结存都视为按 UOM 的单位盘点（箱装 UOM 即按箱），散装数量按包计，并连同其最低库存和过往流水一起换算。另有 {n} 个无法从 UOM 推算 —请用编辑设置。",
 "{n} product · worst first":"{n} 个货品 · 最紧急的在前",
 "{n} product · {n} level":"{n} 个货品 · {n} 层",
 "{n} product · {n} levels":"{n} 个货品 · {n} 层",
 "{n} products":"{n} 个货品",
+"{n} products aren't on this warehouse's item list —skipped.":"{n} 个产品不在本仓库的货品清单上——已跳过。",
 "{n} products have no pack size yet":"{n} 个货品还没有包装规格",
+"{n} products in this warehouse · {n} bills":"本仓库 {n} 个产品 · {n} 张单",
 "{n} products just went low:":"{n} 个货品刚变为低库存：",
 "{n} products need a pack size set by hand (Edit) —the UOM doesn't say":"{n} 个货品需要手动设置包装规格（编辑）—UOM 中未注明",
+"{n} products were sold in a different pack size from the one stocked —they aren't taken off until you pick how to count them under Count as.":"{n} 个产品的销售包装规格和库存不同——在“计为”里选好怎么算之前不会扣。",
 "{n} products with no usage and no manual minimum —they only alert when they run out. Tap":"{n} 个货品没有用量也没有手动最低库存 —只有缺货时才会提醒。点按",
 "{n} products · worst first":"{n} 个货品 · 最紧急的在前",
 "{n} products · {n} level":"{n} 个货品 · {n} 层",
@@ -2425,6 +2530,8 @@ const ZH_DICT = /*ZH_DICT*/{
 "—a line whose UOM is not one you stock is reported and left out rather than deducted from the wrong pack. If the file also has a total amount column (TOTALAMT / AMOUNT / 金额), that's captured too —see the":"—UOM 与你的库存规格不符的行会被列出并排除，不会错扣到其他包装上。如果文件还带有总金额列（TOTALAMT / AMOUNT / 金额），也会一并读取 —请查看",
 "—add a batch —":"—添加批次 —",
 "—blank cells leave what's there alone, so":"—空白单元格不会改动原有数据，所以可以",
+"—earlier ones are recorded for trends only, the count on {d} already took them off.":"——更早的只记入趋势，{d} 的盘点已经把它们算进去了。",
+"—earlier ones are recorded for trends only.":"——更早的只记入趋势。",
 "—from usage":"—按用量算出",
 "—give it a rack code with Edit on station {n}, or drag it in the Shelves view.":"—可在 {n} 号站点用编辑为其设置货位，或在货架视图中拖放。",
 "—not in this warehouse —":"—不在本仓库 —",
@@ -3471,6 +3578,11 @@ async function runFlush(){
        it happens, degrades to "one edit shadows another" instead of failing
        the whole flush and blocking every other pending change behind it. */
     const dedupe = (arr, keyFn) => [...new Map(arr.map(x=>[keyFn(x), x])).values()];
+    /* A big import (a sales export is thousands of bills) goes up a few
+       hundred rows per request, and a delete names a bounded number of keys
+       —they're listed in the URL, which has a length limit (an Undo of that
+       import deletes every row it added). */
+    const parts = (arr, n) => { const out = []; for(let i=0;i<arr.length;i+=n) out.push(arr.slice(i, i+n)); return out; };
 
     /* A product already on the server sends only the columns that changed
        (plus its name, which Postgres needs to accept the row) —a count sends
@@ -3489,29 +3601,29 @@ async function runFlush(){
     const itemsUpD = dedupe(itemsUp, r=>r.id);
     const byCols = new Map();
     for(const r of itemsUpD){ const sig = Object.keys(r).sort().join(","); if(!byCols.has(sig)) byCols.set(sig, []); byCols.get(sig).push(r); }
-    for(const grp of byCols.values()) jobs.push(sb.from("items").upsert(grp, {onConflict:"dept_id,id"}));
-    if(itemsDel.length) jobs.push(sb.from("items").delete().eq("dept_id",dept).in("id",itemsDel));
+    for(const grp of byCols.values()) for(const part of parts(grp, 500)) jobs.push(sb.from("items").upsert(part, {onConflict:"dept_id,id"}));
+    for(const part of parts(itemsDel, 150)) jobs.push(sb.from("items").delete().eq("dept_id",dept).in("id",part));
 
     const txUp=[], txDel=[];
     for(const t of state.tx){ if(persisted.tx.get(t.id)!==now.tx.get(t.id)) txUp.push(txRow(t)); }
     for(const id of persisted.tx.keys()) if(!now.tx.has(id)) txDel.push(id);
     const txUpD = dedupe(txUp, r=>r.id);
-    if(txUpD.length) jobs.push(sb.from("tx").upsert(txUpD, {onConflict:"dept_id,id"}));
-    if(txDel.length) jobs.push(sb.from("tx").delete().eq("dept_id",dept).in("id",txDel));
+    for(const part of parts(txUpD, 500)) jobs.push(sb.from("tx").upsert(part, {onConflict:"dept_id,id"}));
+    for(const part of parts(txDel, 150)) jobs.push(sb.from("tx").delete().eq("dept_id",dept).in("id",part));
 
     const planUp=[], planDel=[];
     for(const p of state.plan){ if(persisted.plan.get(p.id)!==now.plan.get(p.id)) planUp.push(planRow(p)); }
     for(const id of persisted.plan.keys()) if(!now.plan.has(id)) planDel.push(id);
     const planUpD = dedupe(planUp, r=>r.id);
-    if(planUpD.length) jobs.push(sb.from("plan").upsert(planUpD, {onConflict:"dept_id,id"}));
-    if(planDel.length) jobs.push(sb.from("plan").delete().eq("dept_id",dept).in("id",planDel));
+    for(const part of parts(planUpD, 500)) jobs.push(sb.from("plan").upsert(part, {onConflict:"dept_id,id"}));
+    for(const part of parts(planDel, 150)) jobs.push(sb.from("plan").delete().eq("dept_id",dept).in("id",part));
 
     const billRows = billRowsFromState(state.bills);
     const billsUp=[], billsDel=[];
     for(const r of billRows){ if(persisted.bills.get(r.bill_key)!==now.bills.get(r.bill_key)) billsUp.push(r); }
     for(const k of persisted.bills.keys()) if(!now.bills.has(k)) billsDel.push(k);
-    if(billsUp.length) jobs.push(sb.from("bills").upsert(billsUp, {onConflict:"dept_id,bill_key"}));
-    if(billsDel.length) jobs.push(sb.from("bills").delete().eq("dept_id",dept).in("bill_key",billsDel));
+    for(const part of parts(billsUp, 500)) jobs.push(sb.from("bills").upsert(part, {onConflict:"dept_id,bill_key"}));
+    for(const part of parts(billsDel, 100)) jobs.push(sb.from("bills").delete().eq("dept_id",dept).in("bill_key",part));
 
     const racksUp=[], racksDel=[];
     for(const rk of state.racks){ if(persisted.racks.get(rk.name)!==now.racks.get(rk.name)) racksUp.push(rackRow(rk)); }
@@ -5661,7 +5773,7 @@ function parseSales(grid, fname){
     if(n>=0&&q>=0){ hr=r; nc=n; qc=q;
       uc = pickCol(row,["uom"],["单位","规格","packing"],null);
       dc = pickCol(row,["invoicedate"],["date","日期"],null);
-      bc = pickCol(row,["billno"],["invoiceno","invoice","单号","发票"],["billtype","type"]);
+      bc = pickCol(row,["billno"],["invoiceno","invoice","单号","发票"],["billtype","type","date","日期"]);   // never INVOICEDATE
       cc = pickCol(row,["matcode"],["itemcode","sku","编码","货号"],["custcode","billno","matcat"]);
       // Line total, not unit price —"amount"/"totalamt"/金额 is what we sum across
       // rows; a per-unit "price"/单价 column would need multiplying by qty first,
@@ -8169,6 +8281,316 @@ function applyReceive(){
 }
 
 /* ============================================================
+   WAREHOUSE — SALES DEDUCTION  (YonYou SI_Item export)
+   ============================================================ */
+/* Reads YonYou's sales export (SI_Item: INVOICEDATE, BILLTYPENAME, COMP,
+   BILLNO, ... MATCODE, MATERIAL, UOM, TOTALQTY ...). Quirks of that export
+   handled here:
+   - 分节小计 rows are per-product subtotals that still carry the product's
+     code and its total for the whole file —skipped, or every product would
+     come off twice;
+   - 退换货 (return / exchange) lines have a negative qty —they put stock back;
+   - UOM is what was sold: one can ("0.425kg/can") of a product stocked by
+     the carton ("24x0.425kg/ctn") is one can, the carton UOM is 24 of them;
+   - the export covers both companies and every warehouse —a line counts here
+     only if its product is on this warehouse's item list.
+   Every line is remembered by bill number + item (state.bills, the same
+   registry the kitchen's sales import uses), so a bill only ever comes off
+   once: the same file again skips it, an edited bill applies the difference.
+   There is no switching that off here —a file without bill numbers is
+   refused. */
+let sdPending = null;
+const r2 = n => Math.round(n*100)/100;
+/* The size of one unit as the UOM spells it: "24x0.425kg/ctn" -> 0.425 kg,
+   "100x70g/ctn" -> 0.07 kg, "5ltr/drum" -> 5 l. Null for pieces / rolls. */
+function uomSize(uom){
+  const m = String(uom||"").toLowerCase().replace(/\s+/g,"").match(/([\d.]+)(kg|g|ltr|lt|l|ml)(?![a-z])/);
+  if(!m) return null;
+  const v = parseFloat(m[1]); if(!(v>0)) return null;
+  return {v: (m[2]==="g"||m[2]==="ml") ? v/1000 : v, dim: (m[2]==="kg"||m[2]==="g") ? "kg" : "l"};
+}
+/* How a sold UOM counts against an item's balance. A carton UOM is a whole
+   carton —its own pack count, or the item's— anything else is one packet /
+   can / bottle. `def` is what the preview starts on: a unit of a different
+   size from the one stocked (sold "0.1kg/pkt", stocked "0.5kg/pkt") or a
+   single unit of an item still counted by the carton isn't taken off until
+   someone picks how to count it. */
+function sdUnit(it, uom){
+  const p = packOf(it), sp = packFromUom(uom) || 1;
+  const tail = (String(uom||"").match(/\/\s*([^\/\s]+)\s*$/)||[])[1] || "";
+  const carton = sp>1 || CARTON_RE.test(tail);
+  const same = normUom(uom)===normUom(it.uom);
+  const ctn = !carton ? p : same ? p : sp>1 ? sp : p;     // stock units in one sold carton
+  const a = uomSize(uom), b = uomSize(it.uom);
+  const sizeOff = !same && !!a && !!b && a.dim===b.dim && Math.abs(a.v-b.v) > 0.05*Math.max(a.v, b.v);
+  const byCarton = !carton && !hasPack(it) && (packFromUom(it.uom)||1)>1;   // sold singly, counted by the carton
+  return {carton, ctn, sizeOff, byCarton, def: (sizeOff||byCarton) ? "skip" : carton ? "ctn" : "unit"};
+}
+function sdCoKey(s){ return norm(s).replace(/(pte|ltd|limited|private|company|co)+$/g, ""); }
+function parseSalesDeduction(grid, fname){
+  let hr=-1, c=null;
+  for(let r=0;r<Math.min(grid.length,15);r++){
+    const row = grid[r]||[];
+    const code = pickCol(row, ["matcode","存货编码","物料编码","商品编码","itemcode","materialcode","productcode"],
+      ["编码","code","sku","货号"], ["cust","客户","bill","单据","matcat","comp"]);
+    const name = pickCol(row, ["material","存货名称","物料名称","商品名称","itemname","materialname","productname"],
+      ["名称","name","product","item","货品","商品"], ["cust","客户","code","编码","uom","单位","matcat","category","type","类型"]);
+    const qty = pickCol(row, ["totalqty","销售数量"], ["qty","quantity","sold","数量","销量"], ["price","amt","amount","金额","单价"]);
+    if((code<0 && name<0) || qty<0) continue;
+    hr = r;
+    c = {code, name, qty,
+      uom:  pickCol(row, ["uom"], ["单位","unit","规格"], ["price","单价","puom"]),
+      date: pickCol(row, ["invoicedate","单据日期","发票日期"], ["日期","date"], null),
+      bill: pickCol(row, ["billno","发票号","单据号"], ["invoiceno","单号","invoice"], ["billtype","type","类型","date","日期"]),
+      co:   pickCol(row, ["comp","company","公司"], [], ["code","编码"]),
+      amt:  pickCol(row, ["totalamt","totalamount","amount","金额"], ["amt","sales","销售额"], ["qty","quantity","unitprice","单价","数量"])};
+    break;
+  }
+  if(hr<0){ toast("Could not find a product and a quantity column in that file"); return; }
+  if(c.bill<0){ toast("That file has no bill number column (BILLNO) —without it a sale could come off twice, so it can't be used here"); return; }
+  const str = (row,i) => i>=0 ? String(row[i]??"").trim() : "";
+  const lines = [];
+  for(let r=hr+1;r<grid.length;r++){
+    const row = grid[r]||[];
+    const code = str(row,c.code), name = str(row,c.name), bill = str(row,c.bill);
+    if(!code && !name) continue;
+    const ds = c.date>=0 ? row[c.date] : null;
+    if(!bill || isJunk(ds) || isJunk(bill) || isJunk(code) || isJunk(name)) continue;   // 分节小计 / 合计 rows
+    const q = parseFloat(row[c.qty]);
+    if(isNaN(q) || q===0) continue;
+    const amt = c.amt>=0 ? parseFloat(row[c.amt]) : NaN;
+    lines.push({code, name, uom:str(row,c.uom), qty:q, date:toISO(ds), bill, co:str(row,c.co), amount:isNaN(amt)?null:amt});
+  }
+  if(!lines.length){ toast("No sales lines found in that file"); return; }
+  const byCode = new Map(), byName = new Map();
+  for(const it of state.items){
+    if(it.code){ const k = norm(it.code); if(!byCode.has(k)) byCode.set(k, []); byCode.get(k).push(it); }
+    const k = norm(it.name); if(!byName.has(k)) byName.set(k, []); byName.get(k).push(it);
+  }
+  const pick = (arr, uom) => arr.find(i=>normUom(i.uom)===normUom(uom)) || arr[0];
+  for(const l of lines){
+    l.lk = (norm(l.code)||norm(l.name))+"|"+normUom(l.uom);
+    let it = null;
+    if(l.code && byCode.has(norm(l.code))) it = pick(byCode.get(norm(l.code)), l.uom);
+    else if(!l.code && l.name && byName.has(norm(l.name))) it = pick(byName.get(norm(l.name)), l.uom);
+    l.itemId = it ? it.id : null;
+  }
+  const dates = lines.map(l=>l.date).filter(Boolean).sort();
+  const coCount = new Map(); for(const l of lines) if(l.co) coCount.set(l.co, (coCount.get(l.co)||0)+1);
+  /* The first time sales come into this warehouse the file usually reaches
+     back months, long before the stock was counted —those sales are already
+     out of the counted balance. Start on "only from the day after the last
+     count"; after that, every new bill comes off. */
+  const counted = lastCountDate(), first = !state.tx.some(t=>t.type==="sale");
+  const useCut = first && !!counted && !!dates.length && dates[0]<=counted;
+  sdPending = {fname, lines, from:dates[0]||null, to:dates[dates.length-1]||null,
+    companies:[...coCount.entries()].sort((a,b)=>b[1]-a[1]), cos:new Set(coCount.keys()),
+    mode:"ded", useCut, cut: counted ? dayAdd(counted, 1) : (dates[0]||todayStr()), counted,
+    remap:{}, units:{}, showOther:false};
+  renderSdPreview();
+}
+/* One row per product + sold UOM, and one entry per bill + item with what
+   applying it would do —new, already in, or revised (difference only),
+   off the stock or for trends only. */
+function sdCompute(){
+  const p = sdPending, groups = new Map(), bills = new Map();
+  const trendAll = p.mode==="trend", cut = !trendAll && p.useCut && p.cut ? p.cut : null;
+  for(const l of p.lines){
+    if(l.co && !p.cos.has(l.co)) continue;
+    let g = groups.get(l.lk);
+    if(!g){
+      const id = p.remap[l.lk]!==undefined ? p.remap[l.lk] : l.itemId, it = id!=null ? item(id) : null;
+      const u = it ? sdUnit(it, l.uom) : null, choice = it ? (p.units[l.lk] || u.def) : null;
+      g = {lk:l.lk, itemId:it?it.id:null, code:l.code, name:l.name, uom:l.uom, u, choice,
+           per: !it ? 0 : choice==="ctn" ? u.ctn : choice==="unit" ? 1 : 0,
+           fileQty:0, ret:0, bills:new Set(), take:0, trend:0, dup:0, rev:0};
+      groups.set(l.lk, g);
+    }
+    g.fileQty += l.qty; if(l.qty<0) g.ret += -l.qty; g.bills.add(l.bill);
+    if(g.itemId==null || !g.per) continue;
+    const bk = l.bill+"§i"+g.itemId;
+    let b = bills.get(bk);
+    if(!b){ b = {bk, bill:l.bill, itemId:g.itemId, date:l.date, qty:0, amt:null, parts:[]}; bills.set(bk, b); }
+    b.qty += l.qty*g.per; b.parts.push([g, l.qty*g.per]);
+    if(l.amount!=null) b.amt = (b.amt||0) + l.amount;
+    if(l.date && (!b.date || l.date>b.date)) b.date = l.date;
+  }
+  for(const b of bills.values()){
+    b.qty = r2(b.qty);
+    const prev = state.bills[b.bk];
+    b.status = prev===undefined ? "new" : Math.abs(prev-b.qty)<0.001 ? "dup" : "rev";
+    b.delta = b.status==="new" ? b.qty : b.status==="dup" ? 0 : r2(b.qty-prev);
+    b.trend = trendAll || (cut!=null && (b.date||todayStr())<cut);
+    for(const [g, q] of b.parts){
+      if(b.status==="dup"){ g.dup++; continue; }
+      if(b.status==="rev") g.rev++;
+      const share = b.status==="new" ? q : b.qty ? b.delta*q/b.qty : b.delta/b.parts.length;
+      if(b.trend) g.trend += share; else g.take += share;
+    }
+  }
+  for(const g of groups.values()){ g.fileQty = r2(g.fileQty); g.take = r2(g.take); g.trend = r2(g.trend); }
+  return {groups:[...groups.values()], bills:[...bills.values()]};
+}
+function sdSet(k, v){ sdPending[k] = v; renderSdPreview(); }
+function sdToggleCo(co, on){ if(on) sdPending.cos.add(co); else sdPending.cos.delete(co); renderSdPreview(); }
+function renderSdPreview(){
+  const host = $("#sd-preview"); if(!host) return;
+  if(!sdPending){ host.innerHTML = ""; return; }
+  const p = sdPending, {groups, bills} = sdCompute();
+  const ours = groups.filter(g=>g.itemId!=null), others = groups.filter(g=>g.itemId==null);
+  const held = ours.filter(g=>!g.per);
+  const billNo = arr => new Set(arr.map(b=>b.bill)).size;
+  const live = bills.filter(b=>b.status!=="dup");
+  const takeB = billNo(live.filter(b=>!b.trend)), trendB = billNo(live.filter(b=>b.trend));
+  const dupB = billNo(bills.filter(b=>b.status==="dup")), revB = billNo(live.filter(b=>b.status==="rev"));
+  const takeItems = new Map();
+  for(const g of ours) if(g.take) takeItems.set(g.itemId, r2((takeItems.get(g.itemId)||0) + g.take));
+  /* Issue Stock to the same companies, for the same products, over the
+     same days: if those were the goods these sales went out as, they'd
+     come off twice. */
+  const keys = [...p.cos].map(sdCoKey).filter(Boolean);
+  const lo = p.mode==="ded" && p.useCut ? p.cut : p.from;
+  const overlap = p.mode==="trend" ? 0 : state.tx.filter(t=>t.type==="issue" && takeItems.has(t.itemId) && t.date>=lo && t.date<=p.to && t.destCompany
+    && keys.some(k=>{ const c = sdCoKey(t.destCompany); return c && (c.startsWith(k) || k.startsWith(c)); })).length;
+  const sorted = state.items.slice().sort((a,b)=>a.name.localeCompare(b.name));
+  const opts = sorted.map(i=>`<option value="${i.id}">${esc(i.name)} · ${esc(i.uom)}${i.code?" · "+esc(i.code):""}</option>`).join("");
+  const pl = (n, one, many) => n===1 ? one : many;
+  const bar = (style, html) => `<div class="panel-b" style="border-bottom:1px solid var(--rule);font-size:12.5px;${style}">${html}</div>`;
+  const coBar = p.companies.length>1 ? bar("display:flex;gap:14px;align-items:center;flex-wrap:wrap", `<span class="dim">Sold by</span>`
+    + p.companies.map(([co, n])=>`<label style="display:inline-flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" ${p.cos.has(co)?"checked":""}
+        onchange="sdToggleCo(this.dataset.co, this.checked)" data-co="${esc(co)}"><span data-notr>${esc(co)}</span> <span class="dim">${fmt(n)} lines</span></label>`).join("")) : "";
+  const billBar = bar("background:var(--ok-bg);color:var(--ok);font-weight:500", !dupB
+    ? "Bill protection is on —nothing in this file has been imported before."
+    : pl(dupB, `Bill protection is on —${fmt(dupB)} bill was already imported and is skipped`, `Bill protection is on —${fmt(dupB)} bills were already imported and are skipped`)
+      + (revB ? `, ${fmt(revB)} changed since —only the difference applies.` : "."));
+  const modeBar = bar("display:flex;flex-direction:column;gap:8px", `
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn sm ${p.mode==="ded"?"on":""}" onclick="sdSet('mode','ded')">Take off stock</button>
+      <button class="btn sm ${p.mode==="trend"?"on":""}" onclick="sdSet('mode','trend')">Trends only —don't change any balance</button></div>
+    ${p.mode==="ded" ? `<label style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;cursor:pointer">
+        <input type="checkbox" ${p.useCut?"checked":""} onchange="sdSet('useCut', this.checked)">
+        <span>Only sales from</span> <input type="date" value="${esc(p.cut)}" onchange="sdSet('cut', this.value||sdPending.cut)" style="width:auto" ${p.useCut?"":"disabled"}>
+        <span class="dim">${p.counted ? `—earlier ones are recorded for trends only, the count on ${esc(shortDate(p.counted))} already took them off.` : "—earlier ones are recorded for trends only."}</span></label>`
+      : `<span class="dim">The sales are recorded for trends, usage and minimums, and the bills are remembered —nothing comes off the stock.</span>`}`);
+  const sumBar = bar("", `<b>${pl(takeB, `${fmt(takeB)} bill comes off`, `${fmt(takeB)} bills come off`)} ${pl(takeItems.size, `the stock of ${takeItems.size} product`, `the stock of ${takeItems.size} products`)}</b>`
+    + (trendB ? ` · <span>${pl(trendB, `${fmt(trendB)} bill recorded for trends only`, `${fmt(trendB)} bills recorded for trends only`)}</span>` : "")
+    + (p.from ? ` · <span class="dim">file covers ${esc(shortDate(p.from))} —${esc(shortDate(p.to))}</span>` : ""));
+  const issueBar = overlap ? bar("background:var(--warn-bg);color:var(--warn)", pl(overlap,
+      `Issue Stock also has ${overlap} issue of these products to the same company in the same days. If an issue and a sale are the same goods, they come off twice —check before taking these off.`,
+      `Issue Stock also has ${overlap} issues of these products to the same company in the same days. If an issue and a sale are the same goods, they come off twice —check before taking these off.`)) : "";
+  const heldBar = held.length ? bar("background:var(--warn-bg);color:var(--warn)", pl(held.length,
+      `${held.length} product was sold in a different pack size from the one stocked —it isn't taken off until you pick how to count it under Count as.`,
+      `${held.length} products were sold in a different pack size from the one stocked —they aren't taken off until you pick how to count them under Count as.`)) : "";
+  const otherBar = others.length ? bar("display:flex;gap:10px;align-items:center;flex-wrap:wrap", `<span class="dim">${pl(others.length,
+      `${others.length} product isn't on this warehouse's item list —skipped.`, `${others.length} products aren't on this warehouse's item list —skipped.`)}</span>
+      <button class="btn sm" onclick="sdSet('showOther', !sdPending.showOther)">${p.showOther?"Hide them":"Show them"}</button>`) : "";
+  const rows = [...ours].sort((a,b)=>(!a.per)-(!b.per) || a.name.localeCompare(b.name)).concat(p.showOther ? others.sort((a,b)=>b.bills.size-a.bills.size) : []);
+  const unitSel = g => {
+    const it = item(g.itemId); if(!it) return `<span class="dim" data-notr>${esc(g.uom)}</span>`;
+    const u = g.u, o = [];
+    if(u.ctn>1 && (u.carton || packOf(it)>1)) o.push(["ctn", `ctn ×${fmt(u.ctn)}`]);
+    o.push(["unit", unitOf(it)]);
+    o.push(["skip", "don't take off"]);
+    return `<select onchange="sdPending.units[this.dataset.lk]=this.value;renderSdPreview()" data-lk="${esc(g.lk)}" style="width:auto;padding:2px 4px">
+      ${o.map(([v,l])=>`<option value="${v}" ${g.choice===v?"selected":""}>${esc(l)}</option>`).join("")}</select>`;
+  };
+  const tag = g => g.itemId==null ? '<span class="tag t-off">not in this warehouse</span>'
+    : !g.per ? `<span class="tag t-warn">${g.u.byCarton?"counted by the carton":"different pack size"}</span>`
+    : !g.take && !g.trend && g.dup ? '<span class="tag t-off">already in</span>'
+    : (g.ret ? '<span class="tag t-ok">returns</span> ' : "") + (g.rev ? '<span class="tag t-warn">revised</span>' : "");
+  host.innerHTML = `<div class="panel">
+    <div class="panel-h"><h2 data-notr>${esc(p.fname)}</h2><span class="meta">${pl(ours.length, `${fmt(ours.length)} product in this warehouse`, `${fmt(ours.length)} products in this warehouse`)} · ${fmt(new Set(p.lines.map(l=>l.bill)).size)} bills</span></div>
+    ${coBar}${billBar}${modeBar}${sumBar}${issueBar}${heldBar}${otherBar}
+    ${rows.length ? `<div class="scroll"><table><thead><tr><th>In the file</th><th>Matched item</th><th class="num">Sold</th><th>Count as</th><th class="num">Take off</th><th class="num">Trends only</th><th class="num">Balance after</th><th></th></tr></thead><tbody>
+    ${rows.map(g=>{
+      const it = g.itemId!=null ? item(g.itemId) : null, took = it ? takeItems.get(it.id)||0 : 0, after = it ? r2(it.stock - took) : null;
+      return `<tr style="${g.itemId==null||(!g.take&&!g.trend)?"opacity:.6":""}">
+        <td class="name">${esc(g.name||g.code)}<span class="sub"><span>sold as</span> <span data-notr>${esc(g.uom||"—")}${g.code?" · "+esc(g.code):""}</span> · <span>${pl(g.bills.size, "1 bill", fmt(g.bills.size)+" bills")}</span></span></td>
+        <td><select data-lk="${esc(g.lk)}" class="sd-map" style="max-width:260px"><option value="">—not in this warehouse —</option>${opts}</select>
+          ${it && g.u.sizeOff ? `<span class="sub" style="color:var(--warn)"><span>stocked as</span> <span data-notr>${esc(it.uom)}</span></span>` : ""}</td>
+        <td class="num dim">${fmt(g.fileQty)}</td>
+        <td>${unitSel(g)}</td>
+        <td class="num"><b>${it && g.take ? esc(fmtQty(it, g.take)) : "—"}</b></td>
+        <td class="num dim">${it && g.trend ? esc(fmtQty(it, g.trend)) : "—"}</td>
+        <td class="num" style="white-space:nowrap;${after!=null&&after<0?"color:var(--crit);font-weight:600":""}">${it ? (took ? `<span>${esc(fmtQty(it, it.stock))}</span> → <span>${esc(fmtQty(it, after))}</span>` : esc(fmtQty(it, it.stock))) : ""}</td>
+        <td>${tag(g)}</td></tr>`; }).join("")}
+    </tbody></table></div>` : `<div class="empty">Nothing in this file is for this warehouse's products.</div>`}</div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <button class="btn" onclick="sdPending=null;renderSdPreview()">Cancel</button>
+      <button class="btn primary" onclick="applySalesDeduction()" ${live.length?"":"disabled"}>${!live.length ? "Nothing new"
+        : p.mode==="trend" ? pl(trendB, `Record ${fmt(trendB)} bill for trends`, `Record ${fmt(trendB)} bills for trends`)
+        : !takeB ? pl(trendB, `Record ${fmt(trendB)} bill for trends`, `Record ${fmt(trendB)} bills for trends`)
+        : pl(takeB, `Take off ${fmt(takeB)} bill`, `Take off ${fmt(takeB)} bills`)}</button>
+    </div>`;
+  host.querySelectorAll(".sd-map").forEach(sel=>{
+    const g = rows.find(r=>r.lk===sel.dataset.lk);
+    if(g && g.itemId!=null) sel.value = String(g.itemId);
+    sel.addEventListener("change", ()=>{ const lk = sel.dataset.lk; sdPending.remap[lk] = sel.value ? parseInt(sel.value,10) : null; delete sdPending.units[lk]; renderSdPreview(); });
+  });
+}
+function applySalesDeduction(){
+  if(!sdPending) return;
+  const {bills} = sdCompute(), live = bills.filter(b=>b.status!=="dup");
+  if(!live.length){ toast("Nothing new in this file"); return; }
+  const b = uid("batchSeq"), fname = sdPending.fname, roll = {}, days = new Map();
+  for(const x of live){
+    if(!(x.bk in roll)) roll[x.bk] = state.bills[x.bk]===undefined ? null : state.bills[x.bk];
+    state.bills[x.bk] = x.qty;
+    const k = x.itemId+"|"+(x.date||todayStr())+"|"+(x.trend?1:0);
+    if(!days.has(k)) days.set(k, {itemId:x.itemId, date:x.date||todayStr(), trend:x.trend, qty:0, amt:null});
+    const d = days.get(k); d.qty += x.delta;
+    if(x.status==="new" && x.amt!=null) d.amt = (d.amt||0) + x.amt;
+  }
+  const took = new Set(), neg = new Set(), now = Date.now();
+  let trendN = 0;
+  for(const d of days.values()){
+    const it = item(d.itemId); if(!it) continue;
+    const q = r2(d.qty); if(!q && d.amt==null) continue;
+    if(!d.trend){ it.stock = r2(it.stock - q); took.add(it.id); if(it.stock<0) neg.add(it.id); }
+    else trendN++;
+    const t = newTx({ts:Math.min(now, new Date(d.date+"T12:00").getTime()), date:d.date, itemId:it.id, type:"sale", qty:-q, note:fname, b});
+    if(d.trend) t.h = 1;
+    if(d.amt!=null) t.amount = r2(d.amt);
+    state.tx.push(t);
+  }
+  for(const id of [...neg]) if((item(id)||{}).stock>=0) neg.delete(id);
+  const nb = arr => new Set(arr.map(x=>x.bill)).size;
+  const takeB = nb(live.filter(x=>!x.trend)), trendB = nb(live.filter(x=>x.trend)), dupB = nb(bills.filter(x=>x.status==="dup"));
+  state.lastBatch = b; state.lastBatchBills = roll;
+  sdPending = null;
+  save(); render();
+  /* each part on its own, so it can be put into Chinese part by part */
+  const zh = x => LANG==="zh" ? (zhText(x) ?? x) : x;
+  toast([took.size ? `Took ${fmt(takeB)} bill${takeB===1?"":"s"} off ${took.size} product${took.size===1?"":"s"}` : "Nothing taken off stock",
+    trendB ? `${fmt(trendB)} bill${trendB===1?"":"s"} recorded for trends` : "",
+    dupB ? `${fmt(dupB)} already in, skipped` : "",
+    neg.size ? `${neg.size} now below zero —recount` : "", "Undo available"].filter(Boolean).map(zh).join(" · "));
+}
+/* What's been taken off so far —newest sale date first. */
+function renderSalesDeduction(){
+  const tbl = $("#sd-table"); if(!tbl || !isWarehouse()) return;
+  renderSdPreview();
+  const f = $("#sd-filter").value;
+  const all = state.tx.filter(t=>t.type==="sale");
+  const bills = new Set(Object.keys(state.bills).filter(k=>!k.endsWith("@d")).map(k=>k.split("§")[0]));
+  const last = all.reduce((d,t)=>!d||t.date>d ? t.date : d, null);
+  $("#sd-meta").textContent = all.length ? fmt(bills.size)+" bills remembered · latest sale "+shortDate(last) : "";
+  const rows = all.filter(t=>f==="all" || (f==="trend" ? t.h : !t.h)).sort((a,b)=>b.date.localeCompare(a.date) || b.ts-a.ts);
+  if(!rows.length){ tbl.innerHTML = `<div class="empty">${all.length ? "Nothing here with this filter." : "No sales imported yet."}</div>`; return; }
+  tbl.innerHTML = `<table><thead><tr><th>Date</th><th>Item</th><th class="num">Qty</th><th>Rack code</th><th>From</th><th></th></tr></thead><tbody>`
+    + rows.slice(0,400).map(t=>{
+        const it = item(t.itemId);
+        return `<tr><td class="mono dim" style="white-space:nowrap">${esc(t.date)}</td>
+          <td>${it?esc(it.name):'<span class="faint">(removed)</span>'}</td>
+          <td class="num" style="color:${t.qty<0?"var(--series-out)":"var(--series-in)"};font-weight:600">${t.qty>0?"+":""}${esc(fmtQty(it, t.qty))}</td>
+          <td class="mono dim" style="font-size:11.5px;white-space:nowrap">${it&&it.store?zoneChip(zoneOf(it))+" "+esc(posCode(it)):""}</td>
+          <td class="dim" style="font-size:12px" data-notr>${esc(t.note||"")}</td>
+          <td>${t.h?'<span class="tag t-off">trend only</span>':""}</td></tr>`;
+      }).join("") + `</tbody></table>`
+    + (rows.length>400 ? `<div class="dim" style="font-size:12px;padding:8px 10px">Showing the newest 400 of ${fmt(rows.length)} —the Log has them all.</div>` : "");
+}
+
+/* ============================================================
    WAREHOUSE — ISSUED SUMMARY (by company, by month)
    Reads tx rows of type "issue" only, same source as the Issue Stock
    history —this is just that same data rolled up by company and item
@@ -8746,6 +9168,13 @@ function applyDeptTypeNav(){
   });
   $$(".wh-only").forEach(el=>el.classList.toggle("hidden", t!=="warehouse"));
   $$(".kitchen-only").forEach(el=>el.classList.toggle("hidden", t==="warehouse"));
+  /* A warehouse has Sales Deduction (10) before Issued Summary, so its Log and
+     Setup come one later than a kitchen's. */
+  $$("#rail button[data-st-wh]").forEach(b=>{
+    const st = b.querySelector(".st"); if(!st) return;
+    if(!st.dataset.k) st.dataset.k = st.textContent;
+    st.textContent = t==="warehouse" ? b.dataset.stWh : st.dataset.k;
+  });
   if(hidCurrent) go(t==="warehouse" ? "alerts" : "panel");
 }
 
@@ -8761,6 +9190,7 @@ function render(){
   renderSalesView();
   renderReceive();
   renderIssueStock();
+  renderSalesDeduction();
   renderIssueSummary();
   renderLog();
   renderSetup();
@@ -8820,6 +9250,7 @@ $("#restore-file").addEventListener("change", e=>{
 bindDrop($("#drop"), $("#sales-file"), f=>readGrid(f, parseSales));
 bindDrop($("#drop-items"), $("#items-file"), f=>readGrid(f, importItems));
 bindDrop($("#drop-rcv"), $("#rcv-file"), f=>readGrid(f, parseReceipts));
+bindDrop($("#drop-sd"), $("#sd-file"), f=>{ toast(LANG==="zh" ? "正在读取 "+f.name+"——几个月的销售需要一点时间" : "Reading "+f.name+" —a few months of sales takes a moment"); readGrid(f, parseSalesDeduction); });
 
 /* ============================================================
    BOOT — config gate → Clerk sign-in gate → Supabase storage
