@@ -517,6 +517,11 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
 .fp-it.hit{box-shadow:inset 3px 0 0 var(--fp-hit)}
 .fp-it-top{display:flex;gap:7px;align-items:baseline;flex-wrap:wrap;font-size:13px}
 .fp-code{font-size:11px;font-weight:600;color:var(--ink-2)}
+.fp-acts{margin-left:auto;display:inline-flex;gap:4px;align-self:center}
+.rk-card-acts{display:flex;justify-content:flex-end;gap:3px;margin-top:4px}
+.rk-act{border:1px solid var(--rule-2);background:var(--panel);color:var(--ink-2);font:12px/1 var(--f-ui);width:24px;height:22px;padding:0;cursor:pointer}
+.rk-act:hover{border-color:var(--accent);color:var(--accent)}
+.rk-act.del:hover{border-color:var(--crit-rule);color:var(--crit);background:var(--crit-bg)}
 .fp-it-sub{font-family:var(--f-mono);font-size:10px;color:var(--ink-3);margin:1px 0 6px}
 .fp-it-q{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .fp-step{display:inline-flex;align-items:center}
@@ -628,6 +633,7 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
   .rk-card{width:128px}
   .rk-add-slot{width:128px}
   .rk-card-qty input{font-size:16px;min-height:34px;padding:2px 4px}
+  .rk-act{width:34px;height:32px;font-size:14px}
   #toast{bottom:calc(16px + env(safe-area-inset-bottom))}
 }
 @media(max-width:760px){
@@ -5445,6 +5451,7 @@ async function delItem(id){
   if(!await askConfirm("Remove “"+it.name+"”", "Its movement history stays in the log.", "Remove", true)) return;
   state.items = state.items.filter(i=>i.id!==id);
   state.plan = state.plan.filter(p=>p.itemId!==id);
+  if(typeof fpDraft!=="undefined") delete fpDraft[id];
   save(); render(); toast("Removed —"+it.name);
 }
 
@@ -6979,7 +6986,8 @@ function planItemRow(it, q){
   const qty = p>1 ? step("c", sg*s.ctn, "ctn") + step("p", sg*s.pkt, unitOf(it)) : step("p", v, hasPack(it) ? unitOf(it) : "qty");
   const d = planDiff(it), pc = posCode(it);
   return `<div class="fp-it${d.chg?" chg":""}${planMatch(it,q)?" hit":""}" data-id="${it.id}">
-    <div class="fp-it-top">${pc&&rackCoded(it.store)?`<span class="mono fp-code">${esc(pc)}</span>`:""}<b>${esc(it.name)}</b>${stockFlag(it)}</div>
+    <div class="fp-it-top">${pc&&rackCoded(it.store)?`<span class="mono fp-code">${esc(pc)}</span>`:""}<b>${esc(it.name)}</b>${stockFlag(it)}
+      <span class="fp-acts"><button type="button" class="btn sm" onclick="openEdit(${it.id})">Edit</button><button type="button" class="btn sm danger" onclick="delItem(${it.id})">Delete</button></span></div>
     <div class="fp-it-sub">${esc(it.uom||"")}${p>1?` · ${p} ${esc(unitOf(it))}/ctn`:""}${it.code?" · "+esc(it.code):""}${!hasPack(it)&&it.looseQty?` · +${fmt(it.looseQty)} loose (set a pack size to merge)`:""}</div>
     <div class="fp-it-q">${qty}<span class="fp-diff" data-diff>${d.html}</span></div>
   </div>`;
@@ -7398,6 +7406,7 @@ function renderShelves(){
       <div class="rk-card-top"><b>${esc(it.name)}</b></div>
       <div class="rk-card-meta">${code&&rackCoded(it.store)?`<span class="mono">${esc(code)}</span> `:""}${esc(it.uom||"")}${p>1?` · ${p}/ctn`:""}</div>
       <div class="rk-card-qty">${qty}</div>
+      <div class="rk-card-acts"><button type="button" class="rk-act" draggable="false" onclick="openEdit(${it.id})" title="Edit" aria-label="Edit">✎</button><button type="button" class="rk-act del" draggable="false" onclick="delItem(${it.id})" title="Delete" aria-label="Delete">✕</button></div>
     </div>`;
   };
   const pos = (label, inner, slot) => `<div class="rk-pos"${slot!=null?` data-slot="${slot}"`:""}><span class="rk-pos-n">${label}</span>${inner}</div>`;

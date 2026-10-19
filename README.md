@@ -289,6 +289,9 @@ level `1`, position `01`) —one per product. A rack is `items.store`, its level
 - Moving a product into a different zone asks first.
 - Typing a rack code in **Edit** (`R1A1L03`, also accepted as `R1A | 1L | 03`)
   places it there, refusing a code another product already has.
+- **Edit / Delete:** every product on the floor-plan panel has **Edit** and
+  **Delete** buttons, and every Shelves card has **✎** / **✕**. Delete asks
+  first. The movement history stays in the log.
 - **Inserting a missed product.** On a labelled rack, both the floor-plan panel
   and the Shelves view have a **＋ insert** between neighbouring products
   (and before 01).
