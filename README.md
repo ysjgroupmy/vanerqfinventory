@@ -236,9 +236,14 @@ appears once a product has one.
 
 The Racks page opens on a drawn **floor plan**, one tab per floor:
 
-- **1st floor:** the building's walls and doors, the chiller and freezer
-  rooms with their entrances, the no-access areas, R1A–R9A where they stand,
-  and the area outside the main door.
+- **1st floor:** the building's walls and doors; the chiller and freezer
+  rooms with their entrances; R1A–R9A where they stand; and the area outside
+  the main door.
+  - The chiller runs across to the right-hand wall, and the freezer below it
+    is the same width.
+  - Each was first drawn narrower, beside a hatched no-access block. A saved
+    plan still in that first shape is enlarged once, automatically, by
+    whichever device opens it first. A layout edited by hand is left alone.
 - **2nd floor:** the stairwell in the top-left corner, R1B along the top, R2B
   beside the stairs, CENTER (dry storage) in the middle, R5B down the right
   wall, and R3B / R4B along the bottom-left.
