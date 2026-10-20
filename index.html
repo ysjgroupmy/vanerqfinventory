@@ -3016,7 +3016,7 @@ function item(id){ return state.items.find(i=>i.id===id); }
 const allStores = () => [...new Set(state.items.map(i=>i.store||"—"))].sort();
 function inStore(it,v){ return v==="all" || (it.store||"—")===v; }
 /* an item nobody has counted and that has never moved */
-function uncounted(it){ return !it.counted && it.stock===0 && !state.tx.some(t=>t.itemId===it.id); }
+function uncounted(it){ return !it.counted && it.stock===0 && !usageIndex().moved.has(it.id); }
 /* the readable half of a bilingual name, for tight readouts */
 function shortName(n){
   const en = String(n||"").replace(/[\u4e00-\u9fff\uff08\uff09()]/g,"").replace(/\s+/g," ").trim();
@@ -3219,20 +3219,34 @@ function kgOf(it, qty){ const k = kgPerUnit(it && it.uom); return k ? k*qty : 0;
    other companies in a warehouse —either one drives use/day, cover, trends
    and "Set minimums" the same way. */
 const isUse = t => t.type==="sale" || t.type==="issue";
-function latestSaleDate(){
-  let hi=null;
-  for(const t of state.tx){ if(!isUse(t)) continue; if(hi===null||t.date>hi) hi=t.date; }
-  return hi || todayStr();
-}
-function windowDaily(id, fromAgo, toAgo){
-  const asOf = new Date(latestSaleDate()+"T12:00").getTime();
-  const a = asOf-fromAgo*86400000, b = asOf-toAgo*86400000;
-  let sum=0;
+/* The log read once per change, not once per product per question: use per
+   product per day, the first and newest day anything went out, and which
+   products have moved at all. With months of imported sales (thousands of
+   lines) scanning the whole log for every product, several times a row, was
+   most of every page switch. Rebuilt when the data changes —save() moves
+   stateVer on, data from the server is a new state object. */
+let useIx = null;
+function usageIndex(){
+  if(useIx && useIx.ref===state && useIx.ver===stateVer && useIx.n===state.tx.length) return useIx;
+  const by = new Map(), moved = new Set();
+  let lo = null, hi = null;
   for(const t of state.tx){
-    if(t.itemId!==id || !isUse(t)) continue;
-    const ts = new Date(t.date+"T12:00").getTime();
-    if(ts>=a && ts<b) sum += -t.qty;
+    if(t.itemId!=null) moved.add(t.itemId);
+    if(!isUse(t)) continue;
+    let m = by.get(t.itemId); if(!m) by.set(t.itemId, m = new Map());
+    m.set(t.date, (m.get(t.date)||0) - t.qty);
+    if(lo===null || t.date<lo) lo = t.date;
+    if(hi===null || t.date>hi) hi = t.date;
   }
+  return useIx = {ref:state, ver:stateVer, n:state.tx.length, by, moved, lo, hi, series:new Map(), rate:new Map()};
+}
+function latestSaleDate(){ return usageIndex().hi || todayStr(); }
+function windowDaily(id, fromAgo, toAgo){
+  const ix = usageIndex(), m = ix.by.get(id);
+  if(!m) return 0;
+  const asOf = ix.hi || todayStr(), a = dayAdd(asOf, -fromAgo), b = dayAdd(asOf, -toAgo);
+  let sum=0;
+  for(const [d, q] of m) if(d>=a && d<b) sum += q;
   return sum/Math.max(fromAgo-toAgo,1);
 }
 /* A flat trailing-7-day average either forgets a real demand shift the moment
@@ -3241,6 +3255,8 @@ function windowDaily(id, fromAgo, toAgo){
    hard cutoff, and capping any single day at 3x the recent median keeps a
    rare bulk order from skewing the rate for days afterward. */
 function smartDailyRate(id){
+  const ix = usageIndex();
+  if(ix.rate.has(id)) return ix.rate.get(id);
   const series = salesSeries(id, 42);            // oldest -> newest, zero-filled
   const nz = series.filter(v=>v>0).sort((a,b)=>a-b);
   const median = nz.length ? nz[Math.floor(nz.length/2)] : 0;
@@ -3249,6 +3265,7 @@ function smartDailyRate(id){
   const alpha = 1 - Math.pow(0.5, 1/3);           // ~3-day half-life
   let rate = capped[0];
   for(let i=1;i<capped.length;i++) rate = alpha*capped[i] + (1-alpha)*rate;
+  ix.rate.set(id, Math.max(0, rate));
   return Math.max(0, rate);
 }
 function usageRate(it){ const r=smartDailyRate(it.id); return r>0 ? r : (it.baseDaily||0); }
@@ -3468,8 +3485,18 @@ function dkey(){ return "qf0428_mirror_v1_"+(dept||"none"); }
 /* A read-through local mirror, purely for instant paint / resilience if the
    connection drops —Supabase is always the source of truth once reachable. */
 /* The sale-line detail ("@s") is left out: it's read again from the server,
-   and months of it could fill the browser's storage. */
-function mirrorLocal(){ try{ localStorage.setItem(dkey(), JSON.stringify(state, (k,v)=> k.endsWith("@s") ? undefined : v)); }catch(e){} }
+   and months of it could fill the browser's storage. With months of sales
+   the copy is a few megabytes, so it's written once things go quiet (and when
+   the app is put away or the department changes), not on every tap —
+   unsaved changes don't rely on it, they're kept on their own until the
+   server has them (writePending). */
+let mirrorTimer = null;
+function mirrorLocal(now){
+  clearTimeout(mirrorTimer); mirrorTimer = null;
+  if(!now){ mirrorTimer = setTimeout(()=>mirrorLocal(true), 1500); return; }
+  try{ localStorage.setItem(dkey(), JSON.stringify(state, (k,v)=> k.endsWith("@s") ? undefined : v)); }catch(e){}
+}
+function mirrorNowIfDue(){ if(mirrorTimer) mirrorLocal(true); }
 function readMirror(){ try{ const r=localStorage.getItem(dkey()); const o=r?JSON.parse(r):null; return (o&&o.items&&o.tx)?o:null; }catch(e){ return null; } }
 
 /* ---------- row <-> state field mapping ---------- */
@@ -3557,9 +3584,13 @@ function snapshotOf(x){
     bills: new Map(billRowsFromState(x.bills).map(r=>[r.bill_key, ser(r)])),
     racks: new Map((x.racks||[]).map(rk=>[rk.name, ser(rackRow(rk))])),
     levels: new Map((x.levels||[]).map(lv=>[lvKey(lv.rack,lv.level), ser(levelRow(lv))])),
-    settings: ser(settingsRow(x))
+    settings: settingsSer(x)
   };
 }
+/* Undo's record is never sent (LOCAL_ONLY), and after a big import it lists
+   thousands of bills —it's left out of this copy, which is only there to spot
+   what needs sending, so every save doesn't spend time writing it out. */
+function settingsSer(x){ const r = settingsRow(x); for(const k of LOCAL_ONLY) delete r[k]; return ser(r); }
 function baselineFromCache(){
   return {
     items: new Map([...cache.items].map(([id,r])=>[Number(id), ser(r)])),
@@ -3712,8 +3743,8 @@ function save(){
 function flushNowIfDirty(){
   if(dirty && !flushing){ clearTimeout(flushTimer); runFlush(); }
 }
-document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="hidden") flushNowIfDirty(); });
-window.addEventListener("pagehide", flushNowIfDirty);
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="hidden"){ mirrorNowIfDue(); flushNowIfDirty(); } });
+window.addEventListener("pagehide", ()=>{ mirrorNowIfDue(); flushNowIfDirty(); });
 window.addEventListener("beforeunload", flushNowIfDirty);
 /* Unsaved quantities on the Racks floor plan only live in this tab —ask before throwing them away. */
 window.addEventListener("beforeunload", e=>{ if(typeof fpDraft!=="undefined" && Object.keys(fpDraft).length){ e.preventDefault(); e.returnValue=""; } });
@@ -4109,6 +4140,7 @@ setInterval(()=>{
 async function switchDept(id){
   closeDeptMenu();
   if(!id || id===dept) return;
+  mirrorNowIfDue();                // this department's copy, before its data is replaced
   if(DB_READY && dirty){
     clearTimeout(flushTimer); await runFlush();   // never leave an edit behind
     if(dirty){   // still unsaved —the write really is failing, not just slow
@@ -4750,11 +4782,7 @@ function renderStock(){
   }
   if(!list.length){ $("#stock-table").innerHTML = '<div class="empty">Nothing matches that filter.</div>'; return; }
 
-  $("#stock-table").innerHTML = `<table><thead><tr>
-    <th></th><th>Item</th><th class="num">${wh?"Rack code":"Location"}</th><th class="num">Stock</th><th class="num">Min${wh?" "+infoTip(minInfo()):""}</th>
-    <th class="num">Min in days</th><th class="num">Cover</th><th class="num">Use / day</th>
-    <th class="num">Status</th><th class="num">Actions</th></tr></thead><tbody>`
-    + list.map(i=>{
+  const rows = list.map(i=>{
         const s = sev(i), u = usageRate(i), mn = effMin(i);
         const minDays = u>0 && mn>0 ? fmt1(mn/u) : "—";
         return `<tr class="sev-${s==="data"?"crit":s==="off"?"":s}">
@@ -4776,8 +4804,25 @@ function renderStock(){
             <button class="btn sm" onclick="toggleStopped(${i.id})">${i.stopped?"Resume":"Stop"}</button>
             <button class="btn sm danger" onclick="delItem(${i.id})">✕</button>
           </div></td></tr>`;
-      }).join("") + `</tbody></table>`;
+      });
+  /* A few hundred rows of buttons take the browser a moment to lay out —the
+     first screenfuls go in at once, the rest straight after, so the page
+     opens without waiting for the bottom of the list. */
+  const tok = ++stockTok, FIRST = 120, STEP = 150, box = $("#stock-table");
+  /* A redraw (after an edit far down the list) keeps the table as tall as it
+     was until every row is back, so the page stays where it was scrolled to. */
+  box.style.minHeight = box.offsetHeight ? box.offsetHeight+"px" : "";
+  box.innerHTML = `<table><thead><tr>
+    <th></th><th>Item</th><th class="num">${wh?"Rack code":"Location"}</th><th class="num">Stock</th><th class="num">Min${wh?" "+infoTip(minInfo()):""}</th>
+    <th class="num">Min in days</th><th class="num">Cover</th><th class="num">Use / day</th>
+    <th class="num">Status</th><th class="num">Actions</th></tr></thead><tbody>${rows.slice(0, FIRST).join("")}</tbody></table>`;
+  const tb = $("#stock-table tbody");
+  const more = at => { if(tok!==stockTok || !tb.isConnected) return;
+    if(at>=rows.length){ box.style.minHeight = ""; return; }
+    tb.insertAdjacentHTML("beforeend", rows.slice(at, at+STEP).join("")); setTimeout(()=>more(at+STEP), 0); };
+  setTimeout(()=>more(FIRST), 0);
 }
+let stockTok = 0;
 
 /* ---------- clipboard ---------- */
 async function copyText(text, done){
@@ -5752,16 +5797,18 @@ async function delItem(id){
    week, in 9 weeks out of 10. It assumes nothing about the shape of demand and
    copes with lumpy items. Under 4×N days of history it falls back to mean × N. */
 function salesSeries(id, days){
-  const map = {};
-  for(const t of state.tx){ if(t.itemId!==id || !isUse(t)) continue; map[t.date]=(map[t.date]||0)+(-t.qty); }
-  const asOf = latestSaleDate(), out=[];
-  for(let d=days-1; d>=0; d--) out.push(map[dayAdd(asOf,-d)]||0);
-  return out;
+  const ix = usageIndex(), k = id+"|"+days;
+  let out = ix.series.get(k);
+  if(!out){
+    const m = ix.by.get(id), asOf = ix.hi || todayStr();
+    out = [];
+    for(let d=days-1; d>=0; d--) out.push(m ? (m.get(dayAdd(asOf,-d))||0) : 0);
+    ix.series.set(k, out);
+  }
+  return out.slice();
 }
 function historyDays(){
-  let lo=null, hi=null;
-  for(const t of state.tx){ if(!isUse(t)) continue;
-    if(lo===null||t.date<lo) lo=t.date; if(hi===null||t.date>hi) hi=t.date; }
+  const {lo, hi} = usageIndex();
   if(lo===null) return 0;
   return Math.round((new Date(hi+"T12:00")-new Date(lo+"T12:00"))/86400000)+1;
 }
@@ -8787,15 +8834,17 @@ function applySalesDeduction(){
     neg.size ? `${neg.size} now below zero —recount` : "", "Undo available"].filter(Boolean).map(zh).join(" · "));
 }
 /* What's been taken off so far —newest sale date first. */
+let billsRemembered = null;
 function renderSalesDeduction(){
   const tbl = $("#sd-table"); if(!tbl || !isWarehouse()) return;
   renderSdPreview();
   renderSalesDash();
   const f = $("#sd-filter").value;
   const all = state.tx.filter(t=>t.type==="sale");
-  const bills = new Set(Object.keys(state.bills).filter(k=>!billSide(k)).map(k=>k.split("§")[0]));
+  if(!billsRemembered || billsRemembered.ref!==state.bills || billsRemembered.ver!==stateVer)
+    billsRemembered = {ref:state.bills, ver:stateVer, n:new Set(Object.keys(state.bills).filter(k=>!billSide(k)).map(k=>k.split("§")[0])).size};
   const last = all.reduce((d,t)=>!d||t.date>d ? t.date : d, null);
-  $("#sd-meta").textContent = all.length ? fmt(bills.size)+" bills remembered · latest sale "+shortDate(last) : "";
+  $("#sd-meta").textContent = all.length ? fmt(billsRemembered.n)+" bills remembered · latest sale "+shortDate(last) : "";
   const rows = all.filter(t=>f==="all" || (f==="trend" ? t.h : !t.h)).sort((a,b)=>b.date.localeCompare(a.date) || b.ts-a.ts);
   if(!rows.length){ tbl.innerHTML = `<div class="empty">${all.length ? "Nothing here with this filter." : "No sales imported yet."}</div>`; return; }
   tbl.innerHTML = `<table><thead><tr><th>Date</th><th>Item</th><th class="num">Qty</th><th>Rack code</th><th>From</th><th></th></tr></thead><tbody>`
@@ -8825,7 +8874,9 @@ function renderSalesDeduction(){
    sale imported, not today: sales come in in batches, and the days after the
    last import would read as "sold nothing". */
 const saleInfoCache = new Map();
+let saleLinesCache = null;
 function saleLines(){
+  if(saleLinesCache && saleLinesCache.ref===state.bills && saleLinesCache.ver===stateVer) return saleLinesCache.out;
   const out = [];
   for(const k of Object.keys(state.bills)){
     if(!k.endsWith("@s")) continue;
@@ -8835,6 +8886,7 @@ function saleLines(){
     const i = bk.lastIndexOf("§i");
     out.push(Object.assign({bk, bill:bk.slice(0, i), itemId:Number(bk.slice(i+2)), qty:state.bills[bk]||0, date:state.bills[bk+"@d"]||null}, c.v));
   }
+  saleLinesCache = {ref:state.bills, ver:stateVer, out};
   return out;
 }
 function salesAsOf(){ let end = null; for(const t of state.tx) if(t.type==="sale" && (!end || t.date>end)) end = t.date; return end; }
@@ -9777,22 +9829,19 @@ function applyDeptTypeNav(){
   if(hidCurrent) go(t==="warehouse" ? "alerts" : "panel");
 }
 
+/* Only the page on screen is drawn —the others are drawn when they're opened
+   (go() calls render()). Drawing all of them on every change and every page
+   switch made switching pages take seconds once a few months of sales were
+   imported. The top bar, the menu's alarms and the low-stock check belong to
+   every page. Each page's drawing only touches its own section. */
+const PAGE_RENDER = {panel:()=>renderPanel(), alerts:()=>renderLowStock(), stock:()=>renderStock(), racks:()=>renderRacks(),
+  stocktake:()=>renderStocktake(), count:()=>renderCount(), cook:()=>renderCook(), salesview:()=>renderSalesView(),
+  receive:()=>renderReceive(), issue:()=>renderIssueStock(), salesded:()=>renderSalesDeduction(), issuesum:()=>renderIssueSummary(),
+  log:()=>renderLog(), setup:()=>renderSetup()};
 function render(){
   renderTopbar();
-  renderLowStock();
-  renderPanel();
-  renderStock();
-  renderRacks();
-  renderStocktake();
-  renderCount();
-  renderCook();
-  renderSalesView();
-  renderReceive();
-  renderIssueStock();
-  renderSalesDeduction();
-  renderIssueSummary();
-  renderLog();
-  renderSetup();
+  const sec = document.querySelector("main > section:not(.hidden)"), pg = sec ? sec.id.slice(5) : "";
+  if(PAGE_RENDER[pg]) PAGE_RENDER[pg]();
   checkLowAlerts();
 }
 
