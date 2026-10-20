@@ -369,6 +369,15 @@ Takes what was sold off the stock on hand. Drop YonYou's sales export
 - **Units:** `UOM` is what was sold.
   - A single can (`0.425kg/can`) of a product stocked by the carton
     (`24x0.425kg/ctn`) is one can, and the carton UOM is 24 of them.
+  - Sizes decide, not the word on the UOM. Fine Salt Box is stocked
+    `48x0.5kg/ctn` and sold `0.5kg/box`; the box is the 0.5 kg unit inside the
+    carton, so one box is one unit. Only the item's own carton UOM, a UOM that
+    says how many it holds, or the whole carton's size (`10kg/ctn` of
+    `10x1kg/ctn`) counts as a carton. Receiving follows the same rule.
+  - **Corrections:** a bill whose quantity changed is corrected the way it was
+    first applied. One recorded for trends only stays trends only; one taken
+    off stock gets the difference taken off or put back. So importing the same
+    file again puts right sales that an earlier version counted wrongly.
   - **Count as** shows the choice for each product and can be switched.
   - A product sold in a different pack size from the one stocked (sold
     `0.1kg/pkt`, stocked `0.5kg/pkt`) isn't taken off until someone picks how
