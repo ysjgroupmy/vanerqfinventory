@@ -154,6 +154,19 @@ button.tb-lamp:focus-visible{outline:2px solid #93B8B3;outline-offset:1px}
 .pill-tg button:not(.on):hover{background:var(--panel-3);color:var(--ink)}
 .pill-tg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .mincell{display:inline-flex;align-items:center;gap:7px;justify-content:flex-end;white-space:nowrap}
+/* Stock: the table fits the page instead of running off its right edge —
+   the row's buttons wrap onto two lines, the minimum sits under its
+   Auto / Manual switch, and long headings wrap */
+#stock-table th{white-space:normal}
+#stock-table th,#stock-table td{padding-left:9px;padding-right:9px}
+#stock-table .mincell{flex-direction:column;align-items:flex-end;gap:3px}
+.row-acts{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end;max-width:190px;margin-left:auto}
+/* Sales Deduction preview: the same —long cells wrap rather than widen the table */
+#sd-preview th{white-space:normal}
+#sd-preview th,#sd-preview td{padding-left:9px;padding-right:9px}
+#sd-preview .sd-map{max-width:210px;width:100%}
+#sd-preview .nw,#sd-preview .tag{white-space:nowrap}
+#sd-preview td.wrap{white-space:normal}
 .minv{background:none;border:none;border-bottom:1px dashed var(--rule-2);font:12.5px var(--f-mono);color:var(--ink);cursor:pointer;padding:1px 0}
 .minv.auto{color:var(--ink-2)}
 .minv:hover{border-bottom-color:var(--accent);color:var(--accent)}
@@ -319,6 +332,8 @@ textarea{width:100%;resize:vertical;font-family:var(--f-mono);font-size:12px;lin
 .sg-sub{font-size:12.5px;color:var(--ink-2);margin:-8px 0 12px}
 .sg-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
 .sg-bar .sg-asof{font-size:12px;color:var(--ink-3)}
+.sg-cust{display:inline-flex;align-items:center;gap:6px}
+.sg-cust input{width:auto;padding:4px 8px}
 .sg-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);margin-bottom:14px}
 .sg-stat{background:var(--panel);padding:9px 12px}
 .sg-stat .l{font-size:11.5px;color:var(--ink-2)}
@@ -1479,6 +1494,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "Cover target —days of stock a minimum should represent":"可用天数目标 —最低库存应相当于几天的库存",
 "Critical":"紧急",
 "Ctn 箱":"箱",
+"Custom":"自定义",
 "Customer":"客户",
 "Customer and price detail isn't being saved —re-run supabase-schema.sql in Supabase (see README).":"客户和价格明细没有保存——请在 Supabase 中重新运行 supabase-schema.sql（见 README）。",
 "Customer categories":"客户分类",
@@ -1580,6 +1596,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "Empty":"空",
 "Empty —drop a product here":"空 —把货品拖到这里",
 "Empty —tap to add a product here, or drop one":"空位 —点击在此添加货品，或拖入货品",
+"End date":"结束日期",
 "Enter a counted balance or a change":"请输入盘点结存或变动数",
 "Enter a level":"请输入层",
 "Enter a minimum above {n} —or keep it on Auto":"请输入大于 {n} 的最低库存 —或保持自动",
@@ -2071,6 +2088,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "Sales data":"销售数据",
 "Sales date":"销售日期",
 "Sales history imported":"已导入销售历史",
+"Sales imported up to {d}.":"销售已导入到 {d}。",
 "Sales on record":"已记录的销售",
 "Sales out":"销售出库",
 "Salesman":"业务员",
@@ -2131,6 +2149,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "Sold, {n} days":"{n} 天销量",
 "Sorted by days of cover · quantity closes the gap to minimum":"按可用天数排序 · 数量为补足最低库存的差额",
 "Start blank":"从空白开始",
+"Start date":"开始日期",
 "Status":"状态",
 "Status 状态":"状态",
 "Still above minimum, but going fast":"仍高于最低库存，但消耗很快",
@@ -2221,6 +2240,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "Title":"标题",
 "To":"发往",
 "To cook":"待烹煮",
+"Today":"今天",
 "Today's schedule":"今日计划",
 "Took {n} bill off {n} product":"已扣减 {n} 张单，涉及 {n} 个产品",
 "Took {n} bill off {n} products":"已扣减 {n} 张单，涉及 {n} 个产品",
@@ -2306,6 +2326,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "Wrong item selected":"选错货品",
 "Wrong quantity entered":"数量输入错误",
 "Wrong supplier or document":"供应商或单据有误",
+"Yesterday":"昨天",
 "Yield":"出品率",
 "Yield —actual against planned":"出品率 —实际对比计划",
 "Your minimum —tap to change":"你设定的最低库存 —点击修改",
@@ -2995,7 +3016,7 @@ function item(id){ return state.items.find(i=>i.id===id); }
 const allStores = () => [...new Set(state.items.map(i=>i.store||"—"))].sort();
 function inStore(it,v){ return v==="all" || (it.store||"—")===v; }
 /* an item nobody has counted and that has never moved */
-function uncounted(it){ return !it.counted && it.stock===0 && !state.tx.some(t=>t.itemId===it.id); }
+function uncounted(it){ return !it.counted && it.stock===0 && !usageIndex().moved.has(it.id); }
 /* the readable half of a bilingual name, for tight readouts */
 function shortName(n){
   const en = String(n||"").replace(/[\u4e00-\u9fff\uff08\uff09()]/g,"").replace(/\s+/g," ").trim();
@@ -3198,20 +3219,34 @@ function kgOf(it, qty){ const k = kgPerUnit(it && it.uom); return k ? k*qty : 0;
    other companies in a warehouse —either one drives use/day, cover, trends
    and "Set minimums" the same way. */
 const isUse = t => t.type==="sale" || t.type==="issue";
-function latestSaleDate(){
-  let hi=null;
-  for(const t of state.tx){ if(!isUse(t)) continue; if(hi===null||t.date>hi) hi=t.date; }
-  return hi || todayStr();
-}
-function windowDaily(id, fromAgo, toAgo){
-  const asOf = new Date(latestSaleDate()+"T12:00").getTime();
-  const a = asOf-fromAgo*86400000, b = asOf-toAgo*86400000;
-  let sum=0;
+/* The log read once per change, not once per product per question: use per
+   product per day, the first and newest day anything went out, and which
+   products have moved at all. With months of imported sales (thousands of
+   lines) scanning the whole log for every product, several times a row, was
+   most of every page switch. Rebuilt when the data changes —save() moves
+   stateVer on, data from the server is a new state object. */
+let useIx = null;
+function usageIndex(){
+  if(useIx && useIx.ref===state && useIx.ver===stateVer && useIx.n===state.tx.length) return useIx;
+  const by = new Map(), moved = new Set();
+  let lo = null, hi = null;
   for(const t of state.tx){
-    if(t.itemId!==id || !isUse(t)) continue;
-    const ts = new Date(t.date+"T12:00").getTime();
-    if(ts>=a && ts<b) sum += -t.qty;
+    if(t.itemId!=null) moved.add(t.itemId);
+    if(!isUse(t)) continue;
+    let m = by.get(t.itemId); if(!m) by.set(t.itemId, m = new Map());
+    m.set(t.date, (m.get(t.date)||0) - t.qty);
+    if(lo===null || t.date<lo) lo = t.date;
+    if(hi===null || t.date>hi) hi = t.date;
   }
+  return useIx = {ref:state, ver:stateVer, n:state.tx.length, by, moved, lo, hi, series:new Map(), rate:new Map()};
+}
+function latestSaleDate(){ return usageIndex().hi || todayStr(); }
+function windowDaily(id, fromAgo, toAgo){
+  const ix = usageIndex(), m = ix.by.get(id);
+  if(!m) return 0;
+  const asOf = ix.hi || todayStr(), a = dayAdd(asOf, -fromAgo), b = dayAdd(asOf, -toAgo);
+  let sum=0;
+  for(const [d, q] of m) if(d>=a && d<b) sum += q;
   return sum/Math.max(fromAgo-toAgo,1);
 }
 /* A flat trailing-7-day average either forgets a real demand shift the moment
@@ -3220,6 +3255,8 @@ function windowDaily(id, fromAgo, toAgo){
    hard cutoff, and capping any single day at 3x the recent median keeps a
    rare bulk order from skewing the rate for days afterward. */
 function smartDailyRate(id){
+  const ix = usageIndex();
+  if(ix.rate.has(id)) return ix.rate.get(id);
   const series = salesSeries(id, 42);            // oldest -> newest, zero-filled
   const nz = series.filter(v=>v>0).sort((a,b)=>a-b);
   const median = nz.length ? nz[Math.floor(nz.length/2)] : 0;
@@ -3228,6 +3265,7 @@ function smartDailyRate(id){
   const alpha = 1 - Math.pow(0.5, 1/3);           // ~3-day half-life
   let rate = capped[0];
   for(let i=1;i<capped.length;i++) rate = alpha*capped[i] + (1-alpha)*rate;
+  ix.rate.set(id, Math.max(0, rate));
   return Math.max(0, rate);
 }
 function usageRate(it){ const r=smartDailyRate(it.id); return r>0 ? r : (it.baseDaily||0); }
@@ -3447,8 +3485,18 @@ function dkey(){ return "qf0428_mirror_v1_"+(dept||"none"); }
 /* A read-through local mirror, purely for instant paint / resilience if the
    connection drops —Supabase is always the source of truth once reachable. */
 /* The sale-line detail ("@s") is left out: it's read again from the server,
-   and months of it could fill the browser's storage. */
-function mirrorLocal(){ try{ localStorage.setItem(dkey(), JSON.stringify(state, (k,v)=> k.endsWith("@s") ? undefined : v)); }catch(e){} }
+   and months of it could fill the browser's storage. With months of sales
+   the copy is a few megabytes, so it's written once things go quiet (and when
+   the app is put away or the department changes), not on every tap —
+   unsaved changes don't rely on it, they're kept on their own until the
+   server has them (writePending). */
+let mirrorTimer = null;
+function mirrorLocal(now){
+  clearTimeout(mirrorTimer); mirrorTimer = null;
+  if(!now){ mirrorTimer = setTimeout(()=>mirrorLocal(true), 1500); return; }
+  try{ localStorage.setItem(dkey(), JSON.stringify(state, (k,v)=> k.endsWith("@s") ? undefined : v)); }catch(e){}
+}
+function mirrorNowIfDue(){ if(mirrorTimer) mirrorLocal(true); }
 function readMirror(){ try{ const r=localStorage.getItem(dkey()); const o=r?JSON.parse(r):null; return (o&&o.items&&o.tx)?o:null; }catch(e){ return null; } }
 
 /* ---------- row <-> state field mapping ---------- */
@@ -3536,9 +3584,13 @@ function snapshotOf(x){
     bills: new Map(billRowsFromState(x.bills).map(r=>[r.bill_key, ser(r)])),
     racks: new Map((x.racks||[]).map(rk=>[rk.name, ser(rackRow(rk))])),
     levels: new Map((x.levels||[]).map(lv=>[lvKey(lv.rack,lv.level), ser(levelRow(lv))])),
-    settings: ser(settingsRow(x))
+    settings: settingsSer(x)
   };
 }
+/* Undo's record is never sent (LOCAL_ONLY), and after a big import it lists
+   thousands of bills —it's left out of this copy, which is only there to spot
+   what needs sending, so every save doesn't spend time writing it out. */
+function settingsSer(x){ const r = settingsRow(x); for(const k of LOCAL_ONLY) delete r[k]; return ser(r); }
 function baselineFromCache(){
   return {
     items: new Map([...cache.items].map(([id,r])=>[Number(id), ser(r)])),
@@ -3691,8 +3743,8 @@ function save(){
 function flushNowIfDirty(){
   if(dirty && !flushing){ clearTimeout(flushTimer); runFlush(); }
 }
-document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="hidden") flushNowIfDirty(); });
-window.addEventListener("pagehide", flushNowIfDirty);
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="hidden"){ mirrorNowIfDue(); flushNowIfDirty(); } });
+window.addEventListener("pagehide", ()=>{ mirrorNowIfDue(); flushNowIfDirty(); });
 window.addEventListener("beforeunload", flushNowIfDirty);
 /* Unsaved quantities on the Racks floor plan only live in this tab —ask before throwing them away. */
 window.addEventListener("beforeunload", e=>{ if(typeof fpDraft!=="undefined" && Object.keys(fpDraft).length){ e.preventDefault(); e.returnValue=""; } });
@@ -4088,6 +4140,7 @@ setInterval(()=>{
 async function switchDept(id){
   closeDeptMenu();
   if(!id || id===dept) return;
+  mirrorNowIfDue();                // this department's copy, before its data is replaced
   if(DB_READY && dirty){
     clearTimeout(flushTimer); await runFlush();   // never leave an edit behind
     if(dirty){   // still unsaved —the write really is failing, not just slow
@@ -4729,11 +4782,7 @@ function renderStock(){
   }
   if(!list.length){ $("#stock-table").innerHTML = '<div class="empty">Nothing matches that filter.</div>'; return; }
 
-  $("#stock-table").innerHTML = `<table><thead><tr>
-    <th></th><th>Item</th><th class="num">${wh?"Rack code":"Location"}</th><th class="num">Stock</th><th class="num">Min${wh?" "+infoTip(minInfo()):""}</th>
-    <th class="num">Min in days</th><th class="num">Cover</th><th class="num">Use / day</th>
-    <th class="num">Status</th><th class="num">Actions</th></tr></thead><tbody>`
-    + list.map(i=>{
+  const rows = list.map(i=>{
         const s = sev(i), u = usageRate(i), mn = effMin(i);
         const minDays = u>0 && mn>0 ? fmt1(mn/u) : "—";
         return `<tr class="sev-${s==="data"?"crit":s==="off"?"":s}">
@@ -4747,16 +4796,33 @@ function renderStock(){
           <td class="num">${coverCell(i)}</td>
           <td class="num dim">${u>0?fmt1(u)+(hasPack(i)?" "+esc(unitOf(i)):""):"—"}</td>
           <td class="num">${sevTag(i)}</td>
-          <td class="num" style="white-space:nowrap">
+          <td class="num"><div class="row-acts">
             ${wh?`<button class="btn sm" onclick="openSalesGraph(${i.id})" title="Daily sales of this product"><svg class="ic"><use href="#i-chart"/></svg>Sales</button>`:""}
             <button class="btn sm" onclick="openAdjust(${i.id})">± Count</button>
             ${wh?"":`<button class="btn sm ${i.preorder?"on":""}" onclick="togglePreorder(${i.id})" title="${i.preorder?"Stock this item normally":"Make to order —no minimum, never on the cook list"}">Pre-order</button>`}
             <button class="btn sm" onclick="openEdit(${i.id})">Edit</button>
             <button class="btn sm" onclick="toggleStopped(${i.id})">${i.stopped?"Resume":"Stop"}</button>
             <button class="btn sm danger" onclick="delItem(${i.id})">✕</button>
-          </td></tr>`;
-      }).join("") + `</tbody></table>`;
+          </div></td></tr>`;
+      });
+  /* A few hundred rows of buttons take the browser a moment to lay out —the
+     first screenfuls go in at once, the rest straight after, so the page
+     opens without waiting for the bottom of the list. */
+  const tok = ++stockTok, FIRST = 120, STEP = 150, box = $("#stock-table");
+  /* A redraw (after an edit far down the list) keeps the table as tall as it
+     was until every row is back, so the page stays where it was scrolled to. */
+  box.style.minHeight = box.offsetHeight ? box.offsetHeight+"px" : "";
+  box.innerHTML = `<table><thead><tr>
+    <th></th><th>Item</th><th class="num">${wh?"Rack code":"Location"}</th><th class="num">Stock</th><th class="num">Min${wh?" "+infoTip(minInfo()):""}</th>
+    <th class="num">Min in days</th><th class="num">Cover</th><th class="num">Use / day</th>
+    <th class="num">Status</th><th class="num">Actions</th></tr></thead><tbody>${rows.slice(0, FIRST).join("")}</tbody></table>`;
+  const tb = $("#stock-table tbody");
+  const more = at => { if(tok!==stockTok || !tb.isConnected) return;
+    if(at>=rows.length){ box.style.minHeight = ""; return; }
+    tb.insertAdjacentHTML("beforeend", rows.slice(at, at+STEP).join("")); setTimeout(()=>more(at+STEP), 0); };
+  setTimeout(()=>more(FIRST), 0);
 }
+let stockTok = 0;
 
 /* ---------- clipboard ---------- */
 async function copyText(text, done){
@@ -5731,16 +5797,18 @@ async function delItem(id){
    week, in 9 weeks out of 10. It assumes nothing about the shape of demand and
    copes with lumpy items. Under 4×N days of history it falls back to mean × N. */
 function salesSeries(id, days){
-  const map = {};
-  for(const t of state.tx){ if(t.itemId!==id || !isUse(t)) continue; map[t.date]=(map[t.date]||0)+(-t.qty); }
-  const asOf = latestSaleDate(), out=[];
-  for(let d=days-1; d>=0; d--) out.push(map[dayAdd(asOf,-d)]||0);
-  return out;
+  const ix = usageIndex(), k = id+"|"+days;
+  let out = ix.series.get(k);
+  if(!out){
+    const m = ix.by.get(id), asOf = ix.hi || todayStr();
+    out = [];
+    for(let d=days-1; d>=0; d--) out.push(m ? (m.get(dayAdd(asOf,-d))||0) : 0);
+    ix.series.set(k, out);
+  }
+  return out.slice();
 }
 function historyDays(){
-  let lo=null, hi=null;
-  for(const t of state.tx){ if(!isUse(t)) continue;
-    if(lo===null||t.date<lo) lo=t.date; if(hi===null||t.date>hi) hi=t.date; }
+  const {lo, hi} = usageIndex();
   if(lo===null) return 0;
   return Math.round((new Date(hi+"T12:00")-new Date(lo+"T12:00"))/86400000)+1;
 }
@@ -8702,13 +8770,13 @@ function renderSdPreview(){
       const it = g.itemId!=null ? item(g.itemId) : null, took = it ? takeItems.get(it.id)||0 : 0, after = it ? r2(it.stock - took) : null;
       return `<tr style="${g.itemId==null||(!g.take&&!g.trend)?"opacity:.6":""}">
         <td class="name">${esc(g.name||g.code)}<span class="sub"><span>sold as</span> <span data-notr>${esc(g.uom||"—")}${g.code?" · "+esc(g.code):""}</span> · <span>${pl(g.bills.size, "1 bill", fmt(g.bills.size)+" bills")}</span></span></td>
-        <td><select data-lk="${esc(g.lk)}" class="sd-map" style="max-width:260px"><option value="">—not in this warehouse —</option>${opts}</select>
+        <td><select data-lk="${esc(g.lk)}" class="sd-map"><option value="">—not in this warehouse —</option>${opts}</select>
           ${it && g.u.sizeOff ? `<span class="sub" style="color:var(--warn)"><span>stocked as</span> <span data-notr>${esc(it.uom)}</span></span>` : ""}</td>
         <td class="num dim">${fmt(g.fileQty)}</td>
         <td>${unitSel(g)}</td>
         <td class="num"><b>${it && g.take ? esc(fmtQty(it, g.take)) : "—"}</b></td>
         <td class="num dim">${it && g.trend ? esc(fmtQty(it, g.trend)) : "—"}</td>
-        <td class="num" style="white-space:nowrap;${after!=null&&after<0?"color:var(--crit);font-weight:600":""}">${it ? (took ? `<span>${esc(fmtQty(it, it.stock))}</span> → <span>${esc(fmtQty(it, after))}</span>` : esc(fmtQty(it, it.stock))) : ""}</td>
+        <td class="num wrap" style="${after!=null&&after<0?"color:var(--crit);font-weight:600":""}">${it ? (took ? `<span class="nw">${esc(fmtQty(it, it.stock))} →</span> <span class="nw">${esc(fmtQty(it, after))}</span>` : `<span class="nw">${esc(fmtQty(it, it.stock))}</span>`) : ""}</td>
         <td>${tag(g)}</td></tr>`; }).join("")}
     </tbody></table></div>` : `<div class="empty">Nothing in this file is for this warehouse's products.</div>`}</div>
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px;flex-wrap:wrap">
@@ -8766,15 +8834,17 @@ function applySalesDeduction(){
     neg.size ? `${neg.size} now below zero —recount` : "", "Undo available"].filter(Boolean).map(zh).join(" · "));
 }
 /* What's been taken off so far —newest sale date first. */
+let billsRemembered = null;
 function renderSalesDeduction(){
   const tbl = $("#sd-table"); if(!tbl || !isWarehouse()) return;
   renderSdPreview();
   renderSalesDash();
   const f = $("#sd-filter").value;
   const all = state.tx.filter(t=>t.type==="sale");
-  const bills = new Set(Object.keys(state.bills).filter(k=>!billSide(k)).map(k=>k.split("§")[0]));
+  if(!billsRemembered || billsRemembered.ref!==state.bills || billsRemembered.ver!==stateVer)
+    billsRemembered = {ref:state.bills, ver:stateVer, n:new Set(Object.keys(state.bills).filter(k=>!billSide(k)).map(k=>k.split("§")[0])).size};
   const last = all.reduce((d,t)=>!d||t.date>d ? t.date : d, null);
-  $("#sd-meta").textContent = all.length ? fmt(bills.size)+" bills remembered · latest sale "+shortDate(last) : "";
+  $("#sd-meta").textContent = all.length ? fmt(billsRemembered.n)+" bills remembered · latest sale "+shortDate(last) : "";
   const rows = all.filter(t=>f==="all" || (f==="trend" ? t.h : !t.h)).sort((a,b)=>b.date.localeCompare(a.date) || b.ts-a.ts);
   if(!rows.length){ tbl.innerHTML = `<div class="empty">${all.length ? "Nothing here with this filter." : "No sales imported yet."}</div>`; return; }
   tbl.innerHTML = `<table><thead><tr><th>Date</th><th>Item</th><th class="num">Qty</th><th>Rack code</th><th>From</th><th></th></tr></thead><tbody>`
@@ -8804,7 +8874,9 @@ function renderSalesDeduction(){
    sale imported, not today: sales come in in batches, and the days after the
    last import would read as "sold nothing". */
 const saleInfoCache = new Map();
+let saleLinesCache = null;
 function saleLines(){
+  if(saleLinesCache && saleLinesCache.ref===state.bills && saleLinesCache.ver===stateVer) return saleLinesCache.out;
   const out = [];
   for(const k of Object.keys(state.bills)){
     if(!k.endsWith("@s")) continue;
@@ -8814,14 +8886,42 @@ function saleLines(){
     const i = bk.lastIndexOf("§i");
     out.push(Object.assign({bk, bill:bk.slice(0, i), itemId:Number(bk.slice(i+2)), qty:state.bills[bk]||0, date:state.bills[bk+"@d"]||null}, c.v));
   }
+  saleLinesCache = {ref:state.bills, ver:stateVer, out};
   return out;
 }
 function salesAsOf(){ let end = null; for(const t of state.tx) if(t.type==="sale" && (!end || t.date>end)) end = t.date; return end; }
-function dashDays(range, first, end){
-  if(!first || first>end) first = end;
-  const n = range==="all" ? Math.min(Math.round((new Date(end+"T12:00")-new Date(first+"T12:00"))/86400000)+1, 730) : +range;
-  const days = []; for(let k=n-1; k>=0; k--) days.push(dayAdd(end, -k));
-  return days;
+/* The time range both dashboards use: calendar days ending today (Today,
+   Yesterday, 7 / 30 / 90 days), all the sales on record, or any two dates
+   picked on the calendar. Sales arrive in batches, so a range can run past
+   the newest sale imported —the dashboards say how far the sales go, and a
+   per-day figure only counts the days imported so far. */
+const DASH_RANGES = [["today","Today"],["yesterday","Yesterday"],["7","7 days"],["30","30 days"],["90","90 days"],["all","All"],["custom","Custom"]];
+function rangeDays(r, first, asOf){
+  const today = todayStr();
+  let from, to;
+  if(r.range==="today") from = to = today;
+  else if(r.range==="yesterday") from = to = dayAdd(today, -1);
+  else if(r.range==="all"){ to = asOf || today; from = first && first<to ? first : to; }
+  else if(r.range==="custom"){ from = r.from || dayAdd(today, -29); to = r.to || today; if(from>to) [from, to] = [to, from]; }
+  else { to = today; from = dayAdd(today, -(Math.max(1, +r.range||30) - 1)); }
+  const days = []; for(let d=from; d<=to && days.length<731; d=dayAdd(d, 1)) days.push(d);
+  const covered = asOf ? days.filter(d=>d<=asOf).length : 0;
+  return {days, from, to: days[days.length-1], covered: covered || days.length,
+    note: asOf && to>asOf ? `Sales imported up to ${shortDate(asOf)}.` : !asOf ? "No sales imported yet." : ""};
+}
+/* the preset buttons, and two calendar boxes for Custom */
+function rangeBar(r, R, setFn, extra){
+  return `<div class="sg-bar">
+      ${DASH_RANGES.map(([v,l])=>`<button class="btn sm ${r.range===v?"on":""}" onclick="${setFn}('range','${v}')">${l}</button>`).join("")}
+      ${r.range==="custom" ? `<span class="sg-cust"><input type="date" value="${esc(R.from)}" max="${todayStr()}" onchange="${setFn}('from', this.value)" aria-label="Start date"><span>—</span><input type="date" value="${esc(R.to)}" max="${todayStr()}" onchange="${setFn}('to', this.value)" aria-label="End date"></span>`
+        : `<span class="sg-asof">${R.from===R.to ? esc(shortDate(R.from)) : esc(shortDate(R.from))+" —"+esc(shortDate(R.to))}</span>`}
+      ${R.note ? `<span class="sg-asof">${R.note}</span>` : ""}
+      ${extra||""}</div>`;
+}
+/* switching to Custom starts the calendar boxes on the range being looked at */
+function rangeSet(r, k, v){
+  if(k==="range" && v==="custom" && r.cur && !r.from){ r.from = r.cur.from; r.to = r.cur.to; }
+  r[k] = v;
 }
 const money = n => (n<0?"−":"")+"$"+fmtMoney(Math.abs(n));
 const moneyK = n => Math.abs(n)>=1000 ? "$"+fmt1(n/1000)+"K" : "$"+fmt(Math.round(n));
@@ -8968,13 +9068,17 @@ function billsTable(lines, it, limit){
 }
 
 /* ---------- one product (Stock → Sales) ---------- */
-let sgState = null, sgRange = "30";          // the range picked last time is kept for the next product
+let sgState = null, sgRange = {range:"30"};          // the range picked last time is kept for the next product
 function openSalesGraph(id){
   if(!item(id)) return;
-  sgState = {id, range: sgRange, table:false, allBills:false};
+  sgState = Object.assign({id, table:false, allBills:false}, sgRange);
   renderSalesGraph();
 }
-function sgSet(k, v){ sgState[k] = v; if(k==="range") sgRange = v; renderSalesGraph(); }
+function sgSet(k, v){
+  rangeSet(sgState, k, v);
+  if(k==="range" || k==="from" || k==="to") sgRange = {range:sgState.range, from:sgState.from, to:sgState.to};
+  renderSalesGraph();
+}
 function renderSalesGraph(){
   const it = sgState && item(sgState.id); if(!it){ closeModal(); return; }
   const per = new Map(), end = salesAsOf();
@@ -8992,12 +9096,13 @@ function renderSalesGraph(){
     $("#modal-root .modal").classList.add("wide");
     return;
   }
-  const days = dashDays(sgState.range, first, end), from = days[0];
+  const R = rangeDays(sgState, first, end), days = R.days, from = R.from, to = R.to, one = days.length===1;
+  sgState.cur = {from, to};
   const vals = days.map(d=>r2(per.get(d)||0));
-  const total = r2(vals.reduce((a,v)=>a+v, 0)), avg = total/days.length;
+  const total = r2(vals.reduce((a,v)=>a+v, 0)), avg = total/R.covered;
   let bi = 0; vals.forEach((v,i)=>{ if(v>vals[bi]) bi = i; });
   const withSales = vals.filter(v=>v>0).length;
-  const lines = allLines.filter(l=>l.date && l.date>=from && l.date<=end);
+  const lines = allLines.filter(l=>l.date && l.date>=from && l.date<=to);
   const sum = k => r2(lines.reduce((a,l)=>a+(l[k]||0), 0));
   const rev = sum("a"), gst = sum("g"), tot = sum("t"), disc = sum("dc"), qtyL = lines.reduce((a,l)=>a+l.qty, 0);
   const bills = new Set(lines.map(l=>l.bill)).size, custs = new Set(lines.map(l=>l.cu).filter(Boolean)).size;
@@ -9011,20 +9116,18 @@ function renderSalesGraph(){
     d.a += l.a||0; d.q += l.qty; if(l.hi!=null && l.sq) { const h = l.hi*l.sq/l.qty; d.hi = d.hi==null ? h : Math.max(d.hi, h); } byDay.set(l.date, d); }
   const net = days.map(d=>{ const x = byDay.get(d); return x && x.q ? r2(x.a/x.q) : null; });
   const top = days.map(d=>{ const x = byDay.get(d); return x && x.hi!=null ? r2(x.hi) : null; });
-  const bar = `<div class="sg-bar">
-      ${[["30","30 days"],["90","90 days"],["all","All"]].map(([v,l])=>`<button class="btn sm ${sgState.range===v?"on":""}" onclick="sgSet('range','${v}')">${l}</button>`).join("")}
-      <span class="sg-asof">${esc(shortDate(from))} —${esc(shortDate(end))}</span>
-      <button class="btn sm" style="margin-left:auto" onclick="sgSet('table', ${!sgState.table})">${sgState.table?"Graph":"Table"}</button></div>`;
+  const bar = rangeBar(sgState, R, "sgSet", `<button class="btn sm" style="margin-left:auto" onclick="sgSet('table', ${!sgState.table})">${sgState.table?"Graph":"Table"}</button>`);
   const tiles = dashTiles([
-    ["Sold", esc(fmtQty(it, total)), `${days.length} days`],
+    ["Sold", esc(fmtQty(it, total)), one ? esc(dashDate(from)) : `${days.length} days`],
     ["Per day", esc(perDay(avg)), "average"],
     ["Busiest day", esc(fmtQty(it, vals[bi])), vals[bi]>0 ? esc(dashDate(days[bi])) : ""],
-    ["Days with sales", `${withSales} of ${days.length}`, ""]]) + (lines.length ? dashTiles([
+    ["Days with sales", `${withSales} of ${R.covered}`, ""]]) + (lines.length ? dashTiles([
     ["Revenue", esc(money(rev)), `excl GST · GST ${esc(money(gst))} · with GST ${esc(money(tot))}`],
     ["Average price", pUnit!=null ? esc(money(pUnit))+` <span class="u">/ <span>${esc(unit)}</span></span>` : "—", newest&&newest.p!=null ? `latest ${esc(money(newest.p))} / <span data-notr>${esc(newest.u||"")}</span>` : ""],
     ["Customers", fmt(custs), nBills(bills)],
     ["Discount given", esc(money(disc)), `${ret.length ? `<span>${esc(fmtQty(it, retQ))}</span> <span>returned on ${nBills(ret.length)}</span>` : "no returns"}${pcN ? ` · ${pcN} price changes` : ""}`]]) : "");
   const chartsHtml = !total && !withSales ? `<div class="empty" style="padding:30px 12px">No sales of this product in these days.</div>`
+    : one ? ""                                    // one day: the figures say it —a single column isn't a chart
     : `<div class="sg-cap"><span>Sold each day</span> · <span>${esc(unit)}</span></div><div class="sg-chart" id="sg-chart"></div>`
       + (net.some(v=>v!=null) ? `<div class="sg-cap" style="margin-top:14px"><span>Price per</span> <span>${esc(unit)}</span> · <span>excl GST</span></div>
           <div class="legend" style="padding:2px 0 4px"><span><i class="lk" style="background:var(--accent)"></i>Sold at</span>${top.some(v=>v!=null)?`<span><i class="lk" style="background:var(--ink-3)"></i>Highest price</span>`:""}</div>
@@ -9041,7 +9144,7 @@ function renderSalesGraph(){
       ${days.map((d,i)=>({d, v:vals[i], i})).filter(r=>r.v).reverse().map(r=>{ const x = byDay.get(r.d);
         return `<tr><td class="mono dim">${esc(dashDate(r.d))}</td><td class="num">${esc(fmtQty(it, r.v))}</td><td class="num">${x?esc(money(x.a)):""}</td><td class="num">${net[r.i]!=null?esc(money(net[r.i])):""}</td></tr>`; }).join("")}
       <tr><td><b>Total</b></td><td class="num"><b>${esc(fmtQty(it, total))}</b></td><td class="num"><b>${lines.length?esc(money(rev)):""}</b></td><td></td></tr></tbody></table></div>`;
-  const issues = state.tx.filter(t=>t.type==="issue" && t.itemId===it.id && t.date>=from && t.date<=end).length;
+  const issues = state.tx.filter(t=>t.type==="issue" && t.itemId===it.id && t.date>=from && t.date<=to).length;
   const notes = [
     avg>0 && it.stock>0 && !uncounted(it) ? `<div class="sg-note">At ${fmt1(avg)} a day the balance lasts about ${fmt(Math.floor(it.stock/avg))} days.</div>` : "",
     issues ? `<div class="sg-note">${issues===1 ? "1 issue to another company in these days isn't in the graph —it shows sales only." : issues+" issues to other companies in these days aren't in the graph —it shows sales only."}</div>` : "",
@@ -9049,8 +9152,8 @@ function renderSalesGraph(){
     !billInfoOk ? `<div class="sg-note" style="color:var(--warn)">Customer and price detail isn't being saved —re-run supabase-schema.sql in Supabase (see README).</div>` : ""].join("");
   modal(head + bar + tiles + (sgState.table ? table : chartsHtml + by) + notes + foot);
   $("#modal-root .modal").classList.add("wide");
-  if(!sgState.table && (total || withSales)){
-    colChart($("#sg-chart"), days, vals, {tick:v=>fmt(r2(v)), tip:v=>fmtQty(it, v), whole:true, aria:`${it.name}: sold each day from ${from} to ${end}`});
+  if(!sgState.table && (total || withSales) && !one){
+    colChart($("#sg-chart"), days, vals, {tick:v=>fmt(r2(v)), tip:v=>fmtQty(it, v), whole:true, aria:`${it.name}: sold each day from ${from} to ${to}`});
     if($("#sg-price")) lineChart($("#sg-price"), days, [{name:"highest price", vals:top, color:"var(--ink-3)"}, {name:"sold at", vals:net, color:"var(--accent)"}],
       {tick:v=>money(v), aria:`${it.name}: price per ${unit}, sold at and highest`});
   }
@@ -9058,7 +9161,7 @@ function renderSalesGraph(){
 
 /* ---------- the whole warehouse (Sales Deduction) ---------- */
 let sdDash = {range:"30", table:false};
-function sdDashSet(k, v){ sdDash[k] = v; renderSalesDash(); }
+function sdDashSet(k, v){ rangeSet(sdDash, k, v); renderSalesDash(); }
 function renderSalesDash(){
   const host = $("#sd-dash"); if(!host || !isWarehouse() || $("#page-salesded").classList.contains("hidden")) return;
   const all = saleLines();
@@ -9076,8 +9179,9 @@ function renderSalesDash(){
     return;
   }
   const first = all.reduce((d,l)=>l.date && (!d || l.date<d) ? l.date : d, null) || end;
-  const days = dashDays(sdDash.range, first, end), from = days[0];
-  const lines = all.filter(l=>l.date && l.date>=from && l.date<=end);
+  const R = rangeDays(sdDash, first, salesAsOf()), days = R.days, from = R.from, to = R.to, one = days.length===1;
+  sdDash.cur = {from, to};
+  const lines = all.filter(l=>l.date && l.date>=from && l.date<=to);
   const sum = (arr, k) => r2(arr.reduce((a,l)=>a+(l[k]||0), 0));
   const rev = sum(lines, "a"), gst = sum(lines, "g"), tot = sum(lines, "t"), disc = sum(lines, "dc");
   const billSet = new Set(lines.map(l=>l.bill)), custs = new Set(lines.map(l=>l.cu).filter(Boolean)), cats = new Set(lines.map(l=>l.cc).filter(Boolean));
@@ -9085,16 +9189,14 @@ function renderSalesDash(){
   const pcBills = new Set(lines.filter(l=>l.pc).map(l=>l.bill)).size, discBills = new Set(lines.filter(l=>(l.dc||0)>0).map(l=>l.bill)).size;
   const revDay = new Map(); for(const l of lines) revDay.set(l.date, (revDay.get(l.date)||0) + (l.a||0));
   const vals = days.map(d=>r2(revDay.get(d)||0)), withSales = vals.filter(v=>v!==0).length;
-  if(meta) meta.textContent = `${shortDate(from)} —${shortDate(end)}`;
-  const bar = `<div class="sg-bar">
-      ${[["30","30 days"],["90","90 days"],["all","All"]].map(([v,l])=>`<button class="btn sm ${sdDash.range===v?"on":""}" onclick="sdDashSet('range','${v}')">${l}</button>`).join("")}
-      <button class="btn sm" style="margin-left:auto" onclick="sdDashSet('table', ${!sdDash.table})">${sdDash.table?"Graph":"Table"}</button></div>`;
+  if(meta) meta.textContent = from===to ? shortDate(from) : `${shortDate(from)} —${shortDate(to)}`;
+  const bar = rangeBar(sdDash, R, "sdDashSet", `<button class="btn sm" style="margin-left:auto" onclick="sdDashSet('table', ${!sdDash.table})">${sdDash.table?"Graph":"Table"}</button>`);
   const tiles = dashTiles([
     ["Revenue", esc(money(rev)), `excl GST · GST ${esc(money(gst))} · with GST ${esc(money(tot))}`],
     ["Bills", fmt(billSet.size), billSet.size ? `${esc(money(rev/billSet.size))} a bill on average` : ""],
     ["Customers", fmt(custs.size), `in ${cats.size} categories`],
     ["Products sold", fmt(prods.size), `of ${state.items.length} on the list`]]) + dashTiles([
-    ["Per day", esc(money(rev/days.length)), `sales on ${withSales} of ${days.length} days`],
+    ["Per day", esc(money(rev/R.covered)), `sales on ${withSales} of ${R.covered} days`],
     ["Discount given", esc(money(disc)), `on ${nBills(discBills)}`],
     ["Returns", fmt(retBills), retBills ? `${retBills===1?"bill":"bills"} · ${esc(money(-sum(ret.filter(l=>(l.a||0)<0), "a")))} back` : "none"],
     ["Price changes", fmt(pcBills), pcBills===1 ? "bill flagged by YonYou" : "bills flagged by YonYou"]]);
@@ -9118,7 +9220,7 @@ function renderSalesDash(){
           <td class="num" style="${ch>0?"color:var(--ok)":ch<0?"color:var(--crit)":""}">${ch>0?"+":""}${fmt1(ch)}%</td>
           <td class="num dim">${esc(money(m.lo))} —${esc(money(m.hi))}</td><td class="num dim">${m.pc||""}</td></tr>`; }).join("")}</tbody></table></div>` : "";
   const bl = (title, key, top) => barList(title, salesBy(lines, key, top).map(g=>({label:g.k==="Others"?`${g.other} others`:g.k, data:g.k!=="Others", sub:nBills(g.bills.size), a:g.a})), r=>r.a, r=>esc(money(r.a)));
-  const graph = `<div class="sg-cap"><span>Revenue each day</span> · <span>excl GST</span></div><div class="sg-chart" id="sd-dash-chart"></div>
+  const graph = (one ? "" : `<div class="sg-cap"><span>Revenue each day</span> · <span>excl GST</span></div><div class="sg-chart" id="sd-dash-chart"></div>`) + `
     <div class="bl-grid">
       ${barList("Products", plist, r=>r.a, r=>esc(money(r.a)), r=>`openSalesGraph(${r.id})`)}
       ${bl("Customers", "cu", 10)}
@@ -9135,7 +9237,7 @@ function renderSalesDash(){
   const notes = (noInfo && billInfoOk ? `<div class="sg-note">${noInfo===1 ? "1 bill was imported before customer and price detail was kept —drop the sales file again above to fill it in." : fmt(noInfo)+" bills were imported before customer and price detail was kept —drop the sales file again above to fill them in."}</div>` : "")
     + (!billInfoOk ? `<div class="sg-note" style="color:var(--warn)">Customer and price detail isn't being saved —re-run supabase-schema.sql in Supabase (see README).</div>` : "");
   host.innerHTML = bar + tiles + (lines.length ? (sdDash.table ? table : graph) : `<div class="empty" style="padding:26px 12px">No sales in these days.</div>`) + notes;
-  if(!sdDash.table && lines.length) colChart($("#sd-dash-chart"), days, vals, {tick:moneyK, tip:money, whole:false, aria:`Revenue each day from ${from} to ${end}`});
+  if(!sdDash.table && lines.length && !one) colChart($("#sd-dash-chart"), days, vals, {tick:moneyK, tip:money, whole:false, aria:`Revenue each day from ${from} to ${to}`});
 }
 window.addEventListener("resize", ()=>{ if(sgState && $("#sg-chart")) renderSalesGraph(); else if($("#sd-dash-chart")) renderSalesDash(); });
 
@@ -9727,22 +9829,19 @@ function applyDeptTypeNav(){
   if(hidCurrent) go(t==="warehouse" ? "alerts" : "panel");
 }
 
+/* Only the page on screen is drawn —the others are drawn when they're opened
+   (go() calls render()). Drawing all of them on every change and every page
+   switch made switching pages take seconds once a few months of sales were
+   imported. The top bar, the menu's alarms and the low-stock check belong to
+   every page. Each page's drawing only touches its own section. */
+const PAGE_RENDER = {panel:()=>renderPanel(), alerts:()=>renderLowStock(), stock:()=>renderStock(), racks:()=>renderRacks(),
+  stocktake:()=>renderStocktake(), count:()=>renderCount(), cook:()=>renderCook(), salesview:()=>renderSalesView(),
+  receive:()=>renderReceive(), issue:()=>renderIssueStock(), salesded:()=>renderSalesDeduction(), issuesum:()=>renderIssueSummary(),
+  log:()=>renderLog(), setup:()=>renderSetup()};
 function render(){
   renderTopbar();
-  renderLowStock();
-  renderPanel();
-  renderStock();
-  renderRacks();
-  renderStocktake();
-  renderCount();
-  renderCook();
-  renderSalesView();
-  renderReceive();
-  renderIssueStock();
-  renderSalesDeduction();
-  renderIssueSummary();
-  renderLog();
-  renderSetup();
+  const sec = document.querySelector("main > section:not(.hidden)"), pg = sec ? sec.id.slice(5) : "";
+  if(PAGE_RENDER[pg]) PAGE_RENDER[pg]();
   checkLowAlerts();
 }
 

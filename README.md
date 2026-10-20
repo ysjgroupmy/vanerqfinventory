@@ -414,10 +414,17 @@ Takes what was sold off the stock on hand. Drop YonYou's sales export
 
 ### Sales dashboards
 
-Built from the imported sales, for the days up to the newest sale imported
-(sales come in batches, so the days after the last import aren't counted as
-"sold nothing"). Each has 30 days / 90 days / All, and **Table** shows the same
-numbers as a table.
+Built from the imported sales.
+
+- **Time range:** Today, Yesterday, 7 / 30 / 90 days (calendar days ending
+  today), All (every sale on record), or **Custom**: two dates picked on the
+  calendar.
+  - **Not imported yet:** sales come in batches, so a range can run past the
+    newest sale imported. The dashboard then says "Sales imported up to …", and
+    per-day figures only count the days imported so far.
+  - **A single day** (Today, Yesterday) shows the figures, breakdowns and
+    bills without a one-column chart.
+- **Table** shows the same numbers as a table.
 
 - **Stock → Sales** (a button on every product in a warehouse) shows one product:
   - **Headline figures:** sold, per day, busiest day, days with sales, revenue
