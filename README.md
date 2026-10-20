@@ -134,8 +134,9 @@ Stocktake, Count, Log and Setup are shared by both types.
 > **Updating an existing database:** re-run `supabase-schema.sql` *before*
 > opening this version on a warehouse department. It adds `items.pack_size`,
 > `items.unit`, `items.ordered_on`,
-> `tx.supplier` / `tx.ref`, `racks.zone` / `x` / `y` / `w` / `h` / `floor` and
-> `settings.floor_plan`, and changes nothing that's already there. Kitchen
+> `tx.supplier` / `tx.ref`, `racks.zone` / `x` / `y` / `w` / `h` / `floor`,
+> `settings.floor_plan` and `bills.info`, and changes nothing that's already
+> there. Kitchen
 > departments never send those columns, so they keep working either way; a
 > warehouse department shows "the database needs updating" until it's run.
 
@@ -390,6 +391,46 @@ Takes what was sold off the stock on hand. Drop YonYou's sales export
 - **Sales on record:** lists what's been taken off. **Undo last import**
   reverses an import: balances, the bill registry and the log go back as they
   were.
+- **The whole line is kept:** each bill + product also stores everything else
+  on the line, as JSON text in `bills.info`. That's the customer and customer
+  category, salesman, company, bill type, product type and category, UOM sold,
+  net and highest unit price, YonYou's price-change flag, amount, GST,
+  discount and total.
+  - A bill imported before this was kept gets its detail when the same file is
+    imported again. The preview offers **Add detail to N bills**, and the stock
+    isn't touched.
+  - Until `supabase-schema.sql` is re-run, `bills.info` doesn't exist. Imports
+    still work and the stock still comes off, but the detail isn't saved, and
+    the dashboards say so.
+
+### Sales dashboards
+
+Built from the imported sales, for the days up to the newest sale imported
+(sales come in batches, so the days after the last import aren't counted as
+"sold nothing"). Each has 30 days / 90 days / All, and **Table** shows the same
+numbers as a table.
+
+- **Stock → Sales** (a button on every product in a warehouse) shows one product:
+  - **Headline figures:** sold, per day, busiest day, days with sales, revenue
+    (excl GST, with GST and the GST itself), average price per unit and the
+    latest invoiced price, customers and bills, discount given, and returns and
+    price changes.
+  - **Charts:** units sold each day (with the average), and the price per unit
+    each day against YonYou's highest price.
+  - **Breakdowns:** customers (with their category), customer categories,
+    salesmen and companies.
+  - **Bills:** each bill with customer, salesman, qty, price, amount, and tags
+    for returns, price changes and discounts.
+- **Sales Deduction → Sales dashboard** shows the whole warehouse:
+  - **Headline figures:** revenue (with GST), bills and the average bill,
+    customers and categories, products sold, revenue per day, discount given,
+    returns, and bills flagged for a price change.
+  - **Revenue each day.**
+  - **Breakdowns:** products (tap one for its own dashboard), customers,
+    customer categories, salesmen, companies, product categories and product
+    types.
+  - **Prices that moved:** first and latest price on the same UOM, the change
+    and the range.
 
 ### Stocktake / Count
 

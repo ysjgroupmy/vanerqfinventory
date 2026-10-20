@@ -311,9 +311,41 @@ textarea{width:100%;resize:vertical;font-family:var(--f-mono);font-size:12px;lin
 .axl{font-family:var(--f-mono);font-size:9.5px;fill:var(--ink-3)}
 .legend{display:flex;gap:16px;padding:2px 14px 12px;font-size:12px;color:var(--ink-2);flex-wrap:wrap}
 .legend i{display:inline-block;width:10px;height:10px;margin-right:6px;vertical-align:-1px;border:1px solid rgba(0,0,0,.15)}
-#tip{position:fixed;z-index:60;background:var(--ink);color:#F2F5F3;font-family:var(--f-mono);font-size:11.5px;
+#tip{position:fixed;z-index:80;background:var(--ink);color:#F2F5F3;font-family:var(--f-mono);font-size:11.5px;
   padding:7px 10px;pointer-events:none;display:none;line-height:1.55;box-shadow:0 4px 14px rgba(0,0,0,.22);max-width:250px}
 #tip.show{display:block}
+/* product sales graph (Stock → Sales) */
+.modal.wide{width:min(780px,100%)}
+.sg-sub{font-size:12.5px;color:var(--ink-2);margin:-8px 0 12px}
+.sg-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.sg-bar .sg-asof{font-size:12px;color:var(--ink-3)}
+.sg-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);margin-bottom:14px}
+.sg-stat{background:var(--panel);padding:9px 12px}
+.sg-stat .l{font-size:11.5px;color:var(--ink-2)}
+.sg-stat .v{font-size:19px;font-weight:600;color:var(--ink);line-height:1.25;margin-top:2px}
+.sg-stat .s{font-size:11.5px;color:var(--ink-3)}
+.sg-cap{font-size:12px;color:var(--ink-2);margin-bottom:4px}
+.sg-chart{overflow-x:auto;overflow-y:hidden}
+.sg-chart svg{display:block}
+.sg-chart .sg-hit{cursor:default}
+.sg-chart .sg-col.hover{opacity:.72}
+.sg-note{font-size:12px;color:var(--ink-2);margin-top:10px}
+.sg-stats+.sg-stats{margin-top:-15px}
+.sg-stat .v .u{font-size:12.5px;font-weight:500;color:var(--ink-2)}
+.legend i.lk{width:14px;height:2px;border:none;vertical-align:3px}
+.bl-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 26px;margin-top:16px}
+.bl-h{font-size:12px;color:var(--ink-2);font-weight:600;margin-bottom:6px}
+.bl-row{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(40px,1fr) auto;gap:10px;align-items:center;padding:4px 0;border-top:1px solid var(--rule)}
+.bl-row.link{cursor:pointer}.bl-row.link:hover .bl-n{text-decoration:underline}
+.bl-l{min-width:0}
+.bl-n{display:block;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bl-s{display:block;font-size:11px;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bl-b{height:8px}
+.bl-b i{display:block;height:8px;background:var(--series-out);border-radius:0 4px 4px 0;min-width:2px}
+.bl-v{font-size:12.5px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.bl-v span{display:block;font-size:11px;color:var(--ink-3)}
+tr.link{cursor:pointer}tr.link:hover td{background:var(--panel-2)}
+@media(max-width:640px){ .sg-stats{grid-template-columns:repeat(2,1fr)} .bl-grid{grid-template-columns:1fr} }
 #tip b{color:#fff;font-weight:600}
 
 /* ---------------- modal / toast ---------------- */
@@ -1024,6 +1056,10 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
     </div>
     <div id="sd-preview"></div>
     <div class="panel">
+      <div class="panel-h"><h2>Sales dashboard</h2><span class="meta" id="sd-dash-meta"></span></div>
+      <div class="panel-b" id="sd-dash"></div>
+    </div>
+    <div class="panel">
       <div class="panel-h"><h2>Sales on record</h2><span class="meta" id="sd-meta"></span>
         <select id="sd-filter" style="margin-left:auto" onchange="renderSalesDeduction()">
           <option value="all">All sales</option><option value="ded">Taken off stock</option><option value="trend">Trends only</option></select>
@@ -1191,6 +1227,7 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
    reading Chinese doesn't switch everybody else.
    ============================================================ */
 const ZH_DICT = /*ZH_DICT*/{
+"${n} a bill on average":"平均每张单 ${n}",
 "(Dry / Chiller / Freezer),":"（干货 / 冷藏 / 冷冻），",
 "(worked out from usage and kept up to date) or":"（根据用量自动计算并持续更新）或",
 "(your number) —flip the pill on any row; ⓘ explains it.":"（由你填写）—可在任意一行切换；ⓘ 有说明。",
@@ -1258,6 +1295,8 @@ const ZH_DICT = /*ZH_DICT*/{
 "Add an item":"添加货品",
 "Add below minimum":"添加低于最低库存的货品",
 "Add department":"添加部门",
+"Add detail to {n} bill":"补上 {n} 张单的明细",
+"Add detail to {n} bills":"补上 {n} 张单的明细",
 "Add it anyway":"仍然添加",
 "Add item":"添加货品",
 "Add items":"添加货品",
@@ -1273,6 +1312,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "Added {s} —{s} now {s} · Undo available":"已增加 {s} —{s} 现为 {s} · 可撤销",
 "Added —{s}":"已添加 —{s}",
 "Adds every row above to the cook schedule, capped at capacity.":"把上面每一行加入烹煮计划，以产能为上限。",
+"All":"全部",
 "All categories":"全部类别",
 "All companies":"全部公司",
 "All items":"全部货品",
@@ -1285,6 +1325,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "All time":"全部时间",
 "All zones":"全部区域",
 "Already received on {s}":"单据 {s} 已收过货",
+"Amount":"金额",
 "Apply":"应用",
 "Apply these {n}":"应用这 {n} 项",
 "Apply to all":"全部应用",
@@ -1292,10 +1333,12 @@ const ZH_DICT = /*ZH_DICT*/{
 "Apply {n} counts":"应用 {n} 条盘点",
 "Area":"区块",
 "At least one department has to remain":"至少须保留一个部门",
+"At {n} a day the balance lasts about {n} days.":"按每天 {n} 计算，结存约可用 {n} 天。",
 "Auto":"自动",
 "Auto | Manual":"自动 | 手动",
 "Automatic minimums now cover {n} day of usage":"自动最低库存现按 {n} 天用量计算",
 "Automatic minimums now cover {n} days of usage":"自动最低库存现按 {n} 天用量计算",
+"Average price":"平均价格",
 "Avg / unit":"平均单价",
 "BELOW MIN":"低于最低库存",
 "Back":"返回",
@@ -1319,11 +1362,13 @@ const ZH_DICT = /*ZH_DICT*/{
 "Below min in":"距低于最低库存",
 "Below minimum":"低于最低库存",
 "Below minimum —see Low Stock":"低于最低库存 —见低库存",
+"Bill":"单号",
 "Bill protection is on —nothing in this file has been imported before.":"单号防重复已开启——这个文件里的单都还没导入过。",
 "Bill protection is on —{n} bill was already imported and is skipped, {n} changed since —only the difference applies.":"单号防重复已开启——{n} 张单已导入过，跳过；{n} 张之后有改动——只计差额。",
 "Bill protection is on —{n} bill was already imported and is skipped.":"单号防重复已开启——{n} 张单已导入过，跳过。",
 "Bill protection is on —{n} bills were already imported and are skipped, {n} changed since —only the difference applies.":"单号防重复已开启——{n} 张单已导入过，跳过；{n} 张之后有改动——只计差额。",
 "Bill protection is on —{n} bills were already imported and are skipped.":"单号防重复已开启——{n} 张单已导入过，跳过。",
+"Bills":"单据",
 "Blank count sheet":"空白盘点表",
 "Body":"内容",
 "Bought to order —no minimum":"按单订购 —无最低库存",
@@ -1331,6 +1376,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "Bringing the line online":"产线上线进度",
 "Build the list of items to go and count, print the paper for the floor, then key the figures in on station {n}. The list is shared and belongs to the department you are in.":"列出要去盘点的货品，打印纸质表格带到现场，然后在 {n} 号站录入数字。此清单为共享清单，属于你当前所在的部门。",
 "Build them from usage once sales are in":"导入销售数据后，根据用量生成",
+"Busiest day":"销量最高的一天",
 "By company":"按公司",
 "By item":"按货品",
 "By zone 按区域":"按区域",
@@ -1433,8 +1479,13 @@ const ZH_DICT = /*ZH_DICT*/{
 "Cover target —days of stock a minimum should represent":"可用天数目标 —最低库存应相当于几天的库存",
 "Critical":"紧急",
 "Ctn 箱":"箱",
+"Customer":"客户",
+"Customer and price detail isn't being saved —re-run supabase-schema.sql in Supabase (see README).":"客户和价格明细没有保存——请在 Supabase 中重新运行 supabase-schema.sql（见 README）。",
+"Customer categories":"客户分类",
+"Customers":"客户",
 "DO number, driver, etc.":"DO 号、司机等",
 "Daily kettle capacity (kg of finished product)":"每日煮锅产能（成品公斤数）",
+"Daily sales of this product":"这个产品的每日销售",
 "Daily total":"每日合计",
 "Danger zone":"危险操作",
 "Data":"数据",
@@ -1443,6 +1494,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "Days left":"剩余天数",
 "Days of cover a minimum should represent":"最低库存应代表的可用天数",
 "Days of usage a minimum should cover —delivery time plus a safety margin":"最低库存应覆盖几天的用量 —送货时间加上安全余量",
+"Days with sales":"有销售的天数",
 "Deduct {n} unit":"扣减 {n} 个单位",
 "Deduct {n} units":"扣减 {n} 个单位",
 "Deducted {n} unit across {n} item · Undo available":"已扣减 {n} 单位，涉及 {n} 个货品 · 可撤销",
@@ -1489,6 +1541,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "Discard":"放弃",
 "Discard {n} unsaved change?":"放弃 {n} 处未保存的更改？",
 "Discard {n} unsaved changes?":"放弃 {n} 处未保存的更改？",
+"Discount given":"折扣",
 "Dismiss":"忽略",
 "Document":"单据",
 "Document no. (GRN / DO / invoice)":"单据号（GRN / DO / 发票）",
@@ -1569,21 +1622,28 @@ const ZH_DICT = /*ZH_DICT*/{
 "Fill from make list":"从生产清单填入",
 "Fill from the make list":"从生产清单填入",
 "Fill today's schedule from this list":"用此清单填入今天的计划",
+"First":"最早",
 "First out:":"最先缺货：",
+"Flagged":"标记",
 "Floor":"楼层",
 "Floor plan":"平面图",
 "Freezer":"冷冻",
 "Freezer 冷冻":"冷冻",
 "From":"来源",
 "From (supplier)":"来自（供应商）",
+"Go to Sales Deduction":"前往销售扣减",
 "Go to Setup":"前往设置",
 "Going low soon":"即将低库存",
 "Going to":"发往",
+"Graph":"图表",
 "Height":"高",
 "Held for this department":"本部门数据",
 "Hide stopped":"隐藏已停用",
 "Hide them":"收起",
+"Highest price":"最高价",
 "How were these counted until now?":"这些货品之前是按什么单位盘点的？",
+"Import YonYou's sales export above and the dashboard fills in: revenue, customers, salesmen, prices and returns.":"在上方导入用友的销售导出，看板就会显示：营业额、客户、业务员、价格和退货。",
+"Import YonYou's sales export on Sales Deduction and they show here day by day.":"在销售扣减页导入用友的销售导出，这里会逐日显示。",
 "Import cancelled —nothing changed":"已取消导入 —未做任何更改",
 "Import sales":"导入销售",
 "In stock 有货":"有货",
@@ -1626,6 +1686,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "Last week":"上周",
 "Last {n} day of logged cooks":"近 {n} 天的烹煮记录",
 "Last {n} days of logged cooks":"近 {n} 天的烹煮记录",
+"Latest":"最新",
 "Left":"左",
 "Level":"层",
 "Level {s} added":"已添加第 {s} 层",
@@ -1731,11 +1792,14 @@ const ZH_DICT = /*ZH_DICT*/{
 "No products yet.":"还没有货品。",
 "No rack":"无货架",
 "No receipt lines found in that file":"该文件中未找到收货单行",
+"No sales imported for this product yet":"这个产品还没有导入销售",
 "No sales imported yet —cover figures use baseline rates":"尚未导入销售 —可用天数按基准用量计算",
 "No sales imported yet.":"还没有导入销售。",
+"No sales in these days.":"这几天没有销售。",
 "No sales in this range":"此范围内无销售",
 "No sales in this range.":"此范围内无销售。",
 "No sales lines found in that file":"这个文件里没有找到销售行",
+"No sales of this product in these days.":"这几天这个产品没有销售。",
 "No sales recorded in this range.":"此范围内无销售记录。",
 "No sales recorded yet":"尚无销售记录",
 "No stock issued in this range.":"此期间没有出库。",
@@ -1813,6 +1877,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "Packets per carton must be {n} or more":"每箱包数必须为 {n} 或以上",
 "Panel":"面板",
 "Per ctn":"每箱",
+"Per day":"每天",
 "Pick an item from the list":"请从列表中选择货品",
 "Pick items on the right, or use one of the quick adds.":"从右侧选择货品，或使用快速添加。",
 "Pkt / Qty 包":"包 / 数量",
@@ -1827,6 +1892,10 @@ const ZH_DICT = /*ZH_DICT*/{
 "Pre-order —made to order":"预订 —按单制作",
 "Pre-order —{s} is now made to order, no minimum held":"预订 —{s} 现为按单生产，不设最低库存",
 "Preview":"预览",
+"Price":"价格",
+"Price changes":"价格变动",
+"Price per":"单价 /",
+"Prices that moved":"有变动的价格",
 "Print / Save PDF":"打印 / 保存 PDF",
 "Print list":"打印清单",
 "Print reorder list":"打印补货清单",
@@ -1834,12 +1903,15 @@ const ZH_DICT = /*ZH_DICT*/{
 "Printed {n}:{n} am · count started {d}":"打印时间 上午 {n}:{n} · 盘点开始于 {d}",
 "Printed {n}:{n} pm · count started {d}":"打印时间 下午 {n}:{n} · 盘点开始于 {d}",
 "Product":"货品",
+"Product categories":"产品分类",
+"Product types":"产品类型",
 "Product 货品":"货品",
 "Production Panel":"生产面板",
 "Production head —printed on the cook sheet":"生产负责人 —打印在烹煮单上",
 "Products":"货品",
 "Products not given a rack yet":"尚未分配货架的货品",
 "Products on":"设为",
+"Products sold":"售出产品",
 "Products 品项":"品项",
 "Protect by bill":"按单据号防重复",
 "Put away at":"存放位置",
@@ -1968,7 +2040,10 @@ const ZH_DICT = /*ZH_DICT*/{
 "Restore failed: {s}":"恢复失败：{s}",
 "Restore from backup":"从备份恢复",
 "Resumed —{s}":"已恢复 —{s}",
+"Returns":"退货",
 "Revenue":"营业额",
+"Revenue each day":"每日营业额",
+"Revenue each day from {d} to {d}":"{d} 至 {d} 每日营业额",
 "Row":"行",
 "Row {n}":"第 {n} 行",
 "R{n}A —Dry · {n} level · {n} product":"R{n}A —干货 · {n} 层 · {n} 个货品",
@@ -1992,11 +2067,14 @@ const ZH_DICT = /*ZH_DICT*/{
 "Sales Import":"销售导入",
 "Sales In":"销售导入",
 "Sales are only current through":"销售数据仅更新至",
+"Sales dashboard":"销售看板",
 "Sales data":"销售数据",
 "Sales date":"销售日期",
 "Sales history imported":"已导入销售历史",
 "Sales on record":"已记录的销售",
 "Sales out":"销售出库",
+"Salesman":"业务员",
+"Salesmen":"业务员",
 "Save":"保存",
 "Save and continue":"保存并继续",
 "Save changes":"保存更改",
@@ -2038,13 +2116,17 @@ const ZH_DICT = /*ZH_DICT*/{
 "Shelf labels to change 货位标签更改":"货位标签更改",
 "Shelves":"货架视图",
 "Shipped out":"出货",
+"Show all {n} bills":"显示全部 {n} 张单",
+"Show the newest {n}":"只显示最新 {n} 张",
 "Show them":"显示",
 "Showing the newest {n} of {n} —the Log has them all.":"显示最新的 {n} 条（共 {n} 条）——日志里有全部记录。",
 "Sign in to open the line.":"请登录以打开产线。",
 "Sign out":"退出登录",
 "Signed in as":"当前登录",
 "Sold":"已售",
+"Sold at":"成交价",
 "Sold by":"销售公司",
+"Sold each day":"每日销量",
 "Sold, {n} day":"{n} 天销量",
 "Sold, {n} days":"{n} 天销量",
 "Sorted by days of cover · quantity closes the gap to minimum":"按可用天数排序 · 数量为补足最低库存的差额",
@@ -2094,6 +2176,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "System":"系统数",
 "System 系统":"系统",
 "TO COOK":"待烹煮",
+"Table":"表格",
 "Take off":"扣减",
 "Take off stock":"扣库存",
 "Take off the plan":"从平面图移除",
@@ -2116,6 +2199,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "The log holds only":"库存流水仅有",
 "The quantities go back to what's saved. Nothing is logged.":"数量将恢复为已保存的值。不记录任何流水。",
 "The sales are recorded for trends, usage and minimums, and the bills are remembered —nothing comes off the stock.":"销售记入趋势、用量和最低库存，单号也会记住——不扣任何库存。",
+"The sales here were imported before customer and price detail was kept —drop the same sales file above again to fill it in (the stock isn't touched).":"这里的销售是在保存客户和价格明细之前导入的——在上方再拖入同一个销售文件即可补上（不改库存）。",
 "The spreadsheet reader did not load —check the connection and reopen the page":"表格读取器未加载 —请检查网络连接并重新打开页面",
 "The stocktake list is empty":"盘点清单为空",
 "The {n} item on this rack count as stock in whichever zone it's set to.":"此货架上的 {n} 个货品计入该货架所设区域的库存。",
@@ -2145,6 +2229,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "Top":"上",
 "Top company":"出库最多的公司",
 "Top item":"销量最高的货品",
+"Total":"合计",
 "Total issued":"出库总量",
 "Total stock issued to each company over a period —defaults to the current month.":"一段时间内向各公司出库的总量 —默认为本月。",
 "Total 合计":"合计",
@@ -2234,8 +2319,15 @@ const ZH_DICT = /*ZH_DICT*/{
 "and an alert pops up.":"中，并弹出提醒。",
 "and you get an alert. The {n} day can be changed in":"中，并向你发出提醒。如需修改这 {n} 天，请前往",
 "and you get an alert. The {n} days can be changed in":"中，并向你发出提醒。如需修改这 {n} 天，请前往",
+"average":"平均",
+"avg ${n}":"平均 ${n}",
+"avg {n}":"平均 {n}",
 "bag":"袋",
 "balances still uncounted —alarms start once they are keyed in":"个结存尚未盘点 —录入后才开始提醒",
+"bill flagged by YonYou":"张单被用友标记",
+"bill · ${n} back":"张单 · 退回 ${n}",
+"bills flagged by YonYou":"张单被用友标记",
+"bills · ${n} back":"张单 · 退回 ${n}",
 "box":"盒",
 "btl":"瓶",
 "can":"罐",
@@ -2252,6 +2344,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "ctn ×{n}":"箱 ×{n}",
 "departments get the Racks and Issue Stock stations instead of Panel/Cook/Sales.":"类部门使用货架和出库站点，而不是面板/烹煮/销售。",
 "different pack size":"包装规格不同",
+"discount":"折扣",
 "don't take off":"不扣",
 "driver, condition, etc.":"司机、货物状况等",
 "drum":"桶",
@@ -2264,6 +2357,8 @@ const ZH_DICT = /*ZH_DICT*/{
 "empty":"空位",
 "every {n} s":"每 {n} 秒更新",
 "example":"示例",
+"excl GST":"不含消费税",
+"excl GST · GST ${n} · with GST ${n}":"不含消费税 · 消费税 ${n} · 含消费税 ${n}",
 "eyJhbGciOi...":"eyJhbGciOi...",
 "file covers {d} —{d}":"文件范围 {d} —{d}",
 "get their minimum from what goes out over this many days; when a balance drops below its minimum it shows on":"的货品按这段天数内的出库量得出最低库存；结存低于最低库存时，会显示在",
@@ -2272,12 +2367,16 @@ const ZH_DICT = /*ZH_DICT*/{
 "get their minimum from what goes out —average usage × {n} days for now ({n} day on record); with about {n} more days of history it switches to the {n}th percentile of rolling {n}-day demand, which copes better with uneven weeks. It's recalculated continuously;":"的货品按出库量得出最低库存 —目前用平均用量 × {n1} 天（已有 {n2} 天记录）；再积累约 {n3} 天历史后，会改用滚动 {n5} 天需求的第 {n4} 百分位数，更能应对忙闲不均的周。最低库存会持续重新计算；",
 "get their minimum from what goes out —average usage × {n} days for now ({n} days on record); with about {n} more days of history it switches to the {n}th percentile of rolling {n}-day demand, which copes better with uneven weeks. It's recalculated continuously;":"的货品按出库量得出最低库存 —目前用平均用量 × {n1} 天（已有 {n2} 天记录）；再积累约 {n3} 天历史后，会改用滚动 {n5} 天需求的第 {n4} 百分位数，更能应对忙闲不均的周。最低库存会持续重新计算；",
 "grn.xlsx":"grn.xlsx",
+"highest price":"最高价",
 "https://xxxxxxxx.supabase.co":"https://xxxxxxxx.supabase.co",
 "in your Supabase project's SQL editor, and connect Clerk to Supabase as a Third-Party Auth provider. Full steps are in":"（在你的 Supabase 项目的 SQL 编辑器中），并将 Clerk 作为第三方认证（Third-Party Auth）提供方连接到 Supabase。完整步骤见",
+"in {n} categories":"共 {n} 个客户分类",
 "is out":"已缺货",
 "is the total of the corrections logged since the count started ({d}) —on the Racks floor plan, the Count sheet, ± Count or an item list import. A product that was checked and already matched shows no change. Cartons and loose units add up the products that have a pack size.":"是自盘点开始（{d}）以来记录的所有调整合计——包括货架平面图、盘点表、± 盘点或货品清单导入。已核对且数量一致的货品不显示调整。箱数和散装数只合计已设包装规格的货品。",
 "jar":"瓶",
 "kg":"kg",
+"latest ${n}":"最近 ${n}",
+"latest ${n} /":"最近 ${n} /",
 "leads":"领先",
 "leave blank if not needed":"不需要可留空",
 "live · all devices":"实时 · 所有设备",
@@ -2290,16 +2389,23 @@ const ZH_DICT = /*ZH_DICT*/{
 "never":"从未",
 "new":"新增",
 "no rack":"无货架",
+"no returns":"没有退货",
+"no sale":"无销售",
+"none":"无",
 "none imported":"未导入",
+"not counted":"未盘点",
 "not in this warehouse":"不在本仓库",
 "not on the list":"不在清单中",
 "nothing yet":"暂无",
 "now":"当前",
 "of issues (and sales, once imported), sized for the busiest weeks so a bad week is still covered. It updates by itself as history builds up; a product with no movement yet has no automatic minimum.":"的出库量（导入销售后也包括销售），并按最繁忙的几周计算，即使遇到用量大的一周也够用。它会随着历史数据积累自动更新；还没有任何流水的货品没有自动最低库存。",
 "of sales, so minimums use":"的销售记录，因此最低库存采用",
+"of {n} on the list":"清单共 {n} 个",
 "on":"已开启",
 "on a rack sets its zone (Dry / Chiller / Freezer).":"（货架上）用于设置该货架的区域（干货 / 冷藏 / 冷冻）。",
 "on the stock page uses to rebuild every minimum from real usage.":"（库存页面）按实际用量重新计算所有最低库存时所用的依据。",
+"on {n} bill":"共 {n} 张单",
+"on {n} bills":"共 {n} 张单",
 "one ctn less":"减一箱",
 "one ctn more":"加一箱",
 "one pkt less":"减一包",
@@ -2322,18 +2428,24 @@ const ZH_DICT = /*ZH_DICT*/{
 "pkt":"包",
 "pkt —from the UOM":"包 —取自单位(UOM)",
 "pkts per ctn":"每箱包数",
+"price change":"价格变动",
 "products ·":"个货品 ·",
 "qty":"数量",
 "rebuilds them from real sales —the {n}th percentile of rolling {n}-day demand, enough for a bad week in {n} week out of {n}.":"会按实际销售重新计算 —取滚动 {n2} 天需求的第 {n1} 百分位数，每 {n4} 周中有 {n3} 周即使遇到用量高峰也够用。",
 "rebuilds them from real sales —the {n}th percentile of rolling {n}-day demand, enough for a bad week in {n} weeks out of {n}.":"会按实际销售重新计算 —取滚动 {n2} 天需求的第 {n1} 百分位数，每 {n4} 周中有 {n3} 周即使遇到用量高峰也够用。",
 "red":"红色",
 "removes this record. A correction is logged so the change stays auditable.":"删除此记录。系统会记录一条调整，以便日后核查。",
+"return":"退货",
+"returned on {n} bill":"退货，共 {n} 张单",
+"returned on {n} bills":"退货，共 {n} 张单",
 "returns":"有退货",
 "revised":"有改动",
 "roll":"卷",
+"sales on {n} of {n} days":"{n2} 天中 {n1} 天有销售",
 "says":"表示每箱",
 "si.xlsx":"si.xlsx",
 "sold as":"售出规格",
+"sold at":"成交价",
 "starting":"启动中",
 "station for revenue by item.":"站点中各货品的营业额。",
 "stock / 库存 / physical qty":"库存",
@@ -2385,20 +2497,28 @@ const ZH_DICT = /*ZH_DICT*/{
 "{n} bill":"{n} 张单",
 "{n} bill comes off the stock of {n} product":"{n} 张单扣减 {n} 个产品的库存",
 "{n} bill comes off the stock of {n} products":"{n} 张单扣减 {n} 个产品的库存",
+"{n} bill got customer and price detail":"{n} 张单补上了客户和价格明细",
+"{n} bill of this product was imported before customer and price detail was kept —import the sales file again on Sales Deduction to fill it in.":"这个产品有 {n} 张单是在保存客户和价格明细之前导入的——在销售扣减页再导入一次销售文件即可补上。",
 "{n} bill recorded for trends":"{n} 张单记入趋势",
 "{n} bill recorded for trends only":"{n} 张单只记趋势",
+"{n} bill was imported before customer and price detail was kept —drop the sales file again above to fill it in.":"有 {n} 张单是在保存客户和价格明细之前导入的——在上方再拖入销售文件即可补上。",
 "{n} bills":"{n} 张单",
 "{n} bills come off the stock of {n} product":"{n} 张单扣减 {n} 个产品的库存",
 "{n} bills come off the stock of {n} products":"{n} 张单扣减 {n} 个产品的库存",
+"{n} bills got customer and price detail":"{n} 张单补上了客户和价格明细",
+"{n} bills of this product were imported before customer and price detail was kept —import the sales file again on Sales Deduction to fill them in.":"这个产品有 {n} 张单是在保存客户和价格明细之前导入的——在销售扣减页再导入一次销售文件即可补上。",
 "{n} bills recorded for trends":"{n} 张单记入趋势",
 "{n} bills recorded for trends only":"{n} 张单只记趋势",
 "{n} bills remembered · latest sale {d}":"已记住 {n} 张单 · 最近销售 {d}",
+"{n} bills were imported before customer and price detail was kept —drop the sales file again above to fill them in.":"有 {n} 张单是在保存客户和价格明细之前导入的——在上方再拖入销售文件即可补上。",
 "{n} ctn":"{n} 箱",
 "{n} ctn {n} pkt":"{n} 箱 {n} 包",
 "{n} day":"{n} 天",
 "{n} days":"{n} 天",
 "{n} distinct items moved":"{n} 种货品有出货",
 "{n} floor plan drawn —both floors; tap a rack to see what's on it":"{n} 平面图已绘制 —两个楼层；点按货架可查看上面的货品",
+"{n} issue to another company in these days isn't in the graph —it shows sales only.":"这几天有 {n} 笔发给其他公司的出库不在图里——图里只有销售。",
+"{n} issues to other companies in these days aren't in the graph —it shows sales only.":"这几天有 {n} 笔发给其他公司的出库不在图里——图里只有销售。",
 "{n} item":"{n} 个货品",
 "{n} item are getting a pack size for the first time and already have movements in the log ({s}). Were those quantities in cartons or in packets? They'll be converted to packets so totals stay right.":"{n} 个货品首次设置包装规格，且库存流水中已有记录（{s}）。这些数量是按箱还是按包计的？它们将被换算为包，以保证合计正确。",
 "{n} item are getting a pack size for the first time and already have movements in the log ({s}…). Were those quantities in cartons or in packets? They'll be converted to packets so totals stay right.":"{n} 个货品首次设置包装规格，且库存流水中已有记录（{s}…）。这些数量是按箱还是按包计的？它们将被换算为包，以保证合计正确。",
@@ -2449,10 +2569,14 @@ const ZH_DICT = /*ZH_DICT*/{
 "{n} minimums would change":"{n} 个最低库存将会变更",
 "{n} not yet on the list":"{n} 个尚未在清单中",
 "{n} now below zero —recount":"{n} 个低于零——请重新盘点",
+"{n} of them get their customer and price detail —the stock isn't touched.":"其中 {n} 张会补上客户和价格明细——不改库存。",
+"{n} of them gets its customer and price detail —the stock isn't touched.":"其中 {n} 张会补上客户和价格明细——不改库存。",
+"{n} of {n}":"{n} / {n}",
 "{n} of {n} counted":"已盘点 {n} / {n}",
 "{n} of {n} done":"已完成 {n} / {n}",
 "{n} of {n} matched":"已匹配 {n} / {n}",
 "{n} of {n} stocked items have a minimum":"{n} / {n} 个在库货品已设最低库存",
+"{n} others":"其他 {n} 个",
 "{n} out":"{n} 缺货",
 "{n} pkt":"{n} 包",
 "{n} product":"{n} 个货品",
@@ -2521,6 +2645,8 @@ const ZH_DICT = /*ZH_DICT*/{
 "{s}, Dry, {n} products":"{s}，干货，{n} 个货品",
 "{s}, Freezer, {n} product":"{s}，冷冻，{n} 个货品",
 "{s}, Freezer, {n} products":"{s}，冷冻，{n} 个货品",
+"{s}: price per {s}, sold at and highest":"{s}：每{s}价格，成交价和最高价",
+"{s}: sold each day from {d} to {d}":"{s}：{d} 至 {d} 每日销量",
 "± Count":"± 盘点",
 "· already out":"· 已缺货",
 "· {n} ctn = {n} pkt ·":"· {n} 箱 = {n} 包 ·",
@@ -2582,7 +2708,7 @@ let LANG = (()=>{ try{ return localStorage.getItem(LANG_KEY)==="zh" ? "zh" : "en
 const I18N_DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const I18N_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const I18N_FULLD = new RegExp(`(?:(${I18N_DAYS.join("|")}), )?(\\d{1,2}) (${I18N_MONTHS.join("|")})(?: (\\d{4}))?`, "g");
-const I18N_SHORTD = new RegExp(`(?:\\b(${I18N_DAYS.map(d=>d.slice(0,3)).join("|")}), )?\\b(\\d{1,2}) (${I18N_MONTHS.map(m=>m.slice(0,3)).join("|")})\\b(?: (\\d{4}))?`, "g");
+const I18N_SHORTD = new RegExp(`(?:\\b(${I18N_DAYS.map(d=>d.slice(0,3)).join("|")}), )?\\b(\\d{1,2}) (${I18N_MONTHS.map(m=>m.slice(0,3)).concat("Sept").join("|")})\\b(?: (\\d{4}))?`, "g");   // en-SG writes "22 Sept"
 const I18N_ISO = /\b\d{4}-\d{2}-\d{2}\b/g;
 const I18N_NUM = /\d+(?:[.,]\d+)*/g;
 const ZH_WEEK = "日一二三四五六";
@@ -3320,7 +3446,9 @@ function isWarehouse(){ return activeDept().type==="warehouse"; }
 function dkey(){ return "qf0428_mirror_v1_"+(dept||"none"); }
 /* A read-through local mirror, purely for instant paint / resilience if the
    connection drops —Supabase is always the source of truth once reachable. */
-function mirrorLocal(){ try{ localStorage.setItem(dkey(), JSON.stringify(state)); }catch(e){} }
+/* The sale-line detail ("@s") is left out: it's read again from the server,
+   and months of it could fill the browser's storage. */
+function mirrorLocal(){ try{ localStorage.setItem(dkey(), JSON.stringify(state, (k,v)=> k.endsWith("@s") ? undefined : v)); }catch(e){} }
 function readMirror(){ try{ const r=localStorage.getItem(dkey()); const o=r?JSON.parse(r):null; return (o&&o.items&&o.tx)?o:null; }catch(e){ return null; } }
 
 /* ---------- row <-> state field mapping ---------- */
@@ -3377,13 +3505,21 @@ function rowSettings(r){ return {capacity:Number(r.capacity), coverTarget:Number
   stocktake:r.stocktake||[], demo:!!r.demo, nextId:Number(r.next_id), planSeq:Number(r.plan_seq), batchSeq:Number(r.batch_seq),
   txSeq:Number(r.tx_seq||1), lastBatch:r.last_batch, lastBatchBills:r.last_batch_bills, floorPlan:r.floor_plan||[]}; }
 
-/* state.bills is {billKey: qty, "billKey@d": dateString} —the "@d" entries
-   are an internal convenience, never persisted as their own row. */
+/* state.bills is {billKey: qty, "billKey@d": dateString, "billKey@s": info}
+   —the "@d" / "@s" entries ride along on the bill's own row, never rows of
+   their own. "@s" is a warehouse sale line's detail from the SI_Item export
+   (customer, salesman, company, prices, GST, discount) as a JSON string, in
+   bills.info —a column added by a later supabase-schema.sql; until that's
+   run (billInfoOk false) the detail stays on this device and isn't sent. */
+let billInfoOk = true;
+const billSide = k => k.endsWith("@d") || k.endsWith("@s");
 function billRowsFromState(b){
   const out=[];
   for(const k of Object.keys(b||{})){
-    if(k.endsWith("@d")) continue;
-    out.push({dept_id:dept, bill_key:k, qty:b[k], date:b[k+"@d"]||null});
+    if(billSide(k)) continue;
+    const r = {dept_id:dept, bill_key:k, qty:b[k], date:b[k+"@d"]||null};
+    if(billInfoOk && b[k+"@s"]!=null) r.info = b[k+"@s"];
+    out.push(r);
   }
   return out;
 }
@@ -3421,7 +3557,7 @@ function stateFromCache(){
   s.tx    = [...cache.tx.values()].map(rowTx);
   s.plan  = [...cache.plan.values()].map(rowPlan);
   s.bills = {};
-  for(const r of cache.bills.values()){ s.bills[r.bill_key]=Number(r.qty); if(r.date) s.bills[r.bill_key+"@d"]=r.date; }
+  for(const r of cache.bills.values()){ s.bills[r.bill_key]=Number(r.qty); if(r.date) s.bills[r.bill_key+"@d"]=r.date; if(r.info) s.bills[r.bill_key+"@s"]=r.info; }
   s.racks = [...cache.racks.values()].map(rowRack);
   s.levels = [...cache.levels.values()].map(rowLevel);
   /* The id counters (nextId/txSeq/planSeq) live in `settings` and only reach
@@ -3485,7 +3621,7 @@ function localChanges(now){
   const bdel = [...persisted.bills.keys()].filter(k=>!now.bills.has(k));
   if(bup.length || bdel.length){
     const up = {};
-    for(const k of bup){ up[k] = state.bills[k]; if(state.bills[k+"@d"]!=null) up[k+"@d"] = state.bills[k+"@d"]; }
+    for(const k of bup){ up[k] = state.bills[k]; for(const x of ["@d","@s"]) if(state.bills[k+x]!=null) up[k+x] = state.bills[k+x]; }
     ch.bills = {up, del:bdel};
   }
   if(now.settings !== persisted.settings){
@@ -3510,7 +3646,7 @@ function replayChanges(ch){
     setList([...m.values()]);
   }
   if(ch.bills){
-    for(const k of ch.bills.del||[]){ delete state.bills[k]; delete state.bills[k+"@d"]; }
+    for(const k of ch.bills.del||[]){ delete state.bills[k]; delete state.bills[k+"@d"]; delete state.bills[k+"@s"]; }
     Object.assign(state.bills, ch.bills.up||{});
   }
   if(ch.settings) Object.assign(state, rowSettings(Object.assign(settingsRow(state), ch.settings)));
@@ -3622,7 +3758,8 @@ async function runFlush(){
     const billsUp=[], billsDel=[];
     for(const r of billRows){ if(persisted.bills.get(r.bill_key)!==now.bills.get(r.bill_key)) billsUp.push(r); }
     for(const k of persisted.bills.keys()) if(!now.bills.has(k)) billsDel.push(k);
-    for(const part of parts(billsUp, 500)) jobs.push(sb.from("bills").upsert(part, {onConflict:"dept_id,bill_key"}));
+    for(const grp of [billsUp.filter(r=>"info" in r), billsUp.filter(r=>!("info" in r))])
+      for(const part of parts(grp, 500)) jobs.push(sb.from("bills").upsert(part, {onConflict:"dept_id,bill_key"}));
     for(const part of parts(billsDel, 100)) jobs.push(sb.from("bills").delete().eq("dept_id",dept).in("bill_key",part));
 
     const racksUp=[], racksDel=[];
@@ -3837,6 +3974,9 @@ async function subscribeDept(){
     cache.settings = fresh;
   }
 
+  /* bills.info arrived with a later supabase-schema.sql —ask once whether
+     this database has it, before anything is compared with the server */
+  try{ billInfoOk = !(await sb.from("bills").select("info").range(0,0)).error; }catch(e){ billInfoOk = false; }
   applyStore(readPending());
   DB_READY = true;
   if(upgradePlan0434()){ save(); render(); }
@@ -4608,6 +4748,7 @@ function renderStock(){
           <td class="num dim">${u>0?fmt1(u)+(hasPack(i)?" "+esc(unitOf(i)):""):"—"}</td>
           <td class="num">${sevTag(i)}</td>
           <td class="num" style="white-space:nowrap">
+            ${wh?`<button class="btn sm" onclick="openSalesGraph(${i.id})" title="Daily sales of this product"><svg class="ic"><use href="#i-chart"/></svg>Sales</button>`:""}
             <button class="btn sm" onclick="openAdjust(${i.id})">± Count</button>
             ${wh?"":`<button class="btn sm ${i.preorder?"on":""}" onclick="togglePreorder(${i.id})" title="${i.preorder?"Stock this item normally":"Make to order —no minimum, never on the cook list"}">Pre-order</button>`}
             <button class="btn sm" onclick="openEdit(${i.id})">Edit</button>
@@ -8298,7 +8439,10 @@ function applyReceive(){
    registry the kitchen's sales import uses), so a bill only ever comes off
    once: the same file again skips it, an edited bill applies the difference.
    There is no switching that off here —a file without bill numbers is
-   refused. */
+   refused. Each bill + item also keeps the rest of the line (customer,
+   salesman, company, prices, GST, discount —"@s", see billRowsFromState)
+   for the sales dashboards; a bill imported before that was kept gets it
+   when the file is imported again, without touching the stock. */
 let sdPending = null;
 const r2 = n => Math.round(n*100)/100;
 /* The size of one unit as the UOM spells it: "24x0.425kg/ctn" -> 0.425 kg,
@@ -8343,7 +8487,20 @@ function parseSalesDeduction(grid, fname){
       date: pickCol(row, ["invoicedate","单据日期","发票日期"], ["日期","date"], null),
       bill: pickCol(row, ["billno","发票号","单据号"], ["invoiceno","单号","invoice"], ["billtype","type","类型","date","日期"]),
       co:   pickCol(row, ["comp","company","公司"], [], ["code","编码"]),
-      amt:  pickCol(row, ["totalamt","totalamount","amount","金额"], ["amt","sales","销售额"], ["qty","quantity","unitprice","单价","数量"])};
+      amt:  pickCol(row, ["totalamtnogst","totalamt","totalamount","amount","金额"], ["amt","sales","销售额"], ["qty","quantity","unitprice","单价","数量"]),
+      cu:   pickCol(row, ["custname","客户名称"], ["customer","客户"], ["cat","code","编码","类"]),
+      cc:   pickCol(row, ["custcatname","客户分类"], ["custcat","customercategory"], []),
+      sm:   pickCol(row, ["salesman","业务员","销售员"], [], []),
+      bt:   pickCol(row, ["billtypename","单据类型"], [], []),
+      pt:   pickCol(row, ["producttype","产品类型"], [], []),
+      mc:   pickCol(row, ["matcat","存货分类"], [], []),
+      p:    pickCol(row, ["netunitprice","无税单价"], ["unitprice"], ["highest","latest","lastest","change"]),
+      hi:   pickCol(row, ["highestprice","最高价"], [], []),
+      lp:   pickCol(row, ["lastestsaleprice","latestsaleprice"], [], []),
+      chg:  pickCol(row, ["pricechange"], [], []),
+      gst:  pickCol(row, ["gst","税额"], [], ["total","amt"]),
+      dc:   pickCol(row, ["discountamt","折扣额"], ["discount"], []),
+      tot:  pickCol(row, ["totalamtgst","价税合计"], [], ["nogst"])};
     break;
   }
   if(hr<0){ toast("Could not find a product and a quantity column in that file"); return; }
@@ -8359,7 +8516,10 @@ function parseSalesDeduction(grid, fname){
     const q = parseFloat(row[c.qty]);
     if(isNaN(q) || q===0) continue;
     const amt = c.amt>=0 ? parseFloat(row[c.amt]) : NaN;
-    lines.push({code, name, uom:str(row,c.uom), qty:q, date:toISO(ds), bill, co:str(row,c.co), amount:isNaN(amt)?null:amt});
+    const num = i => { const v = i>=0 ? parseFloat(row[i]) : NaN; return isNaN(v) ? null : v; };
+    lines.push({code, name, uom:str(row,c.uom), qty:q, date:toISO(ds), bill, co:str(row,c.co), amount:isNaN(amt)?null:amt,
+      cu:str(row,c.cu), cc:str(row,c.cc), sm:str(row,c.sm), bt:str(row,c.bt), pt:str(row,c.pt), mc:str(row,c.mc),
+      p:num(c.p), hi:num(c.hi), lp:num(c.lp), pc:/change/i.test(str(row,c.chg)), gst:num(c.gst), dc:num(c.dc), tot:num(c.tot)});
   }
   if(!lines.length){ toast("No sales lines found in that file"); return; }
   const byCode = new Map(), byName = new Map();
@@ -8410,15 +8570,25 @@ function sdCompute(){
     if(g.itemId==null || !g.per) continue;
     const bk = l.bill+"§i"+g.itemId;
     let b = bills.get(bk);
-    if(!b){ b = {bk, bill:l.bill, itemId:g.itemId, date:l.date, qty:0, amt:null, parts:[]}; bills.set(bk, b); }
+    if(!b){ b = {bk, bill:l.bill, itemId:g.itemId, date:l.date, qty:0, amt:null, parts:[],
+                 info:{co:l.co, cu:l.cu, cc:l.cc, sm:l.sm, bt:l.bt, pt:l.pt, mc:l.mc, u:l.uom, p:l.p, hi:l.hi, lp:l.lp, pc:l.pc?1:0, sq:0, a:0, g:0, dc:0, t:0}};
+           bills.set(bk, b); }
     b.qty += l.qty*g.per; b.parts.push([g, l.qty*g.per]);
     if(l.amount!=null) b.amt = (b.amt||0) + l.amount;
     if(l.date && (!b.date || l.date>b.date)) b.date = l.date;
+    const f = b.info;
+    f.sq += l.qty; f.a += l.amount||0; f.g += l.gst||0; f.dc += l.dc||0; f.t += l.tot||0;
+    if(l.p!=null) f.p = l.p; if(l.hi!=null && (f.hi==null || l.hi>f.hi)) f.hi = l.hi; if(l.pc) f.pc = 1;
+    if(l.qty<0 || /退/.test(l.bt)) f.r = 1;
   }
   for(const b of bills.values()){
     b.qty = r2(b.qty);
+    const f = b.info; for(const k of ["sq","a","g","dc","t"]) f[k] = r2(f[k]);
+    for(const k of Object.keys(f)) if(f[k]==null || f[k]==="" || (f[k]===0 && k!=="sq" && k!=="a")) delete f[k];
+    b.infoS = JSON.stringify(f);
     const prev = state.bills[b.bk];
     b.status = prev===undefined ? "new" : Math.abs(prev-b.qty)<0.001 ? "dup" : "rev";
+    b.fill = billInfoOk && b.status==="dup" && state.bills[b.bk+"@s"]!==b.infoS;      // already in —only its detail is new (and there's somewhere to keep it)
     b.delta = b.status==="new" ? b.qty : b.status==="dup" ? 0 : r2(b.qty-prev);
     b.trend = trendAll || (cut!=null && (b.date||todayStr())<cut);
     for(const [g, q] of b.parts){
@@ -8443,6 +8613,7 @@ function renderSdPreview(){
   const live = bills.filter(b=>b.status!=="dup");
   const takeB = billNo(live.filter(b=>!b.trend)), trendB = billNo(live.filter(b=>b.trend));
   const dupB = billNo(bills.filter(b=>b.status==="dup")), revB = billNo(live.filter(b=>b.status==="rev"));
+  const fillB = billNo(bills.filter(b=>b.fill));
   const takeItems = new Map();
   for(const g of ours) if(g.take) takeItems.set(g.itemId, r2((takeItems.get(g.itemId)||0) + g.take));
   /* Issue Stock to the same companies, for the same products, over the
@@ -8462,7 +8633,8 @@ function renderSdPreview(){
   const billBar = bar("background:var(--ok-bg);color:var(--ok);font-weight:500", !dupB
     ? "Bill protection is on —nothing in this file has been imported before."
     : pl(dupB, `Bill protection is on —${fmt(dupB)} bill was already imported and is skipped`, `Bill protection is on —${fmt(dupB)} bills were already imported and are skipped`)
-      + (revB ? `, ${fmt(revB)} changed since —only the difference applies.` : "."));
+      + (revB ? `, ${fmt(revB)} changed since —only the difference applies.` : ".")
+      + (fillB ? ` <span>${pl(fillB, `${fmt(fillB)} of them gets its customer and price detail —the stock isn't touched.`, `${fmt(fillB)} of them get their customer and price detail —the stock isn't touched.`)}</span>` : ""));
   const modeBar = bar("display:flex;flex-direction:column;gap:8px", `
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn sm ${p.mode==="ded"?"on":""}" onclick="sdSet('mode','ded')">Take off stock</button>
@@ -8517,7 +8689,7 @@ function renderSdPreview(){
     </tbody></table></div>` : `<div class="empty">Nothing in this file is for this warehouse's products.</div>`}</div>
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px;flex-wrap:wrap">
       <button class="btn" onclick="sdPending=null;renderSdPreview()">Cancel</button>
-      <button class="btn primary" onclick="applySalesDeduction()" ${live.length?"":"disabled"}>${!live.length ? "Nothing new"
+      <button class="btn primary" onclick="applySalesDeduction()" ${live.length||fillB?"":"disabled"}>${!live.length ? (fillB ? pl(fillB, `Add detail to ${fmt(fillB)} bill`, `Add detail to ${fmt(fillB)} bills`) : "Nothing new")
         : p.mode==="trend" ? pl(trendB, `Record ${fmt(trendB)} bill for trends`, `Record ${fmt(trendB)} bills for trends`)
         : !takeB ? pl(trendB, `Record ${fmt(trendB)} bill for trends`, `Record ${fmt(trendB)} bills for trends`)
         : pl(takeB, `Take off ${fmt(takeB)} bill`, `Take off ${fmt(takeB)} bills`)}</button>
@@ -8530,12 +8702,13 @@ function renderSdPreview(){
 }
 function applySalesDeduction(){
   if(!sdPending) return;
-  const {bills} = sdCompute(), live = bills.filter(b=>b.status!=="dup");
-  if(!live.length){ toast("Nothing new in this file"); return; }
+  const {bills} = sdCompute(), live = bills.filter(b=>b.status!=="dup"), fills = bills.filter(b=>b.fill);
+  if(!live.length && !fills.length){ toast("Nothing new in this file"); return; }
   const b = uid("batchSeq"), fname = sdPending.fname, roll = {}, days = new Map();
+  const keep = (k, v) => { if(!(k in roll)) roll[k] = state.bills[k]===undefined ? null : state.bills[k]; state.bills[k] = v; };
+  for(const x of fills){ keep(x.bk+"@s", x.infoS); if(x.date && state.bills[x.bk+"@d"]==null) keep(x.bk+"@d", x.date); }
   for(const x of live){
-    if(!(x.bk in roll)) roll[x.bk] = state.bills[x.bk]===undefined ? null : state.bills[x.bk];
-    state.bills[x.bk] = x.qty;
+    keep(x.bk, x.qty); keep(x.bk+"@s", x.infoS); if(x.date) keep(x.bk+"@d", x.date);
     const k = x.itemId+"|"+(x.date||todayStr())+"|"+(x.trend?1:0);
     if(!days.has(k)) days.set(k, {itemId:x.itemId, date:x.date||todayStr(), trend:x.trend, qty:0, amt:null});
     const d = days.get(k); d.qty += x.delta;
@@ -8561,8 +8734,10 @@ function applySalesDeduction(){
   save(); render();
   /* each part on its own, so it can be put into Chinese part by part */
   const zh = x => LANG==="zh" ? (zhText(x) ?? x) : x;
+  const fillN = nb(fills);
   toast([took.size ? `Took ${fmt(takeB)} bill${takeB===1?"":"s"} off ${took.size} product${took.size===1?"":"s"}` : "Nothing taken off stock",
     trendB ? `${fmt(trendB)} bill${trendB===1?"":"s"} recorded for trends` : "",
+    fillN ? `${fmt(fillN)} bill${fillN===1?"":"s"} got customer and price detail` : "",
     dupB ? `${fmt(dupB)} already in, skipped` : "",
     neg.size ? `${neg.size} now below zero —recount` : "", "Undo available"].filter(Boolean).map(zh).join(" · "));
 }
@@ -8570,9 +8745,10 @@ function applySalesDeduction(){
 function renderSalesDeduction(){
   const tbl = $("#sd-table"); if(!tbl || !isWarehouse()) return;
   renderSdPreview();
+  renderSalesDash();
   const f = $("#sd-filter").value;
   const all = state.tx.filter(t=>t.type==="sale");
-  const bills = new Set(Object.keys(state.bills).filter(k=>!k.endsWith("@d")).map(k=>k.split("§")[0]));
+  const bills = new Set(Object.keys(state.bills).filter(k=>!billSide(k)).map(k=>k.split("§")[0]));
   const last = all.reduce((d,t)=>!d||t.date>d ? t.date : d, null);
   $("#sd-meta").textContent = all.length ? fmt(bills.size)+" bills remembered · latest sale "+shortDate(last) : "";
   const rows = all.filter(t=>f==="all" || (f==="trend" ? t.h : !t.h)).sort((a,b)=>b.date.localeCompare(a.date) || b.ts-a.ts);
@@ -8589,6 +8765,355 @@ function renderSalesDeduction(){
       }).join("") + `</tbody></table>`
     + (rows.length>400 ? `<div class="dim" style="font-size:12px;padding:8px 10px">Showing the newest 400 of ${fmt(rows.length)} —the Log has them all.</div>` : "");
 }
+
+/* ============================================================
+   SALES DASHBOARDS (warehouse) —one product (Stock → Sales) or the whole
+   warehouse (Sales Deduction): everything YonYou's SI_Item export carries
+   —quantities, revenue, GST, discount, net and highest prices, price
+   changes, returns, customers and their categories, salesmen, companies,
+   product types and categories.
+   ============================================================ */
+/* Quantities per day come from the log (every sale imported, trends-only
+   ones included —they're real sales too), net of returns, in the product's
+   stock unit. Everything else comes from the bill registry's sale-line
+   detail ("@s"), one entry per bill + product. The days run up to the newest
+   sale imported, not today: sales come in in batches, and the days after the
+   last import would read as "sold nothing". */
+const saleInfoCache = new Map();
+function saleLines(){
+  const out = [];
+  for(const k of Object.keys(state.bills)){
+    if(!k.endsWith("@s")) continue;
+    const bk = k.slice(0, -2), raw = state.bills[k];
+    let c = saleInfoCache.get(bk);
+    if(!c || c.raw!==raw){ try{ c = {raw, v:JSON.parse(raw)}; }catch(e){ continue; } saleInfoCache.set(bk, c); }
+    const i = bk.lastIndexOf("§i");
+    out.push(Object.assign({bk, bill:bk.slice(0, i), itemId:Number(bk.slice(i+2)), qty:state.bills[bk]||0, date:state.bills[bk+"@d"]||null}, c.v));
+  }
+  return out;
+}
+function salesAsOf(){ let end = null; for(const t of state.tx) if(t.type==="sale" && (!end || t.date>end)) end = t.date; return end; }
+function dashDays(range, first, end){
+  if(!first || first>end) first = end;
+  const n = range==="all" ? Math.min(Math.round((new Date(end+"T12:00")-new Date(first+"T12:00"))/86400000)+1, 730) : +range;
+  const days = []; for(let k=n-1; k>=0; k--) days.push(dayAdd(end, -k));
+  return days;
+}
+const money = n => (n<0?"−":"")+"$"+fmtMoney(Math.abs(n));
+const moneyK = n => Math.abs(n)>=1000 ? "$"+fmt1(n/1000)+"K" : "$"+fmt(Math.round(n));
+const nBills = n => n===1 ? "1 bill" : fmt(n)+" bills";
+const dashDate = d => new Date(d+"T12:00").toLocaleDateString("en-SG",{weekday:"short", day:"numeric", month:"short"});
+/* Totals by one field (customer, salesman, ...), biggest first, the tail
+   folded into "Others". */
+function salesBy(lines, key, top){
+  const m = new Map();
+  for(const l of lines){
+    const k = l[key] || "—";
+    const g = m.get(k) || {k, qty:0, a:0, bills:new Set(), sub:new Set()};
+    g.qty += l.qty; g.a += l.a||0; g.bills.add(l.bill); if(key==="cu" && l.cc) g.sub.add(l.cc);
+    m.set(k, g);
+  }
+  const all = [...m.values()].sort((x,y)=>y.a-x.a || y.qty-x.qty);
+  if(all.length<=top) return all;
+  const rest = all.slice(top), other = {k:"Others", other:rest.length, qty:0, a:0, bills:new Set(), sub:new Set()};
+  for(const g of rest){ other.qty += g.qty; other.a += g.a; g.bills.forEach(b=>other.bills.add(b)); }
+  return all.slice(0, top).concat([other]);
+}
+function dashTiles(list){
+  return `<div class="sg-stats">${list.map(([l, v, sub])=>`<div class="sg-stat"><div class="l">${l}</div><div class="v">${v}</div>${sub?`<div class="s">${sub}</div>`:""}</div>`).join("")}</div>`;
+}
+/* A ranked list with a bar per row —the value is written beside it, so the
+   bar only shows the proportion. */
+function barList(title, rows, val, text, click){
+  if(!rows.length) return "";
+  const max = Math.max(...rows.map(val), 0) || 1;
+  return `<div class="bl"><div class="bl-h">${title}</div>${rows.map(r=>`<div class="bl-row${click&&r.id!=null?" link":""}" ${click&&r.id!=null?`onclick="${click(r)}"`:""}>
+      <div class="bl-l"><span class="bl-n" ${r.data?"data-notr":""}>${esc(r.label)}</span>${r.sub?`<span class="bl-s" ${r.subData?"data-notr":""}>${[].concat(r.sub).map(x=>`<span>${esc(x)}</span>`).join(" · ")}</span>`:""}</div>
+      <div class="bl-b"><i style="width:${Math.max(0, val(r)/max*100).toFixed(1)}%"></i></div>
+      <div class="bl-v">${text(r)}</div></div>`).join("")}</div>`;
+}
+/* Clean axis steps: 1, 2, 2.5, 5 × 10^k. */
+function niceStep(x, whole){
+  if(!(x>0)) return 1;
+  const p = Math.pow(10, Math.floor(Math.log10(x))), f = x/p;
+  const st = (f<=1 ? 1 : f<=2 ? 2 : f<=2.5 ? 2.5 : f<=5 ? 5 : 10) * p;
+  return whole ? Math.max(1, st) : st;
+}
+/* One column per day, growing from the baseline with a 4px rounded end;
+   the busiest day written at its cap, the average as a thin line, every
+   day readable on hover / tap. */
+function colChart(host, days, vals, o){
+  if(!host) return;
+  const n = days.length, L = 46, R = 58, T = 22, PH = 180, B = 24;          // the right margin holds the average's label
+  const W = Math.max(host.clientWidth || 600, n*6 + L + R), H = T + PH + B;
+  const maxV = Math.max(...vals, 0), minV = Math.min(...vals, 0);
+  const step = niceStep((maxV - minV)/4 || 1, o.whole);
+  const top = Math.max(step, Math.ceil(maxV/step - 1e-9)*step), bot = minV<0 ? -Math.ceil(-minV/step - 1e-9)*step : 0;
+  const y = v => T + PH*(top - v)/(top - bot);
+  const pw = (W - L - R)/n, bw = Math.max(1, Math.min(24, pw - 2));
+  let g = "";
+  for(let v=bot; v<=top+1e-9; v+=step){
+    const yy = y(v).toFixed(1);
+    g += `<line x1="${L}" y1="${yy}" x2="${W-R}" y2="${yy}" stroke="var(--rule)" stroke-width="1"/><text x="${L-6}" y="${(+yy+3.2).toFixed(1)}" text-anchor="end" class="axl">${o.tick(v)}</text>`;
+  }
+  const col = (x, v) => {
+    const y0 = y(0), e = y(v), h = Math.abs(e - y0); if(h<0.5) return "";
+    const r = Math.min(4, bw/2, h), xr = x + bw, s = v>0 ? 1 : -1;
+    return `M${x.toFixed(1)},${y0.toFixed(1)} V${(e + s*r).toFixed(1)} Q${x.toFixed(1)},${e.toFixed(1)} ${(x+r).toFixed(1)},${e.toFixed(1)} H${(xr-r).toFixed(1)} Q${xr.toFixed(1)},${e.toFixed(1)} ${xr.toFixed(1)},${(e + s*r).toFixed(1)} V${y0.toFixed(1)} Z`;
+  };
+  let bi = 0; vals.forEach((v,i)=>{ if(v>vals[bi]) bi = i; });
+  const every = Math.max(1, Math.ceil(52/pw));
+  let marks = "", hits = "", labels = "";
+  days.forEach((d, i)=>{
+    const cx = L + i*pw + pw/2, pth = col(cx - bw/2, vals[i]);
+    if(pth) marks += `<path class="sg-col" data-i="${i}" d="${pth}" fill="var(--series-out)"/>`;
+    hits += `<rect class="sg-hit" data-i="${i}" x="${(L + i*pw).toFixed(1)}" y="${T}" width="${pw.toFixed(2)}" height="${PH}" fill="transparent"/>`;
+    if((n-1-i) % every === 0) labels += `<text x="${cx.toFixed(1)}" y="${H-7}" text-anchor="middle" class="axl">${esc(shortDate(d))}</text>`;
+  });
+  const bx = L + bi*pw + pw/2;
+  const peak = vals[bi]>0 ? `<text x="${Math.min(Math.max(bx, L+16), W-R-16).toFixed(1)}" y="${(y(vals[bi])-6).toFixed(1)}" text-anchor="middle" class="axl" style="fill:var(--ink-2);font-weight:600">${o.tick(vals[bi])}</text>` : "";
+  const avg = vals.reduce((a,v)=>a+v, 0)/n, ay = y(avg);
+  const avgLine = avg>0 ? `<line x1="${L}" y1="${ay.toFixed(1)}" x2="${W-R}" y2="${ay.toFixed(1)}" stroke="var(--ink-2)" stroke-width="1"/>
+      <text x="${W-R+5}" y="${(ay+3.2).toFixed(1)}" text-anchor="start" class="axl" style="fill:var(--ink-2)">avg ${o.tick(avg)}</text>` : "";
+  host.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.aria)}">
+    ${g}${marks}<line x1="${L}" y1="${y(0).toFixed(1)}" x2="${W-R}" y2="${y(0).toFixed(1)}" stroke="var(--ink-3)" stroke-width="1"/>
+    ${avgLine}${peak}${labels}${hits}</svg>`;
+  if(W > host.clientWidth) host.scrollLeft = W;            // the newest days first
+  const lit = i => host.querySelectorAll(".sg-col").forEach(c=>c.classList.toggle("hover", +c.dataset.i===i));
+  host.querySelectorAll(".sg-hit").forEach(el=>{
+    const i = +el.dataset.i, show = e => { lit(i); showTip(e, `<b>${esc(dashDate(days[i]))}</b>${esc(o.tip(vals[i]))}`); };
+    el.addEventListener("pointermove", show); el.addEventListener("pointerdown", show);
+    el.addEventListener("pointerleave", ()=>{ lit(-1); hideTip(); });
+  });
+  host.addEventListener("scroll", hideTip, {passive:true});
+}
+/* Lines over the same days on one axis (prices: what it sold at, and the
+   highest price) —gaps where there was no sale; a crosshair finds the day. */
+function lineChart(host, days, series, o){
+  if(!host) return;
+  const n = days.length, L = 52, R = 70, T = 14, PH = 150, B = 24;
+  const W = Math.max(host.clientWidth || 600, n*6 + L + R), H = T + PH + B;
+  const all = series.flatMap(s=>s.vals).filter(v=>v!=null);
+  if(!all.length){ host.innerHTML = ""; return; }
+  let lo = Math.min(...all), hi = Math.max(...all);
+  const step = niceStep((hi - lo)/4 || hi/4 || 1, false);
+  lo = Math.floor(lo/step)*step; hi = Math.ceil(hi/step)*step; if(hi===lo) hi = lo + step;
+  const y = v => T + PH*(hi - v)/(hi - lo), pw = (W - L - R)/n, x = i => L + i*pw + pw/2;
+  let g = "";
+  for(let v=lo; v<=hi+1e-9; v+=step){ const yy = y(v).toFixed(1);
+    g += `<line x1="${L}" y1="${yy}" x2="${W-R}" y2="${yy}" stroke="var(--rule)" stroke-width="1"/><text x="${L-6}" y="${(+yy+3.2).toFixed(1)}" text-anchor="end" class="axl">${o.tick(v)}</text>`; }
+  const every = Math.max(1, Math.ceil(52/pw));
+  let labels = ""; days.forEach((d,i)=>{ if((n-1-i) % every === 0) labels += `<text x="${x(i).toFixed(1)}" y="${H-7}" text-anchor="middle" class="axl">${esc(shortDate(d))}</text>`; });
+  let paths = "", ends = "";
+  for(const s of series){
+    const pts = s.vals.map((v,i)=>v==null ? null : [x(i), y(v)]).filter(Boolean);
+    if(!pts.length) continue;
+    paths += `<path d="${pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ")}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    if(pts.length<=45) paths += pts.map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="${s.color}" stroke="var(--panel)" stroke-width="2"/>`).join("");
+    const last = pts[pts.length-1];
+    ends += `<circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="4" fill="${s.color}" stroke="var(--panel)" stroke-width="2"/>`
+         + `<text x="${(last[0]+8).toFixed(1)}" y="${(last[1]+3.5).toFixed(1)}" class="axl" style="fill:var(--ink-2);font-weight:600">${o.tick(s.vals.filter(v=>v!=null).pop())}</text>`;
+  }
+  host.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.aria)}">
+    ${g}${labels}${paths}${ends}<line class="lc-x" x1="0" y1="${T}" x2="0" y2="${T+PH}" stroke="var(--ink-3)" stroke-width="1" visibility="hidden"/>
+    <rect class="lc-hit" x="${L}" y="${T}" width="${W-L-R}" height="${PH}" fill="transparent"/></svg>`;
+  if(W > host.clientWidth) host.scrollLeft = W;
+  const hit = host.querySelector(".lc-hit"), cross = host.querySelector(".lc-x"), svg = host.querySelector("svg");
+  const show = e => {
+    const r = svg.getBoundingClientRect(), i = Math.max(0, Math.min(n-1, Math.floor((e.clientX - r.left - L)/pw)));
+    cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.setAttribute("visibility", "visible");
+    const rows = series.map(s=>s.vals[i]==null ? "" : `<br><span style="display:inline-block;width:12px;height:2px;background:${s.color};vertical-align:3px;margin-right:6px"></span>${esc(o.tick(s.vals[i]))} <span style="opacity:.75">${esc(s.name)}</span>`).join("");
+    showTip(e, `<b>${esc(dashDate(days[i]))}</b>${rows || "<br>no sale"}`);
+  };
+  hit.addEventListener("pointermove", show); hit.addEventListener("pointerdown", show);
+  hit.addEventListener("pointerleave", ()=>{ cross.setAttribute("visibility", "hidden"); hideTip(); });
+  host.addEventListener("scroll", hideTip, {passive:true});
+}
+/* the bills table: newest first */
+function billsTable(lines, it, limit){
+  const rows = lines.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"") || b.bill.localeCompare(a.bill));
+  return `<div class="scroll"><table class="sg-bills"><thead><tr><th>Date</th><th>Bill</th><th>Customer</th><th>Salesman</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Amount</th><th></th></tr></thead><tbody>
+    ${rows.slice(0, limit).map(l=>{ const x = it || item(l.itemId);
+      return `<tr><td class="mono dim" style="white-space:nowrap">${esc(l.date||"")}</td><td class="mono" style="font-size:12px" data-notr>${esc(l.bill)}</td>
+        <td><span data-notr>${esc(l.cu||"—")}</span>${l.cc?`<span class="sub" data-notr>${esc(l.cc)}</span>`:""}</td><td data-notr>${esc(l.sm||"")}</td>
+        <td class="num">${esc(fmtQty(x, l.qty))}</td>
+        <td class="num">${l.p!=null?`${esc(money(l.p))}<span class="sub" data-notr>${esc(l.u||"")}</span>`:""}${l.lp!=null && l.lp!==l.p ? `<span class="sub">latest ${esc(money(l.lp))}</span>` : ""}</td>
+        <td class="num">${esc(money(l.a||0))}</td>
+        <td>${l.r?'<span class="tag t-ok">return</span> ':""}${l.pc?'<span class="tag t-warn">price change</span> ':""}${(l.dc||0)>0?'<span class="tag t-off">discount</span>':""}</td></tr>`; }).join("")}
+    </tbody></table></div>`;
+}
+
+/* ---------- one product (Stock → Sales) ---------- */
+let sgState = null, sgRange = "30";          // the range picked last time is kept for the next product
+function openSalesGraph(id){
+  if(!item(id)) return;
+  sgState = {id, range: sgRange, table:false, allBills:false};
+  renderSalesGraph();
+}
+function sgSet(k, v){ sgState[k] = v; if(k==="range") sgRange = v; renderSalesGraph(); }
+function renderSalesGraph(){
+  const it = sgState && item(sgState.id); if(!it){ closeModal(); return; }
+  const per = new Map(), end = salesAsOf();
+  for(const t of state.tx) if(t.type==="sale" && t.itemId===it.id) per.set(t.date, (per.get(t.date)||0) - t.qty);
+  const unit = unitOf(it), first = [...per.keys()].sort()[0];
+  const allLines = saleLines().filter(l=>l.itemId===it.id);
+  const newest = allLines.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0];
+  const head = `<h3>${esc(it.name)}</h3>
+    <div class="sg-sub"><span data-notr>${esc(it.uom||"")}${it.code?" · "+esc(it.code):""}${it.store?" · "+esc(posCode(it)):""}</span>${newest&&(newest.pt||newest.mc)?` · <span data-notr>${esc([newest.pt, newest.mc].filter(Boolean).join(" · "))}</span>`:""} · <span>Balance</span> <span>${uncounted(it) ? "not counted" : esc(fmtBal(it))}</span></div>`;
+  const foot = `<div class="mfoot"><button class="btn primary" onclick="sgState=null;closeModal()">Close</button></div>`;
+  if(!per.size){
+    modal(head + `<div class="empty" style="padding:30px 12px"><b>No sales imported for this product yet</b>
+        Import YonYou's sales export on Sales Deduction and they show here day by day.
+        <div style="margin-top:12px"><button class="btn" onclick="sgState=null;closeModal();go('salesded')">Go to Sales Deduction</button></div></div>` + foot);
+    $("#modal-root .modal").classList.add("wide");
+    return;
+  }
+  const days = dashDays(sgState.range, first, end), from = days[0];
+  const vals = days.map(d=>r2(per.get(d)||0));
+  const total = r2(vals.reduce((a,v)=>a+v, 0)), avg = total/days.length;
+  let bi = 0; vals.forEach((v,i)=>{ if(v>vals[bi]) bi = i; });
+  const withSales = vals.filter(v=>v>0).length;
+  const lines = allLines.filter(l=>l.date && l.date>=from && l.date<=end);
+  const sum = k => r2(lines.reduce((a,l)=>a+(l[k]||0), 0));
+  const rev = sum("a"), gst = sum("g"), tot = sum("t"), disc = sum("dc"), qtyL = lines.reduce((a,l)=>a+l.qty, 0);
+  const bills = new Set(lines.map(l=>l.bill)).size, custs = new Set(lines.map(l=>l.cu).filter(Boolean)).size;
+  const ret = lines.filter(l=>l.r), retQ = -ret.reduce((a,l)=>a+Math.min(0, l.qty), 0), pcN = lines.filter(l=>l.pc).length;
+  const noInfo = Object.keys(state.bills).filter(k=>!billSide(k) && k.endsWith("§i"+it.id) && state.bills[k+"@s"]==null).length;
+  const perDay = x => fmt1(x)+(unit ? " "+unit : "");
+  const pUnit = qtyL>0 ? rev/qtyL : null;
+  /* price per stock unit, each day: what it sold at, and the highest price */
+  const byDay = new Map();
+  for(const l of lines){ if(l.qty<=0) continue; const d = byDay.get(l.date) || {a:0, q:0, hi:null};
+    d.a += l.a||0; d.q += l.qty; if(l.hi!=null && l.sq) { const h = l.hi*l.sq/l.qty; d.hi = d.hi==null ? h : Math.max(d.hi, h); } byDay.set(l.date, d); }
+  const net = days.map(d=>{ const x = byDay.get(d); return x && x.q ? r2(x.a/x.q) : null; });
+  const top = days.map(d=>{ const x = byDay.get(d); return x && x.hi!=null ? r2(x.hi) : null; });
+  const bar = `<div class="sg-bar">
+      ${[["30","30 days"],["90","90 days"],["all","All"]].map(([v,l])=>`<button class="btn sm ${sgState.range===v?"on":""}" onclick="sgSet('range','${v}')">${l}</button>`).join("")}
+      <span class="sg-asof">${esc(shortDate(from))} —${esc(shortDate(end))}</span>
+      <button class="btn sm" style="margin-left:auto" onclick="sgSet('table', ${!sgState.table})">${sgState.table?"Graph":"Table"}</button></div>`;
+  const tiles = dashTiles([
+    ["Sold", esc(fmtQty(it, total)), `${days.length} days`],
+    ["Per day", esc(perDay(avg)), "average"],
+    ["Busiest day", esc(fmtQty(it, vals[bi])), vals[bi]>0 ? esc(dashDate(days[bi])) : ""],
+    ["Days with sales", `${withSales} of ${days.length}`, ""]]) + (lines.length ? dashTiles([
+    ["Revenue", esc(money(rev)), `excl GST · GST ${esc(money(gst))} · with GST ${esc(money(tot))}`],
+    ["Average price", pUnit!=null ? esc(money(pUnit))+` <span class="u">/ <span>${esc(unit)}</span></span>` : "—", newest&&newest.p!=null ? `latest ${esc(money(newest.p))} / <span data-notr>${esc(newest.u||"")}</span>` : ""],
+    ["Customers", fmt(custs), nBills(bills)],
+    ["Discount given", esc(money(disc)), `${ret.length ? `<span>${esc(fmtQty(it, retQ))}</span> <span>returned on ${nBills(ret.length)}</span>` : "no returns"}${pcN ? ` · ${pcN} price changes` : ""}`]]) : "");
+  const chartsHtml = !total && !withSales ? `<div class="empty" style="padding:30px 12px">No sales of this product in these days.</div>`
+    : `<div class="sg-cap"><span>Sold each day</span> · <span>${esc(unit)}</span></div><div class="sg-chart" id="sg-chart"></div>`
+      + (net.some(v=>v!=null) ? `<div class="sg-cap" style="margin-top:14px"><span>Price per</span> <span>${esc(unit)}</span> · <span>excl GST</span></div>
+          <div class="legend" style="padding:2px 0 4px"><span><i class="lk" style="background:var(--accent)"></i>Sold at</span>${top.some(v=>v!=null)?`<span><i class="lk" style="background:var(--ink-3)"></i>Highest price</span>`:""}</div>
+          <div class="sg-chart" id="sg-price"></div>` : "");
+  const by = lines.length ? `<div class="bl-grid">
+      ${barList("Customers", salesBy(lines, "cu", 8).map(g=>({label:g.k==="Others"?`${g.other} others`:g.k, data:g.k!=="Others", sub:[...g.sub].join(", "), subData:true, qty:g.qty, a:g.a})), r=>r.qty, r=>`${esc(fmtQty(it, r.qty))}<span>${esc(money(r.a))}</span>`)}
+      ${barList("Customer categories", salesBy(lines, "cc", 8).map(g=>({label:g.k==="Others"?`${g.other} others`:g.k, data:g.k!=="Others", qty:g.qty, a:g.a})), r=>r.qty, r=>`${esc(fmtQty(it, r.qty))}<span>${esc(money(r.a))}</span>`)}
+      ${barList("Salesmen", salesBy(lines, "sm", 8).map(g=>({label:g.k==="Others"?`${g.other} others`:g.k, data:g.k!=="Others", sub:nBills(g.bills.size), qty:g.qty, a:g.a})), r=>r.qty, r=>`${esc(fmtQty(it, r.qty))}<span>${esc(money(r.a))}</span>`)}
+      ${barList("Companies", salesBy(lines, "co", 8).map(g=>({label:g.k, data:true, sub:nBills(g.bills.size), qty:g.qty, a:g.a})), r=>r.qty, r=>`${esc(fmtQty(it, r.qty))}<span>${esc(money(r.a))}</span>`)}
+    </div>
+    <div class="sg-cap" style="margin-top:14px">Bills</div>${billsTable(lines, it, sgState.allBills ? 1e9 : 12)}
+    ${lines.length>12 ? `<button class="btn sm" style="margin-top:6px" onclick="sgSet('allBills', ${!sgState.allBills})">${sgState.allBills ? "Show the newest 12" : `Show all ${lines.length} bills`}</button>` : ""}` : "";
+  const table = `<div class="scroll" style="max-height:46vh;overflow-y:auto"><table><thead><tr><th>Date</th><th class="num">Sold</th><th class="num">Revenue</th><th class="num"><span>Price per</span> <span>${esc(unit)}</span></th></tr></thead><tbody>
+      ${days.map((d,i)=>({d, v:vals[i], i})).filter(r=>r.v).reverse().map(r=>{ const x = byDay.get(r.d);
+        return `<tr><td class="mono dim">${esc(dashDate(r.d))}</td><td class="num">${esc(fmtQty(it, r.v))}</td><td class="num">${x?esc(money(x.a)):""}</td><td class="num">${net[r.i]!=null?esc(money(net[r.i])):""}</td></tr>`; }).join("")}
+      <tr><td><b>Total</b></td><td class="num"><b>${esc(fmtQty(it, total))}</b></td><td class="num"><b>${lines.length?esc(money(rev)):""}</b></td><td></td></tr></tbody></table></div>`;
+  const issues = state.tx.filter(t=>t.type==="issue" && t.itemId===it.id && t.date>=from && t.date<=end).length;
+  const notes = [
+    avg>0 && it.stock>0 && !uncounted(it) ? `<div class="sg-note">At ${fmt1(avg)} a day the balance lasts about ${fmt(Math.floor(it.stock/avg))} days.</div>` : "",
+    issues ? `<div class="sg-note">${issues===1 ? "1 issue to another company in these days isn't in the graph —it shows sales only." : issues+" issues to other companies in these days aren't in the graph —it shows sales only."}</div>` : "",
+    noInfo && billInfoOk ? `<div class="sg-note">${noInfo===1 ? "1 bill of this product was imported before customer and price detail was kept —import the sales file again on Sales Deduction to fill it in." : noInfo+" bills of this product were imported before customer and price detail was kept —import the sales file again on Sales Deduction to fill them in."}</div>` : "",
+    !billInfoOk ? `<div class="sg-note" style="color:var(--warn)">Customer and price detail isn't being saved —re-run supabase-schema.sql in Supabase (see README).</div>` : ""].join("");
+  modal(head + bar + tiles + (sgState.table ? table : chartsHtml + by) + notes + foot);
+  $("#modal-root .modal").classList.add("wide");
+  if(!sgState.table && (total || withSales)){
+    colChart($("#sg-chart"), days, vals, {tick:v=>fmt(r2(v)), tip:v=>fmtQty(it, v), whole:true, aria:`${it.name}: sold each day from ${from} to ${end}`});
+    if($("#sg-price")) lineChart($("#sg-price"), days, [{name:"highest price", vals:top, color:"var(--ink-3)"}, {name:"sold at", vals:net, color:"var(--accent)"}],
+      {tick:v=>money(v), aria:`${it.name}: price per ${unit}, sold at and highest`});
+  }
+}
+
+/* ---------- the whole warehouse (Sales Deduction) ---------- */
+let sdDash = {range:"30", table:false};
+function sdDashSet(k, v){ sdDash[k] = v; renderSalesDash(); }
+function renderSalesDash(){
+  const host = $("#sd-dash"); if(!host || !isWarehouse() || $("#page-salesded").classList.contains("hidden")) return;
+  const all = saleLines();
+  /* while another device's import or Undo is still arriving, the bills and
+     the log can briefly disagree —the newest bill then sets the end */
+  const end = salesAsOf() || all.reduce((d,l)=>l.date && (!d || l.date>d) ? l.date : d, null) || todayStr();
+  const meta = $("#sd-dash-meta");
+  if(!all.length){
+    if(meta) meta.textContent = "";
+    host.innerHTML = `<div class="empty" style="padding:26px 12px">${!billInfoOk && state.tx.some(t=>t.type==="sale")
+      ? "Customer and price detail isn't being saved —re-run supabase-schema.sql in Supabase (see README)."
+      : state.tx.some(t=>t.type==="sale")
+      ? "The sales here were imported before customer and price detail was kept —drop the same sales file above again to fill it in (the stock isn't touched)."
+      : "Import YonYou's sales export above and the dashboard fills in: revenue, customers, salesmen, prices and returns."}</div>`;
+    return;
+  }
+  const first = all.reduce((d,l)=>l.date && (!d || l.date<d) ? l.date : d, null) || end;
+  const days = dashDays(sdDash.range, first, end), from = days[0];
+  const lines = all.filter(l=>l.date && l.date>=from && l.date<=end);
+  const sum = (arr, k) => r2(arr.reduce((a,l)=>a+(l[k]||0), 0));
+  const rev = sum(lines, "a"), gst = sum(lines, "g"), tot = sum(lines, "t"), disc = sum(lines, "dc");
+  const billSet = new Set(lines.map(l=>l.bill)), custs = new Set(lines.map(l=>l.cu).filter(Boolean)), cats = new Set(lines.map(l=>l.cc).filter(Boolean));
+  const prods = new Set(lines.map(l=>l.itemId)), ret = lines.filter(l=>l.r), retBills = new Set(ret.map(l=>l.bill)).size;
+  const pcBills = new Set(lines.filter(l=>l.pc).map(l=>l.bill)).size, discBills = new Set(lines.filter(l=>(l.dc||0)>0).map(l=>l.bill)).size;
+  const revDay = new Map(); for(const l of lines) revDay.set(l.date, (revDay.get(l.date)||0) + (l.a||0));
+  const vals = days.map(d=>r2(revDay.get(d)||0)), withSales = vals.filter(v=>v!==0).length;
+  if(meta) meta.textContent = `${shortDate(from)} —${shortDate(end)}`;
+  const bar = `<div class="sg-bar">
+      ${[["30","30 days"],["90","90 days"],["all","All"]].map(([v,l])=>`<button class="btn sm ${sdDash.range===v?"on":""}" onclick="sdDashSet('range','${v}')">${l}</button>`).join("")}
+      <button class="btn sm" style="margin-left:auto" onclick="sdDashSet('table', ${!sdDash.table})">${sdDash.table?"Graph":"Table"}</button></div>`;
+  const tiles = dashTiles([
+    ["Revenue", esc(money(rev)), `excl GST · GST ${esc(money(gst))} · with GST ${esc(money(tot))}`],
+    ["Bills", fmt(billSet.size), billSet.size ? `${esc(money(rev/billSet.size))} a bill on average` : ""],
+    ["Customers", fmt(custs.size), `in ${cats.size} categories`],
+    ["Products sold", fmt(prods.size), `of ${state.items.length} on the list`]]) + dashTiles([
+    ["Per day", esc(money(rev/days.length)), `sales on ${withSales} of ${days.length} days`],
+    ["Discount given", esc(money(disc)), `on ${nBills(discBills)}`],
+    ["Returns", fmt(retBills), retBills ? `${retBills===1?"bill":"bills"} · ${esc(money(-sum(ret.filter(l=>(l.a||0)<0), "a")))} back` : "none"],
+    ["Price changes", fmt(pcBills), pcBills===1 ? "bill flagged by YonYou" : "bills flagged by YonYou"]]);
+  /* products: revenue, units in their own unit */
+  const byItem = new Map();
+  for(const l of lines){ const g = byItem.get(l.itemId) || {id:l.itemId, qty:0, a:0, bills:new Set()}; g.qty += l.qty; g.a += l.a||0; g.bills.add(l.bill); byItem.set(l.itemId, g); }
+  const prodRows = [...byItem.values()].sort((a,b)=>b.a-a.a);
+  const plist = prodRows.slice(0, 10).map(g=>{ const x = item(g.id); return {id:g.id, label:x?x.name:"(removed)", sub:x?[fmtQty(x, g.qty), nBills(g.bills.size)]:"", data:true, a:g.a}; });
+  /* prices that moved: first and latest price on the same UOM */
+  const pm = new Map();
+  for(const l of lines.slice().sort((a,b)=>a.date.localeCompare(b.date))){
+    if(l.p==null || l.qty<=0) continue;
+    const k = l.itemId+"|"+(l.u||""), m = pm.get(k) || {id:l.itemId, u:l.u, first:l.p, last:l.p, lo:l.p, hi:l.p, pc:0};
+    m.last = l.p; m.lo = Math.min(m.lo, l.p); m.hi = Math.max(m.hi, l.p); if(l.pc) m.pc++; pm.set(k, m);
+  }
+  const moved = [...pm.values()].filter(m=>m.hi!==m.lo || m.pc).sort((a,b)=>Math.abs(b.last-b.first)/b.first - Math.abs(a.last-a.first)/a.first).slice(0, 12);
+  const priceTable = moved.length ? `<div class="sg-cap" style="margin-top:14px">Prices that moved</div><div class="scroll"><table><thead><tr><th>Product</th><th class="num">First</th><th class="num">Latest</th><th class="num">Change</th><th class="num">Range</th><th class="num">Flagged</th></tr></thead><tbody>
+      ${moved.map(m=>{ const x = item(m.id), ch = m.first ? (m.last-m.first)/m.first*100 : 0;
+        return `<tr class="link" onclick="openSalesGraph(${m.id})"><td class="name"><span data-notr>${esc(x?x.name:"(removed)")}</span><span class="sub" data-notr>${esc(m.u||"")}</span></td>
+          <td class="num">${esc(money(m.first))}</td><td class="num"><b>${esc(money(m.last))}</b></td>
+          <td class="num" style="${ch>0?"color:var(--ok)":ch<0?"color:var(--crit)":""}">${ch>0?"+":""}${fmt1(ch)}%</td>
+          <td class="num dim">${esc(money(m.lo))} —${esc(money(m.hi))}</td><td class="num dim">${m.pc||""}</td></tr>`; }).join("")}</tbody></table></div>` : "";
+  const bl = (title, key, top) => barList(title, salesBy(lines, key, top).map(g=>({label:g.k==="Others"?`${g.other} others`:g.k, data:g.k!=="Others", sub:nBills(g.bills.size), a:g.a})), r=>r.a, r=>esc(money(r.a)));
+  const graph = `<div class="sg-cap"><span>Revenue each day</span> · <span>excl GST</span></div><div class="sg-chart" id="sd-dash-chart"></div>
+    <div class="bl-grid">
+      ${barList("Products", plist, r=>r.a, r=>esc(money(r.a)), r=>`openSalesGraph(${r.id})`)}
+      ${bl("Customers", "cu", 10)}
+      ${bl("Customer categories", "cc", 8)}
+      ${bl("Salesmen", "sm", 8)}
+      ${bl("Companies", "co", 4)}
+      ${bl("Product categories", "mc", 8)}
+      ${bl("Product types", "pt", 6)}
+    </div>${priceTable}`;
+  const table = `<div class="scroll" style="max-height:52vh;overflow-y:auto"><table><thead><tr><th>Product</th><th class="num">Sold</th><th class="num">Bills</th><th class="num">Revenue</th></tr></thead><tbody>
+      ${prodRows.map(g=>{ const x = item(g.id); return `<tr class="link" onclick="openSalesGraph(${g.id})"><td class="name" data-notr>${esc(x?x.name:"(removed)")}</td><td class="num">${x?esc(fmtQty(x, g.qty)):""}</td><td class="num">${g.bills.size}</td><td class="num">${esc(money(g.a))}</td></tr>`; }).join("")}
+      <tr><td><b>Total</b></td><td></td><td class="num"><b>${fmt(billSet.size)}</b></td><td class="num"><b>${esc(money(rev))}</b></td></tr></tbody></table></div>`;
+  const noInfo = Object.keys(state.bills).filter(k=>!billSide(k) && state.bills[k+"@s"]==null).length;
+  const notes = (noInfo && billInfoOk ? `<div class="sg-note">${noInfo===1 ? "1 bill was imported before customer and price detail was kept —drop the sales file again above to fill it in." : fmt(noInfo)+" bills were imported before customer and price detail was kept —drop the sales file again above to fill them in."}</div>` : "")
+    + (!billInfoOk ? `<div class="sg-note" style="color:var(--warn)">Customer and price detail isn't being saved —re-run supabase-schema.sql in Supabase (see README).</div>` : "");
+  host.innerHTML = bar + tiles + (lines.length ? (sdDash.table ? table : graph) : `<div class="empty" style="padding:26px 12px">No sales in these days.</div>`) + notes;
+  if(!sdDash.table && lines.length) colChart($("#sd-dash-chart"), days, vals, {tick:moneyK, tip:money, whole:false, aria:`Revenue each day from ${from} to ${end}`});
+}
+window.addEventListener("resize", ()=>{ if(sgState && $("#sg-chart")) renderSalesGraph(); else if($("#sd-dash-chart")) renderSalesDash(); });
 
 /* ============================================================
    WAREHOUSE — ISSUED SUMMARY (by company, by month)
@@ -8998,7 +9523,7 @@ function renderSetup(){
     <div class="kv"><span>With recorded movement</span><b>${moving}</b></div>
     <div class="kv"><span>Stock on hand</span><b>${fmt(kg)} kg</b></div>
     <div class="kv"><span>Movements logged</span><b>${state.tx.length}</b></div>
-    <div class="kv"><span>Invoice lines remembered</span><b>${Object.keys(state.bills).filter(k=>!k.endsWith("@d")).length}</b></div>
+    <div class="kv"><span>Invoice lines remembered</span><b>${Object.keys(state.bills).filter(k=>!billSide(k)).length}</b></div>
     <div class="kv"><span>Last sales import</span><b>${di.lastSale||"—"}</b></div>`;
   const email = clerk && clerk.user ? (clerk.user.primaryEmailAddress?.emailAddress || clerk.user.username || clerk.user.fullName || clerk.user.id) : "—";
   $("#setup-storage").innerHTML = `

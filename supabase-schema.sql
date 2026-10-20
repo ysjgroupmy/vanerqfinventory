@@ -116,6 +116,12 @@ create table if not exists bills (
   date        date,
   primary key (dept_id, bill_key)
 );
+-- Warehouse depts, sales imported on Sales Deduction: the line's detail from
+-- YonYou's SI_Item export as JSON text —company, customer, customer category,
+-- salesman, bill type, product type / category, UOM sold, net and highest
+-- unit price, price-change flag, amount, GST, discount, total. Feeds the
+-- sales dashboards. Null for kitchen bills and for sales imported before this.
+alter table bills add column if not exists info text;
 
 create table if not exists settings (
   dept_id           text primary key references departments(id) on delete cascade,
