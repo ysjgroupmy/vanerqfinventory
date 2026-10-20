@@ -8312,6 +8312,11 @@ function parseReceipts(grid, fname){
    way the preview shows which, and it can be switched per line. */
 function lineIsCarton(it, uom){
   if(!it || packOf(it)<=1 || !uom) return false;
+  /* a unit the size of the one inside the carton is that unit, even when
+     it's called a box ("0.5kg/box" of a "48x0.5kg/ctn" product) */
+  const a = uomSize(uom), b = uomSize(it.uom);
+  if(a && b && a.dim===b.dim && !((packFromUom(uom)||1)>1) && normUom(uom)!==normUom(it.uom)
+     && Math.abs(a.v - b.v) <= 0.05*Math.max(a.v, b.v)) return false;
   if(CARTON_RE.test(uom)) return true;
   return normUom(uom)===normUom(it.uom) && (CARTON_RE.test(it.uom) || /\d\s*[x×*]\s*\d/.test(it.uom));
 }
@@ -8453,20 +8458,32 @@ function uomSize(uom){
   const v = parseFloat(m[1]); if(!(v>0)) return null;
   return {v: (m[2]==="g"||m[2]==="ml") ? v/1000 : v, dim: (m[2]==="kg"||m[2]==="g") ? "kg" : "l"};
 }
-/* How a sold UOM counts against an item's balance. A carton UOM is a whole
-   carton —its own pack count, or the item's— anything else is one packet /
-   can / bottle. `def` is what the preview starts on: a unit of a different
-   size from the one stocked (sold "0.1kg/pkt", stocked "0.5kg/pkt") or a
-   single unit of an item still counted by the carton isn't taken off until
-   someone picks how to count it. */
+/* How a sold UOM counts against an item's balance. It's a whole carton when
+   it's the item's own carton UOM, or says how many it holds
+   ("24x0.425kg/ctn"), or is the whole carton's size by weight ("10kg/ctn"
+   of a "10x1kg/ctn" product). A carton word alone doesn't make one: Fine
+   Salt Box is stocked "48x0.5kg/ctn" and sold "0.5kg/box" —the box is the
+   0.5 kg unit inside the carton, so one box is one unit. When sizes can't be
+   read (pieces, rolls) the word decides. `def` is what the preview starts
+   on: a unit of a different size from the one stocked (sold "0.1kg/pkt",
+   stocked "0.5kg/pkt") or a single unit of an item still counted by the
+   carton isn't taken off until someone picks how to count it. */
 function sdUnit(it, uom){
   const p = packOf(it), sp = packFromUom(uom) || 1;
   const tail = (String(uom||"").match(/\/\s*([^\/\s]+)\s*$/)||[])[1] || "";
-  const carton = sp>1 || CARTON_RE.test(tail);
   const same = normUom(uom)===normUom(it.uom);
+  const a = uomSize(uom), b = uomSize(it.uom), sized = !!a && !!b && a.dim===b.dim;
+  const near = (x, y) => Math.abs(x - y) <= 0.05*Math.max(x, y);
+  let carton, sizeOff = false;
+  if(same) carton = p>1;
+  else if(sp>1){ carton = true; sizeOff = sized && !near(a.v, b.v); }
+  else if(sized){
+    if(near(a.v, b.v)) carton = false;                    // the unit inside the carton, whatever it's called
+    else if(p>1 && near(a.v, p*b.v)) carton = true;       // a whole carton, written by weight
+    else { carton = false; sizeOff = true; }
+  }
+  else carton = CARTON_RE.test(tail);
   const ctn = !carton ? p : same ? p : sp>1 ? sp : p;     // stock units in one sold carton
-  const a = uomSize(uom), b = uomSize(it.uom);
-  const sizeOff = !same && !!a && !!b && a.dim===b.dim && Math.abs(a.v-b.v) > 0.05*Math.max(a.v, b.v);
   const byCarton = !carton && !hasPack(it) && (packFromUom(it.uom)||1)>1;   // sold singly, counted by the carton
   return {carton, ctn, sizeOff, byCarton, def: (sizeOff||byCarton) ? "skip" : carton ? "ctn" : "unit"};
 }
@@ -8581,6 +8598,12 @@ function sdCompute(){
     if(l.p!=null) f.p = l.p; if(l.hi!=null && (f.hi==null || l.hi>f.hi)) f.hi = l.hi; if(l.pc) f.pc = 1;
     if(l.qty<0 || /退/.test(l.bt)) f.r = 1;
   }
+  /* A bill that changed since it came in is corrected the way it was first
+     applied: one first recorded for trends only stays trends only, one taken
+     off stock gets the difference taken off (or put back). The log says
+     which —trends-only sales carry the "h" mark. */
+  const dedDay = new Set(), trendDay = new Set();
+  for(const t of state.tx) if(t.type==="sale") (t.h ? trendDay : dedDay).add(t.itemId+"|"+t.date);
   for(const b of bills.values()){
     b.qty = r2(b.qty);
     const f = b.info; for(const k of ["sq","a","g","dc","t"]) f[k] = r2(f[k]);
@@ -8590,7 +8613,8 @@ function sdCompute(){
     b.status = prev===undefined ? "new" : Math.abs(prev-b.qty)<0.001 ? "dup" : "rev";
     b.fill = billInfoOk && b.status==="dup" && state.bills[b.bk+"@s"]!==b.infoS;      // already in —only its detail is new (and there's somewhere to keep it)
     b.delta = b.status==="new" ? b.qty : b.status==="dup" ? 0 : r2(b.qty-prev);
-    b.trend = trendAll || (cut!=null && (b.date||todayStr())<cut);
+    const dk = b.itemId+"|"+(b.date||todayStr());
+    b.trend = trendAll || (cut!=null && (b.date||todayStr())<cut) || (b.status==="rev" && trendDay.has(dk) && !dedDay.has(dk));
     for(const [g, q] of b.parts){
       if(b.status==="dup"){ g.dup++; continue; }
       if(b.status==="rev") g.rev++;
