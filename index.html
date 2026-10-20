@@ -389,6 +389,18 @@ tr.link{cursor:pointer}tr.link:hover td{background:var(--panel-2)}
 .drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-ink)}
 .drop b{display:block;color:var(--ink);font-size:14px;margin-bottom:3px}
 .cookline{display:grid;grid-template-columns:1fr 96px 96px 88px 34px;gap:8px;align-items:center;margin-bottom:8px}
+/* Issue Stock: one company / date / note, any number of item lines */
+.is-head{display:grid;grid-template-columns:minmax(0,2fr) minmax(150px,1fr) minmax(0,2fr);gap:0 14px}
+.isline{display:grid;grid-template-columns:minmax(0,1fr) auto 34px;grid-template-areas:"item qty x";gap:4px 12px;align-items:start;
+  padding:10px 0;border-top:1px solid var(--rule)}
+.isline .is-it{grid-area:item;min-width:0} .isline .is-it input{width:100%} .isline .qpair{grid-area:qty} .isline .is-x{grid-area:x}
+.isline .qpair input[type=number]{width:88px}
+.isline .is-n{display:block;font-family:var(--f-mono);font-size:10px;color:var(--ink-3);margin-bottom:2px;text-transform:uppercase;letter-spacing:.06em}
+.isline .is-x .xbtn{margin-top:16px}
+.isline .qhint{margin:5px 0 0}
+.isline .qhint .neg{color:var(--crit)}
+.isline.bad input{border-color:var(--crit)}
+.is-foot{display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid var(--rule)}
 .cookline .yld{font-family:var(--f-mono);font-size:12px;text-align:right}
 .xbtn{background:none;border:1px solid var(--rule-2);color:var(--ink-3);cursor:pointer;
   font-family:var(--f-mono);font-size:13px;line-height:1;padding:6px 0;width:100%}
@@ -641,6 +653,8 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
   .demo-bar{padding:7px 14px;flex-wrap:wrap}
   .hrow{grid-template-columns:minmax(96px,1fr) 1.4fr 104px;padding:6px 10px}
   .cookline{grid-template-columns:1fr 1fr;gap:6px}
+  .is-head{grid-template-columns:1fr}
+  .isline{grid-template-columns:minmax(0,1fr) 40px;grid-template-areas:"item x" "qty qty"}
   /* thumb-sized controls; 16px text stops iPhones zooming in on a focused box */
   input,select,textarea{font-size:16px;min-height:40px}
   input[type=checkbox],input[type=radio]{min-height:0;width:20px;height:20px}
@@ -1035,21 +1049,20 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
     <div class="panel">
       <div class="panel-h"><h2>New issue</h2></div>
       <div class="panel-b">
-        <div class="field"><label>Item</label>
-          <input id="is-item-q" list="is-item-list" placeholder="Search name / code / rack code—" autocomplete="off">
-          <datalist id="is-item-list"></datalist>
+        <div class="is-head">
+          <div class="field"><label>Going to</label>
+            <input id="is-co" list="is-co-list" placeholder="Company name">
+            <datalist id="is-co-list"></datalist>
+          </div>
+          <div class="field"><label>Date</label><input type="date" id="is-date"></div>
+          <div class="field"><label>Note (optional)</label><input id="is-note" placeholder="DO number, driver, etc."></div>
         </div>
-        <div class="qhint" id="is-hint"></div>
-        <div class="field"><label>Qty</label><span class="qpair">
-          <label id="is-ctn-l">ctn<input id="is-ctn" type="number" step="any" min="0"></label>
-          <label id="is-pkt-l">pkt<input id="is-qty" type="number" step="any" min="0"></label></span></div>
-        <div class="field"><label>Going to</label>
-          <input id="is-co" list="is-co-list" placeholder="Company name">
-          <datalist id="is-co-list"></datalist>
+        <div id="is-lines"></div>
+        <datalist id="is-item-list"></datalist>
+        <div class="is-foot">
+          <button class="btn" onclick="issueAddLine(true)">＋ Add another item</button>
+          <button class="btn primary" id="is-submit" onclick="submitIssue()"><svg class="ic"><use href="#i-truck"/></svg><span id="is-submit-l">Issue stock</span></button>
         </div>
-        <div class="field"><label>Date</label><input type="date" id="is-date"></div>
-        <div class="field"><label>Note (optional)</label><input id="is-note" placeholder="DO number, driver, etc."></div>
-        <button class="btn primary" onclick="submitIssue()"><svg class="ic"><use href="#i-truck"/></svg>Issue stock</button>
       </div>
     </div>
     <div class="panel">
@@ -2760,6 +2773,16 @@ const ZH_DICT = /*ZH_DICT*/{
 "{n} · Shared · {s}":"{n} · 共享 · {s}",
 "{n} · shared from now on":"{n} · 从此共用库存",
 "{n} · added, shared from now on":"{n} · 已添加，从此共用库存",
+"＋ Add another item":"＋ 再加一个货品",
+"Issue {n} items":"出库 {n} 个货品",
+"Item {n}":"货品 {n}",
+"Item {n}: pick an item from the list":"货品 {n}：请从列表中选择货品",
+"Item {n}: enter a qty greater than {n}":"货品 {n1}：请输入大于 {n2} 的数量",
+"Remove this item":"移除这个货品",
+"Clear this item":"清空这一行",
+"Issued {n} items to {s}":"已向 {s} 出库 {n} 个货品",
+"Issued {n} items to {s} —{n} is now below zero, recount it":"已向 {s} 出库 {n1} 个货品 —{n2} 个结存现为负数，请重新盘点",
+"Issued {n} items to {s} —{n} are now below zero, recount them":"已向 {s} 出库 {n1} 个货品 —{n2} 个结存现为负数，请重新盘点",
 "＋ insert {n}":"＋ 插入 {n}"
 }/*/ZH_DICT*/;
 const LANG_KEY = "qf_lang";
@@ -4517,7 +4540,7 @@ async function switchDept(id){
     }
   }
   dept = id; writeDeptPref();
-  countDraft = {}; cookLines = []; pending = null; stockView = [];
+  countDraft = {}; cookLines = []; issueLines = []; pending = null; stockView = [];
   fpDraft = {}; fpSel = null; fpEdit = false; fpEditSel = null; fpFloor = 1; rcvPending = null;
   const mirror = readMirror();
   state = mirror ? Object.assign(defaultState(), mirror) : defaultState();
@@ -8514,12 +8537,73 @@ function issueCompanies(){
   const fromTx = state.tx.filter(t=>t.type==="issue" && t.destCompany).map(t=>t.destCompany);
   return [...new Set([...fromDepts, ...fromTx])].sort();
 }
+/* The lines of the issue being written —item box text and the two qty boxes.
+   Drawn only when a line is added or removed, so a redraw from another device
+   never takes the box being typed in away; balances under them are refreshed. */
+let issueLines = [];
+function issueLineQty(l, it){
+  const c = parseFloat(l.ctn), q = parseFloat(l.qty);
+  if(isNaN(c) && isNaN(q)) return NaN;
+  return r2((isNaN(c)||packOf(it)<=1 ? 0 : c)*packOf(it) + (isNaN(q) ? 0 : q));
+}
+function drawIssueLines(){
+  const host = $("#is-lines"); if(!host) return;
+  host.innerHTML = issueLines.map((l,i)=>`<div class="isline" id="is-line-${i}">
+      <div class="is-it"><label class="is-n" for="is-q-${i}">Item ${i+1}</label>
+        <input id="is-q-${i}" list="is-item-list" placeholder="Search name / code / rack code—" autocomplete="off" value="${esc(l.q)}" oninput="issueSet(${i},'q',this.value)">
+        <div class="qhint" id="is-h-${i}"></div></div>
+      <span class="qpair">
+        <label id="is-cl-${i}">ctn<input id="is-c-${i}" type="number" step="any" min="0" inputmode="decimal" value="${esc(l.ctn)}" oninput="issueSet(${i},'ctn',this.value)"></label>
+        <label id="is-pl-${i}">pkt<input id="is-p-${i}" type="number" step="any" min="0" inputmode="decimal" value="${esc(l.qty)}" oninput="issueSet(${i},'qty',this.value)"></label></span>
+      <div class="is-x"><button class="xbtn" onclick="issueRemoveLine(${i})" title="${issueLines.length>1 ? "Remove this item" : "Clear this item"}">✕</button></div>
+    </div>`).join("");
+  issueHints();
+}
+function issueAddLine(focus){
+  issueLines.push({q:"", ctn:"", qty:""});
+  drawIssueLines();
+  if(focus){ const el = $("#is-q-"+(issueLines.length-1)); if(el) el.focus(); }
+}
+function issueRemoveLine(i){
+  if(issueLines.length>1) issueLines.splice(i, 1); else issueLines = [{q:"", ctn:"", qty:""}];
+  drawIssueLines();
+}
+function issueSet(i, k, v){ if(!issueLines[i]) return; issueLines[i][k] = v; $("#is-line-"+i).classList.remove("bad"); issueHints(); }
+/* Under each line: the balance now and after this issue —every line of the
+   same product counted— and the ctn box only for a product that has cartons. */
+function issueHints(){
+  const take = new Map(), its = issueLines.map(l=>itemByLabel(l.q));
+  issueLines.forEach((l,i)=>{ const it = its[i], q = it ? issueLineQty(l, it) : NaN; if(it && q>0) take.set(it.id, r2((take.get(it.id)||0) + q)); });
+  let n = 0;
+  issueLines.forEach((l,i)=>{
+    const it = its[i], h = $("#is-h-"+i), cl = $("#is-cl-"+i), pl = $("#is-pl-"+i); if(!h) return;
+    const pk = it ? packOf(it) : 1;
+    if(cl) cl.classList.toggle("hidden", !!it && pk<=1);
+    if(pl) pl.firstChild.textContent = it && hasPack(it) ? unitOf(it) : (it ? "qty" : "pkt");
+    if(!it){ h.innerHTML = ""; return; }
+    if(issueLineQty(l, it)>0) n++;
+    const t = take.get(it.id), after = t ? r2(it.stock - t) : null;
+    h.innerHTML = `Balance <b>${esc(fmtBal(it))}</b>` + (t ? ` → <b class="${after<0?"neg":""}">${esc(fmtQty(it, after))}</b>` : "")
+      + (pk>1 ? ` · 1 ctn = ${pk} ${esc(unitOf(it))}` : "")
+      + (it.store ? ` · ${zoneChip(zoneOf(it))} <b>${esc(posCode(it))}</b>` : ` · <span style="color:var(--warn)">no rack yet</span>`);
+  });
+  const lbl = $("#is-submit-l"); if(lbl) lbl.textContent = n>1 ? `Issue ${n} items` : "Issue stock";
+}
+/* Enter on an item box goes to its qty; on a qty box, to the next line —or a new one. */
+function issueKey(e){
+  if(e.key!=="Enter" || e.isComposing) return;
+  const m = (e.target.id||"").match(/^is-([qcp])-(\d+)$/); if(!m) return;
+  e.preventDefault();
+  const i = +m[2];
+  if(m[1]==="q"){ const c = $("#is-c-"+i), p = $("#is-p-"+i); (c && !c.closest(".hidden") ? c : p).focus(); return; }
+  if(i < issueLines.length-1) $("#is-q-"+(i+1)).focus(); else issueAddLine(true);
+}
 function renderIssueStock(){
   const list = $("#is-item-list"); if(!list || !isWarehouse()) return;
   list.innerHTML = itemOptions();
   $("#is-co-list").innerHTML = issueCompanies().map(c=>`<option value="${esc(c)}">`).join("");
   if(!$("#is-date").value) $("#is-date").value = todayStr();
-  moveFormHint("is");
+  if(!issueLines.length) issueAddLine(); else issueHints();
 
   const filterSel = $("#is-co-filter");
   const companies = [...new Set(state.tx.filter(t=>t.type==="issue" && t.destCompany).map(t=>t.destCompany))].sort();
@@ -8593,20 +8677,37 @@ function deleteMove(txId){
   closeModal(); save(); render();
   toast((isIssue?"Issue":"Receipt")+" deleted"+(it?" —"+fmtQty(it, Math.abs(undo))+(isIssue?" restored to stock":" taken off the balance"):""));
 }
+/* Every line goes to the same company on the same date, with the same note;
+   blank lines are skipped, and nothing is issued while any line is half filled. */
 function submitIssue(){
-  const it = itemByLabel($("#is-item-q").value);
-  if(!it){ toast("Pick an item from the list"); return; }
-  const qty = readMoveQty("is", it);
-  if(!(qty>0)){ toast("Enter a qty greater than 0"); return; }
+  const lines = [];
+  for(let i=0;i<issueLines.length;i++){
+    const l = issueLines[i], q = String(l.q||"").trim();
+    if(!q && String(l.ctn).trim()==="" && String(l.qty).trim()==="") continue;
+    const it = itemByLabel(q), qty = it ? issueLineQty(l, it) : NaN;
+    const bad = !it ? `Item ${i+1}: pick an item from the list` : !(qty>0) ? `Item ${i+1}: enter a qty greater than 0` : "";
+    if(bad){
+      const row = $("#is-line-"+i); if(row){ row.classList.add("bad"); row.scrollIntoView({block:"center"}); (it ? $("#is-p-"+i) : $("#is-q-"+i)).focus(); }
+      toast(bad); return;
+    }
+    lines.push({it, qty});
+  }
+  if(!lines.length){ toast("Pick an item from the list"); return; }
   const co = ($("#is-co").value||"").trim();
-  if(!co){ toast("Enter which company this is going to"); return; }
+  if(!co){ toast("Enter which company this is going to"); $("#is-co").focus(); return; }
   const date = $("#is-date").value || todayStr();
   const note = ($("#is-note").value||"").trim();
-  it.stock = Math.round((it.stock-qty)*100)/100; it.counted = true;
-  state.tx.push(newTx({ts:Date.now(), date, itemId:it.id, type:"issue", qty:-qty, note, destCompany:co}));
-  save(); render();
-  clearMoveForm("is");
-  toast("Issued "+fmtQty(it, qty)+" of "+it.name+" to "+co+(it.stock<0?" —balance is now negative, recount it":""));
+  const b = lines.length>1 ? uid("batchSeq") : undefined, ts = Date.now();
+  for(const {it, qty} of lines){
+    it.stock = r2(it.stock - qty); it.counted = true;
+    state.tx.push(newTx({ts, date, itemId:it.id, type:"issue", qty:-qty, note, destCompany:co, b}));
+  }
+  save();
+  issueLines = []; $("#is-note").value = "";
+  render();
+  const neg = new Set(lines.filter(x=>x.it.stock<0).map(x=>x.it.id)).size;
+  if(lines.length===1){ const {it, qty} = lines[0]; toast("Issued "+fmtQty(it, qty)+" of "+it.name+" to "+co+(it.stock<0?" —balance is now negative, recount it":"")); }
+  else toast(`Issued ${lines.length} items to ${co}` + (neg ? (neg===1 ? " —1 is now below zero, recount it" : ` —${neg} are now below zero, recount them`) : ""));
 }
 
 /* ============================================================
@@ -10257,8 +10358,8 @@ $("#rk-q").addEventListener("input", ()=>{ fpSel = null; renderRacks(); });
 $("#is-co-filter").addEventListener("change", renderIssueStock);
 $("#rc-sup-filter").addEventListener("change", renderReceive);
 $("#al-zone").addEventListener("change", renderLowStock);
-$("#is-item-q").addEventListener("input", ()=>moveFormHint("is"));
 $("#rc-item-q").addEventListener("input", ()=>moveFormHint("rc"));
+$("#is-lines").addEventListener("keydown", issueKey);
 $("#isum-from").addEventListener("change", renderIssueSummary);
 $("#isum-to").addEventListener("change", renderIssueSummary);
 $("#isum-co-drill").addEventListener("change", renderIssueSummary);
