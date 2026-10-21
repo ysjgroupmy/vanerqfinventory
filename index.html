@@ -2820,6 +2820,12 @@ const ZH_DICT = /*ZH_DICT*/{
 "Nothing needs attention —every product that should be shared is.":"没有需要处理的——该共享的货品都已共享。",
 "No products to share.":"没有要共享的货品。",
 "Location names no room —write it as {n}CH, {n}FR or {n} Center":"位置没有写明区域——请写成 {n1}CH、{n2}FR 或 {n3} Center",
+"Removed {n} product that isn't kept here":"已移除 {n} 个不在这里存放的货品",
+"Removed {n} products that aren't kept here":"已移除 {n} 个不在这里存放的货品",
+"Not shared —{n} keeps it at {s}":"未共享——{n} 把它放在 {s}",
+"Not shared —no {n} in its location":"未共享——位置里没有 {n}",
+"{n} shared product put in its chiller, freezer or CENTER":"已把 {n} 个共享货品放进对应的冷藏库、冷冻库或 CENTER",
+"{n} shared products put in their chiller, freezer or CENTER":"已把 {n} 个共享货品放进对应的冷藏库、冷冻库或 CENTER",
 "＋ insert {n}":"＋ 插入 {n}"
 }/*/ZH_DICT*/;
 const LANG_KEY = "qf_lang";
@@ -3256,7 +3262,11 @@ const ZONES = [
 ];
 const ZONE_ORDER = {dry:0, chilled:1, frozen:2};
 function zoneInfo(id){ return ZONES.find(z=>z.id===id) || null; }
-function rackZone(name){ const rk = state.racks.find(r=>r.name===name); return rk ? (rk.zone||"dry") : "dry"; }
+function rackZone(name){
+  const rk = state.racks.find(r=>r.name===name); if(rk) return rk.zone||"dry";
+  if(name && !rackCoded(name)){ const z = parseZone(name); if(z==="chilled" || z==="frozen") return z; }   // "0434FR", seen only on products
+  return "dry";
+}
 function zoneOf(it){ const r = (it.store||"").trim(); return r ? rackZone(r) : ""; }
 function zoneChip(id){ const z = zoneInfo(id); return z ? `<span class="zchip ${z.cls}">${z.label}</span>` : ""; }
 function zoneOptions(sel){ return ZONES.map(z=>`<option value="${z.id}" ${z.id===sel?"selected":""}>${z.label} ${z.zh}</option>`).join(""); }
@@ -4266,24 +4276,32 @@ const LINK_ROOM_TAG = {chilled:"CH", frozen:"FR", center:"CENTER"};
 const LINK_ROOM_WORDS = {center:["CENTER","CENTRE","CTR"], frozen:["FR","FZ","FRZ","FRZR","FREEZER","FREEZERS","FROZEN"],
   chilled:["CH","CHL","CHILL","CHILLER","CHILLERS","CHILLED","COOLER"]};
 const LINK_ROOM_ZH = [["center", /中心/], ["frozen", /冷冻|急冻/], ["chilled", /冷藏|保鲜/]];
-/* Which warehouse room a kitchen product's Storage location names: a room word
-   —chiller, freezer or CENTER, short or long, English or Chinese— with or without
-   the warehouse's code ("0434CH", "0434 Freezer", "FR 0434", "CENTER", "冷冻").
-   Without a code it's the warehouse's, as long as there's only one. A location
-   that names a kitchen ("0428 FR", "Kitchen chiller") is that kitchen's own.
-   -> {wh, room} or null */
-function linkRoom(store){
+/* The room a Storage location names, whoever's it is: chiller, freezer or
+   CENTER, short or long, English or Chinese -> {toks, room} or null */
+function locRoom(store){
   const raw = String(store||"").toUpperCase();
-  const toks = raw.replace(/([0-9])([A-Z])/g, "$1 $2").replace(/([A-Z])([0-9])/g, "$1 $2").split(/[^0-9A-Z\u4e00-\u9fff]+/).filter(Boolean);
+  const toks = raw.replace(/([0-9])([A-Z])/g, "$1 $2").replace(/([A-Z])([0-9])/g, "$1 $2")
+    .replace(/([0-9A-Z])([\u4e00-\u9fff])/g, "$1 $2").replace(/([\u4e00-\u9fff])([0-9A-Z])/g, "$1 $2")
+    .split(/[^0-9A-Z\u4e00-\u9fff]+/).filter(Boolean);
   if(!toks.length) return null;
   let room = Object.keys(LINK_ROOM_WORDS).find(r=>toks.some(t=>LINK_ROOM_WORDS[r].includes(t)));
   if(!room){ const z = LINK_ROOM_ZH.find(([, re])=>re.test(raw)); room = z ? z[0] : null; }
-  if(!room) return null;
+  return room ? {toks, room} : null;
+}
+/* A kitchen product is in the warehouse when its Storage location carries the
+   warehouse's code —"0434CH", "0434 Freezer", "FR 0434", "0434 CENTER"— or is
+   CENTER, the 2nd-floor dry-goods area only the warehouse has. A chiller or
+   freezer without the code ("Freezer") is the kitchen's, and one with another
+   code ("0424FR" —another site's freezer, "0428 FR") isn't the warehouse's.
+   -> {wh, room} or null */
+function linkRoom(store){
+  const r = locRoom(store); if(!r) return null;
   const codes = d => [d.id, d.code].map(c=>String(c||"").toUpperCase()).filter(Boolean);
-  if(toks.includes("KITCHEN") || /厨房/.test(raw) || depts.some(d=>d.type!=="warehouse" && codes(d).some(c=>toks.includes(c)))) return null;
   const whs = depts.filter(d=>d.type==="warehouse");
-  const wh = whs.find(d=>codes(d).some(c=>toks.includes(c))) || (whs.length===1 ? whs[0] : null);
-  return wh ? {wh:wh.id, room} : null;
+  const wh = whs.find(d=>codes(d).some(c=>r.toks.includes(c)));
+  if(wh) return {wh:wh.id, room:r.room};
+  if(r.room==="center" && whs.length===1 && !r.toks.some(t=>/^\d{3,}$/.test(t))) return {wh:whs[0].id, room:"center"};
+  return null;
 }
 function deptCode(id){ const d = depts.find(x=>x.id===id); return d ? d.code : String(id); }
 function deptIsWarehouse(id){ return (depts.find(d=>d.id===id)||{}).type==="warehouse"; }
@@ -4539,11 +4557,21 @@ async function linkDrain(){
    A log line marks the start ("shared from now on"); once it's there the two
    are never set from each other here again, so a change still on its way
    from another device is never undone. */
+/* The racks that are a room: CENTER by name; the chiller / freezer by zone or by
+   a name that says so ("0434FR", "FREEZER") —an open area, not a coded shelf rack. */
+function roomRacks(room){
+  return racksExplicitOrSeen().filter(r=> room==="center" ? /^(\w*?)CENT(ER|RE)$/i.test(String(r.name).replace(/[\s\-_]/g,""))
+    : !rackCoded(r.name) && (parseZone(r.name)===room || (state.racks.some(x=>x.name===r.name) && (r.zone||"dry")===room)));
+}
+function rackPlaced(name){ const rk = state.racks.find(r=>r.name===name); return !!rk && rk.x!=null; }
+/* Where a kitchen's product goes in the warehouse: the room drawn on the floor
+   plan if there is one, set to the room's zone so it shows as Chiller / Freezer. */
 function linkRack(room){
-  const want = room==="center" ? n=>/^(\w*?)CENT(ER|RE)$/i.test(String(n).replace(/[\s\-_]/g,""))
-    : n=>!rackCoded(n) && (parseZone(n)===room || rackZone(n)===room);
-  const name = rackList().find(want) || (room==="center" ? "CENTER" : room==="chilled" ? "CHILLER" : "FREEZER");
-  ensureRack(name, room==="center" ? "dry" : room); registerLevel(name, "1");
+  const c = roomRacks(room).sort((a,b)=>rackPlaced(b.name)-rackPlaced(a.name) || (a.row||1)-(b.row||1) || (a.order||0)-(b.order||0) || a.name.localeCompare(b.name));
+  const name = c.length ? c[0].name : (room==="center" ? "CENTER" : room==="chilled" ? "CHILLER" : "FREEZER");
+  const rk = ensureRack(name, room==="center" ? "dry" : room);
+  if(room!=="center" && rk.zone!==room) rk.zone = room;
+  registerLevel(name, "1");
   return name;
 }
 function linkReconcile(){
@@ -4551,8 +4579,24 @@ function linkReconcile(){
   const ix = linkIndex(); if(!ix) return;
   const busy = new Set(readLinkOut().map(e=>e.pd+"|"+e.pid));
   const unsaved = it => { const was = persisted && persisted.items.get(it.id); return !was || was!==ser(itemRow(it)); };
-  const linked = new Set(); for(const t of state.tx) if(t.type==="link") linked.add(t.itemId);
-  const added = [], joined = [], kept = [], from = {added:new Set(), joined:new Set(), kept:new Set()};
+  const linked = new Set(), own = new Set();
+  for(const t of state.tx){ if(t.type==="link") linked.add(t.itemId); else if(!(t.type==="sale" && t.h)) own.add(t.itemId); }   // sales kept for the graphs only don't count
+  const added = [], joined = [], kept = [], gone = [], placed = [], from = {added:new Set(), joined:new Set(), kept:new Set()};
+  /* A product added here for a kitchen product whose location doesn't (or no
+     longer) points here —"0424FR" is another site's freezer— goes again, as
+     long as nothing was ever done with it here: no count, issue, receipt or
+     sale of its own. One that was is kept, and Setup's check lists it. */
+  const madeFor = new Map();
+  for(const r of linkData.rows.values()) if(!deptIsWarehouse(r.dept)) madeFor.set(linkNewId(r), r);
+  for(const it of state.items.slice()){
+    const k = madeFor.get(it.id); if(!k || ix.of.has(dept+"|"+it.id)) continue;
+    const r = linkRoom(k.store); if(r && r.wh===dept) continue;
+    if(own.has(it.id) || (persisted && persisted.items.get(it.id)!==ser(itemRow(it)))) continue;
+    state.items = state.items.filter(i=>i.id!==it.id);
+    state.plan = state.plan.filter(p=>p.itemId!==it.id);
+    if(typeof fpDraft!=="undefined") delete fpDraft[it.id];
+    gone.push(`${it.name} (${deptCode(k.dept)} ${k.store||"—"})`);
+  }
   for(const g of ix.groups){
     if(g.wh!==dept || !g.ks.length || g.blocked) continue;
     const k = g.ks[0];
@@ -4566,6 +4610,20 @@ function linkReconcile(){
       state.tx.push(newTx({ts:Date.now(), date:todayStr(), itemId:id, type:"link", qty:k.stock, note:deptCode(k.dept)+" · added, shared from now on"}));
       added.push(id); from.added.add(deptCode(k.dept)); continue;
     }
+    /* in the room the kitchen names: a shared product with no rack yet, or on a
+       chiller / freezer / CENTER rack that isn't drawn on the floor plan while
+       the drawn one is, goes into the drawn one; a rack named for the room that
+       still says Dry is set to the room */
+    const wi = item(g.w.id);
+    if(wi && !unsaved(wi)){
+      const cur = (wi.store||"").trim(), rooms = roomRacks(g.room), onRoom = !!cur && rooms.some(r=>r.name===cur);
+      if(!cur || (onRoom && !rackPlaced(cur) && rooms.some(r=>rackPlaced(r.name)))){
+        const rack = linkRack(g.room);
+        if(rack!==cur){ wi.store = rack; wi.level = "1"; wi.slot = nextSlot(rack, "1", wi.id); placed.push(wi.id); }
+      } else if(onRoom && g.room!=="center"){
+        const rk = ensureRack(cur, g.room); if(rk.zone!==g.room){ rk.zone = g.room; placed.push(wi.id); }
+      }
+    }
     if(linked.has(g.w.id) || g.members.some(m=>busy.has(m.dept+"|"+m.id))) continue;
     const w = item(g.w.id); if(!w || unsaved(w)) continue;
     const q = r2(k.stock - w.stock);
@@ -4573,13 +4631,16 @@ function linkReconcile(){
     w.stock = k.stock; joined.push(w.id); from.joined.add(deptCode(k.dept));
     if(q){ kept.push(w.id); from.kept.add(deptCode(k.dept)); }
   }
-  if(!added.length && !joined.length) return;
+  if(!added.length && !joined.length && !gone.length && !placed.length) return;
   save(); render();
   const zh = x => LANG==="zh" ? (zhText(x) ?? x) : x, src = k => [...from[k]].join(" / ");
   toast([added.length ? (added.length===1 ? `Added 1 product from ${src("added")} to the chiller, freezer and CENTER —its stock is shared`
                                           : `Added ${added.length} products from ${src("added")} to the chiller, freezer and CENTER —their stock is shared`) : "",
     joined.length ? (joined.length===1 ? `1 product here now shares its balance with ${src("joined")}` : `${joined.length} products here now share their balance with ${src("joined")}`) : "",
-    kept.length ? (kept.length===1 ? `1 took ${src("kept")}'s balance` : `${kept.length} took ${src("kept")}'s balance`) : ""].filter(Boolean).map(zh).join(" · "));
+    kept.length ? (kept.length===1 ? `1 took ${src("kept")}'s balance` : `${kept.length} took ${src("kept")}'s balance`) : "",
+    placed.length ? (placed.length===1 ? "1 shared product put in its chiller, freezer or CENTER" : `${placed.length} shared products put in their chiller, freezer or CENTER`) : "",
+    gone.length ? (gone.length===1 ? "Removed 1 product that isn't kept here" : `Removed ${gone.length} products that aren't kept here`) : ""].filter(Boolean).map(zh).join(" · ")
+    + (gone.length ? ": "+gone.join(", ") : ""));
 }
 
 /* Setup: every product that should share a balance between a kitchen and the
@@ -4590,7 +4651,7 @@ let lcFilter = null;
 function renderLinkCheck(){
   const box = $("#link-check"); if(!box) return;
   const kitchens = depts.some(d=>d.type!=="warehouse"), whs = depts.filter(d=>d.type==="warehouse");
-  const wh = isWarehouse(), mine = wh ? kitchens : state.items.some(i=>linkRoom(i.store));
+  const wh = isWarehouse(), mine = wh ? kitchens : state.items.some(i=>locRoom(i.store) || whs.some(d=>String(i.store||"").toUpperCase().includes(String(d.code).toUpperCase())));
   box.classList.toggle("hidden", !whs.length || !mine);
   if(!whs.length || !mine) return;
   const ix = linkIndex(), tbl = $("#lc-table");
@@ -4619,13 +4680,20 @@ function renderLinkCheck(){
       if(z==="chilled" || z==="frozen") return z;
       if(r && !rackCoded(r)){ const p = parseZone(r); if(p==="chilled" || p==="frozen") return p; }
       return /^(\w*?)CENT(ER|RE)$/i.test(r.replace(/[\s\-_]/g,"")) ? "center" : null; };
-    for(const i of state.items){ const rm = roomOf(i);
+    const kByCode = new Map();
+    for(const r of linkData.rows.values()) if(!deptIsWarehouse(r.dept) && r.code) kByCode.set(String(r.code).trim().toUpperCase(), r);
+    for(const i of state.items){ const rm = roomOf(i), kk = kByCode.get(String(i.code||"").trim().toUpperCase());
       if(rm && !ix.of.has(dept+"|"+i.id) && !ix.groups.some(g=>g.blocked && g.blocked.id===i.id))
       rows.push({todo:false, name:i.name, sub:i.uom+(i.code?" · "+i.code:""), room:ROOM[rm], kit:"—",
         whc:`<div><b>${esc(deptCode(dept))}</b> <span class="dim" data-notr>${esc(posCode(i))}</span> · ${bal(i)}</div>`,
-        st:"Not shared —no kitchen product with this code and size", cls:"t-off"}); }
-  } else {       // mentions the warehouse but no room it knows
+        st: kk && !linkRoom(kk.store) ? `Not shared —${deptCode(kk.dept)} keeps it at ${kk.store||"—"}` : "Not shared —no kitchen product with this code and size", cls:"t-off"}); }
+  } else {       // mentions the warehouse but no room it knows; a room with no warehouse code
+    const W = whs.map(d=>d.code).join(" / ");
     for(const i of state.items){
+      const lr = locRoom(i.store);
+      if(lr && !linkRoom(i.store)){ rows.push({todo:false, name:i.name, sub:i.uom+(i.code?" · "+i.code:""), room:ROOM[lr.room],
+        kit:`<div><b>${esc(deptCode(dept))}</b> <span class="dim" data-notr>${esc(i.store)}</span> · ${bal(i)}</div>`, whc:"—",
+        st:`Not shared —no ${W} in its location`, cls:"t-off"}); continue; }
       const t = String(i.store||"").toUpperCase();
       if(linkRoom(i.store) || !whs.some(d=>[d.id, d.code].some(c=>c && t.includes(String(c).toUpperCase())))) continue;
       rows.push({todo:true, name:i.name, sub:i.uom+(i.code?" · "+i.code:""), room:"—", kit:`<div><b>${esc(deptCode(dept))}</b> <span class="dim" data-notr>${esc(i.store)}</span> · ${bal(i)}</div>`, whc:"—",

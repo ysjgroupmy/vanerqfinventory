@@ -487,16 +487,24 @@ Built from the imported sales.
 The kitchens keep their finished products in 0434's chiller, freezer and
 CENTER, so those products have **one balance** on both sides.
 
-- **Which products:** a kitchen product whose **Storage location** names one
-  of 0434's rooms.
+- **Which products:** a kitchen product whose **Storage location** has
+  `0434` in it and names one of 0434's rooms, or is CENTER (0434's
+  2nd-floor dried-goods area, `0434` optional).
   - Chiller: `CH`, `Chiller`, `Chilled`, 冷藏.
   - Freezer: `FR`, `FZ`, `Freezer`, `Frozen`, 冷冻.
   - CENTER: `Center`, `Centre`, `CTR`.
-  - `0434` in front or after is optional (`0434CH`, `FR 0434`, plain
-    `CENTER`), as are spaces, dashes and capitals. A number after the room
-    is fine (`FR1`).
-  - A location that names a kitchen (`0428 FR`, `Kitchen chiller`, 厨房) is
-    that kitchen's own, so it isn't shared.
+  - Examples: `0434CH`, `0434 Freezer`, `FR 0434`, `0434 CENTER`. Spaces,
+    dashes and capitals don't matter, and a number after the room is fine
+    (`0434FR2`).
+  - **A chiller or freezer without `0434` isn't 0434's,** so it isn't shared.
+    That covers plain `Freezer`, another site's freezer (`0424FR`), and the
+    kitchen's own (`0428 FR`). A kitchen's Shared stock check lists these
+    under **All**: "no 0434 in its location". CENTER with another code
+    (`0424 CENTER`) isn't 0434's either.
+  - A product 0434 added for a kitchen product whose location no longer
+    points to 0434 is removed again when 0434 opens. That only happens if
+    0434 never counted, issued, received or sold it itself. Otherwise it's
+    kept and listed on Setup.
 - **Matched by code and unit size:** `2kg/pkt` and `0.2kg/pkt` of the same
   code are separate products. 0434 can hold it as `2kg/pkt`, or as a carton
   (`6x2kg/ctn`) with a pack size, because then its balance is in packets
@@ -514,8 +522,14 @@ CENTER, so those products have **one balance** on both sides.
   - On 0434's side, it also lists the products in its chiller, freezer and
     CENTER that no kitchen product matches.
 - **Products 0434 doesn't have yet** are added to the room the kitchen names,
-  with the kitchen's balance. In 0434 that room is the rack set to Chiller or
-  Freezer, or named for it (`0434CH`, `0434FR`), or `CENTER`.
+  with the kitchen's balance.
+  - In 0434 that room is the rack set to Chiller or Freezer, or named for it
+    (`0434CH`, `0434FR`, `CHILLER`, `FREEZER`), or `CENTER`. The one drawn on
+    the floor plan comes first.
+  - A rack named for the chiller or freezer that still says Dry is set to
+    Chiller / Freezer, so its products show there.
+  - A shared product 0434 has with no rack yet, or on a chiller or freezer rack
+    that isn't drawn while the drawn one exists, is put in the drawn room.
   - Products made to order (Pre-order) or stopped with nothing in stock wait
     until there is some.
 - **When they're first linked**, a product 0434 already had takes the
