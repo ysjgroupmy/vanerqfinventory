@@ -205,6 +205,17 @@ needs nothing special.
   balance, minimum and past movements into packets and folds Loose Qty in, so
   history and totals stay right. Setting a pack size by hand in **Edit** does
   the same, asking once whether the old figures were cartons or packets.
+  - The sales bills remembered for the product are rescaled too. Importing the
+    same sales file again then compares like with like, and puts right a sale
+    that was counted in the wrong unit.
+- **A pack size of 1 on a UOM that holds more** (`24x0.397kg/ctn` with pack
+  size 1) keeps the balance in whole cartons, so one can sold or issued would
+  come off as a carton.
+  - The Stock page lists these products.
+  - **Set pack sizes from the UOM** and **Edit** convert them: 4 ctn becomes
+    96 cans, not 4.
+- **Add item:** the pack size fills in from the UOM as you type it
+  (`24x0.397kg/ctn` → 24), until you change it by hand.
 - Until a product has a pack size it behaves exactly as before (one number,
   plus Loose Qty).
 - **What's inside a carton** (`items.unit`) names the small unit when the UOM
@@ -389,6 +400,9 @@ Takes what was sold off the stock on hand. Drop YonYou's sales export
     carton, so one box is one unit. Only the item's own carton UOM, a UOM that
     says how many it holds, or the whole carton's size (`10kg/ctn` of
     `10x1kg/ctn`) counts as a carton. Receiving follows the same rule.
+  - The item's own UOM counts as a carton only if it actually is one
+    (`24x0.397kg/ctn`, `15kg/ctn`). A product stocked as `0.397kg/can`, 24 to
+    a carton, sold as `0.397kg/can` is one can.
   - **Corrections:** a bill whose quantity changed is corrected the way it was
     first applied. One recorded for trends only stays trends only; one taken
     off stock gets the difference taken off or put back. So importing the same
@@ -397,6 +411,11 @@ Takes what was sold off the stock on hand. Drop YonYou's sales export
   - A product sold in a different pack size from the one stocked (sold
     `0.1kg/pkt`, stocked `0.5kg/pkt`) isn't taken off until someone picks how
     to count it.
+  - **Kept in whole cartons:** a single can or packet of a product whose
+    balance is in whole cartons isn't taken off. That means no pack size, or a
+    pack size of 1 on a UOM like `24x0.397kg/ctn`. The preview names it: give
+    it a pack size, then import the file again. A whole carton sold still
+    comes off.
 - **Subtotals and returns:** 分节小计 subtotal rows (they carry the product
   code and its total for the whole file) are skipped. 退换货 return lines have a
   negative quantity and put stock back.
@@ -468,19 +487,35 @@ Built from the imported sales.
 The kitchens keep their finished products in 0434's chiller, freezer and
 CENTER, so those products have **one balance** on both sides.
 
-- **Which products:** a kitchen product whose **Storage location** names a
-  0434 room: `0434CH` / `0434 Chiller`, `0434FR` / `0434 Freezer`, or
-  `0434 Center`. Spaces, dashes and upper or lower case don't matter. A
-  location without `0434` in front (just `CH`) is the kitchen's own, so it
-  isn't shared.
+- **Which products:** a kitchen product whose **Storage location** names one
+  of 0434's rooms.
+  - Chiller: `CH`, `Chiller`, `Chilled`, 冷藏.
+  - Freezer: `FR`, `FZ`, `Freezer`, `Frozen`, 冷冻.
+  - CENTER: `Center`, `Centre`, `CTR`.
+  - `0434` in front or after is optional (`0434CH`, `FR 0434`, plain
+    `CENTER`), as are spaces, dashes and capitals. A number after the room
+    is fine (`FR1`).
+  - A location that names a kitchen (`0428 FR`, `Kitchen chiller`, 厨房) is
+    that kitchen's own, so it isn't shared.
 - **Matched by code and unit size:** `2kg/pkt` and `0.2kg/pkt` of the same
   code are separate products. 0434 can hold it as `2kg/pkt`, or as a carton
   (`6x2kg/ctn`) with a pack size, because then its balance is in packets
   too.
-  - A product 0434 counts by the carton with no pack size can't share yet.
-    The Stock page lists it; give it a pack size and it links.
+  - A product 0434 keeps in whole cartons can't share yet: no pack size, or a
+    pack size of 1 on a carton UOM like `8x3kg/ctn`. Its balance isn't in the
+    kitchen's unit. Give it its pack size (Stock → Set pack sizes from the UOM)
+    and it links.
+- **Shared stock check** (Setup, kitchens and 0434) lists every product that
+  should be shared, with both balances. Under **Needs attention** it shows why
+  one isn't shared yet:
+  - 0434 keeps it in whole cartons.
+  - It isn't in 0434 yet.
+  - Its location mentions 0434 but names no room.
+  - On 0434's side, it also lists the products in its chiller, freezer and
+    CENTER that no kitchen product matches.
 - **Products 0434 doesn't have yet** are added to the room the kitchen names,
-  with the kitchen's balance.
+  with the kitchen's balance. In 0434 that room is the rack set to Chiller or
+  Freezer, or named for it (`0434CH`, `0434FR`), or `CENTER`.
   - Products made to order (Pre-order) or stopped with nothing in stock wait
     until there is some.
 - **When they're first linked**, a product 0434 already had takes the
