@@ -1231,6 +1231,13 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
         </div>
       </div>
     </div>
+    <div class="panel hidden" id="link-check">
+      <div class="panel-h"><h2>Shared stock check</h2><span class="meta" id="lc-meta"></span>
+        <select id="lc-filter" style="margin-left:auto;width:auto" onchange="lcFilter=this.value;renderLinkCheck()">
+          <option value="todo">Needs attention</option><option value="all">All</option></select>
+        <button class="btn sm" onclick="linkStart()">Check again</button></div>
+      <div class="scroll" id="lc-table"></div>
+    </div>
   </section>
 
   </main>
@@ -2796,6 +2803,23 @@ const ZH_DICT = /*ZH_DICT*/{
 "{n} products without a pack size, or kept in whole cartons —their YonYou UOM says how many are in a carton. Each balance so far is taken as counted in the UOM's unit (cartons for a carton UOM) plus any Loose Qty as packets, and converted along with its minimum and past movements.":"{n} 个货品没有包装规格，或按整箱计 —它们的 YonYou 单位(UOM) 写明了每箱几件。目前的每个结存都视为按 UOM 的单位盘点（箱装 UOM 即按箱），散装数量按包计，并连同其最低库存和过往流水一起换算。",
 "{n} products without a pack size, or kept in whole cartons —their YonYou UOM says how many are in a carton. Each balance so far is taken as counted in the UOM's unit (cartons for a carton UOM) plus any Loose Qty as packets, and converted along with its minimum and past movements. {n} other can't be worked out from the UOM —set it with Edit.":"{n} 个货品没有包装规格，或按整箱计 —它们的 YonYou 单位(UOM) 写明了每箱几件。目前的每个结存都视为按 UOM 的单位盘点（箱装 UOM 即按箱），散装数量按包计，并连同其最低库存和过往流水一起换算。另有 {n} 个无法从 UOM 推算 —请用编辑设置。",
 "{n} products without a pack size, or kept in whole cartons —their YonYou UOM says how many are in a carton. Each balance so far is taken as counted in the UOM's unit (cartons for a carton UOM) plus any Loose Qty as packets, and converted along with its minimum and past movements. {n} others can't be worked out from the UOM —set those with Edit.":"{n} 个货品没有包装规格，或按整箱计 —它们的 YonYou 单位(UOM) 写明了每箱几件。目前的每个结存都视为按 UOM 的单位盘点（箱装 UOM 即按箱），散装数量按包计，并连同其最低库存和过往流水一起换算。另有 {n} 个无法从 UOM 推算 —请用编辑设置。",
+"Shared stock check":"共享库存核对",
+"Needs attention":"需要处理",
+"Check again":"重新核对",
+"Room":"区域",
+"CENTER":"CENTER",
+"{n} shared · {n} needs attention":"{n1} 个共享 · {n2} 个需要处理",
+"{n} shared · {n} need attention":"{n1} 个共享 · {n2} 个需要处理",
+"Reading the other departments' products—":"正在读取其他部门的货品—",
+"Couldn't read the other departments' products —connect again, then Check again.":"无法读取其他部门的货品——请重新连接后再点重新核对。",
+"Shared —balances differ":"共享——两边结存不一致",
+"{n} counts it by the carton —set its pack size":"{n} 按整箱计——请设置每箱包数",
+"Not in {n} —made to order, none in stock":"{n} 还没有——按单生产，暂无库存",
+"Not in {n} yet —added when {n} next opens":"{n1} 还没有——下次打开 {n2} 时会加上",
+"Not shared —no kitchen product with this code and size":"未共享——厨房没有相同编码和规格的货品",
+"Nothing needs attention —every product that should be shared is.":"没有需要处理的——该共享的货品都已共享。",
+"No products to share.":"没有要共享的货品。",
+"Location names no room —write it as {n}CH, {n}FR or {n} Center":"位置没有写明区域——请写成 {n1}CH、{n2}FR 或 {n3} Center",
 "＋ insert {n}":"＋ 插入 {n}"
 }/*/ZH_DICT*/;
 const LANG_KEY = "qf_lang";
@@ -4238,15 +4262,28 @@ setInterval(()=>{
    changes are— so no signal only delays it. Sales come off on the kitchen
    side only —its Sales import; the warehouse's Sales Deduction records these
    products for the graphs only, so no sale is taken off twice. */
-const LINK_ROOM_RE = /^(.+?)(CHILLED|CHILLER|CHILL|CH|FROZEN|FREEZER|FRZ|FR|CENTER|CENTRE)$/;
 const LINK_ROOM_TAG = {chilled:"CH", frozen:"FR", center:"CENTER"};
-/* "0434CH" / "0434 Freezer" / "0434-Center" -> {wh:"0434", room}; null for anything else */
+const LINK_ROOM_WORDS = {center:["CENTER","CENTRE","CTR"], frozen:["FR","FZ","FRZ","FRZR","FREEZER","FREEZERS","FROZEN"],
+  chilled:["CH","CHL","CHILL","CHILLER","CHILLERS","CHILLED","COOLER"]};
+const LINK_ROOM_ZH = [["center", /中心/], ["frozen", /冷冻|急冻/], ["chilled", /冷藏|保鲜/]];
+/* Which warehouse room a kitchen product's Storage location names: a room word
+   —chiller, freezer or CENTER, short or long, English or Chinese— with or without
+   the warehouse's code ("0434CH", "0434 Freezer", "FR 0434", "CENTER", "冷冻").
+   Without a code it's the warehouse's, as long as there's only one. A location
+   that names a kitchen ("0428 FR", "Kitchen chiller") is that kitchen's own.
+   -> {wh, room} or null */
 function linkRoom(store){
-  const m = String(store||"").toUpperCase().replace(/[\s|\-_\/.·]+/g,"").match(LINK_ROOM_RE);
-  if(!m) return null;
-  const wh = depts.find(d=>d.type==="warehouse" && [d.id, d.code].some(c=>String(c||"").toUpperCase()===m[1]));
-  if(!wh) return null;
-  return {wh:wh.id, room: m[2].startsWith("CEN") ? "center" : m[2].startsWith("C") ? "chilled" : "frozen"};
+  const raw = String(store||"").toUpperCase();
+  const toks = raw.replace(/([0-9])([A-Z])/g, "$1 $2").replace(/([A-Z])([0-9])/g, "$1 $2").split(/[^0-9A-Z\u4e00-\u9fff]+/).filter(Boolean);
+  if(!toks.length) return null;
+  let room = Object.keys(LINK_ROOM_WORDS).find(r=>toks.some(t=>LINK_ROOM_WORDS[r].includes(t)));
+  if(!room){ const z = LINK_ROOM_ZH.find(([, re])=>re.test(raw)); room = z ? z[0] : null; }
+  if(!room) return null;
+  const codes = d => [d.id, d.code].map(c=>String(c||"").toUpperCase()).filter(Boolean);
+  if(toks.includes("KITCHEN") || /厨房/.test(raw) || depts.some(d=>d.type!=="warehouse" && codes(d).some(c=>toks.includes(c)))) return null;
+  const whs = depts.filter(d=>d.type==="warehouse");
+  const wh = whs.find(d=>codes(d).some(c=>toks.includes(c))) || (whs.length===1 ? whs[0] : null);
+  return wh ? {wh:wh.id, room} : null;
 }
 function deptCode(id){ const d = depts.find(x=>x.id===id); return d ? d.code : String(id); }
 function deptIsWarehouse(id){ return (depts.find(d=>d.id===id)||{}).type==="warehouse"; }
@@ -4264,7 +4301,8 @@ function linkSamePiece(k, w){
 }
 /* the warehouse product's balance is held in the unit the kitchen counts in */
 function linkSameUnit(k, w){
-  const kPiece = (packFromUom(k.uom)||1)<=1, wPiece = hasPack(w) || (packFromUom(w.uom)||1)<=1;
+  /* a pack size of 1 on a "10x1kg/ctn" keeps 0434's balance in whole cartons —not the kitchen's packets */
+  const kPiece = (packFromUom(k.uom)||1)<=1, wPiece = hasPack(w) ? !cartonCounted(w) : (packFromUom(w.uom)||1)<=1;
   return kPiece ? wPiece : (!hasPack(w) && normUom(k.uom)===normUom(w.uom));
 }
 /* The id a kitchen product gets in the warehouse when it's added there —the
@@ -4544,6 +4582,62 @@ function linkReconcile(){
     kept.length ? (kept.length===1 ? `1 took ${src("kept")}'s balance` : `${kept.length} took ${src("kept")}'s balance`) : ""].filter(Boolean).map(zh).join(" · "));
 }
 
+/* Setup: every product that should share a balance between a kitchen and the
+   warehouse, both balances, and why one isn't shared (yet) —plus, on the
+   warehouse side, what sits in its chiller / freezer / CENTER unshared, and on
+   a kitchen's, locations that mention the warehouse but name no room. */
+let lcFilter = null;
+function renderLinkCheck(){
+  const box = $("#link-check"); if(!box) return;
+  const kitchens = depts.some(d=>d.type!=="warehouse"), whs = depts.filter(d=>d.type==="warehouse");
+  const wh = isWarehouse(), mine = wh ? kitchens : state.items.some(i=>linkRoom(i.store));
+  box.classList.toggle("hidden", !whs.length || !mine);
+  if(!whs.length || !mine) return;
+  const ix = linkIndex(), tbl = $("#lc-table");
+  if(!ix){ $("#lc-meta").textContent = ""; tbl.innerHTML = `<div class="empty">${linkErr ? "Couldn't read the other departments' products —connect again, then Check again." : "Reading the other departments' products—"}</div>`; return; }
+  const ROOM = {chilled:"Chiller", frozen:"Freezer", center:"CENTER"};
+  const bal = m => esc(fmtQty(m, m.stock)) + (hasPack(m) ? "" : ` <span class="dim">${esc(unitOf(m))}</span>`);
+  const rows = [];
+  for(const g of ix.groups){
+    if(wh ? g.wh!==dept : !g.ks.some(k=>k.dept===dept)) continue;
+    const k = g.ks[0], W = deptCode(g.wh);
+    let st, cls, todo = true;
+    if(g.w){ const same = g.members.every(m=>Math.abs(m.stock - g.members[0].stock) < 0.001);
+      st = same ? "Shared" : "Shared —balances differ"; cls = same ? "t-ok" : "t-warn"; todo = !same; }
+    else if(g.blocked){ st = `${W} counts it by the carton —set its pack size`; cls = "t-warn"; }
+    else if(k.stock<=0 && (k.preorder || k.stopped)){ st = `Not in ${W} —made to order, none in stock`; cls = "t-off"; todo = false; }
+    else { st = `Not in ${W} yet —added when ${W} next opens`; cls = "t-warn"; }
+    const w = g.w || g.blocked;
+    rows.push({todo, name:k.name, sub:k.uom+(k.code?" · "+k.code:""), room:ROOM[g.room],
+      kit: g.ks.map(m=>`<div><b>${esc(deptCode(m.dept))}</b> <span class="dim" data-notr>${esc(m.store)}</span> · ${bal(m)}</div>`).join(""),
+      whc: w ? `<div><b>${esc(W)}</b> <span class="dim" data-notr>${esc(posCode(w)||w.store||"")}</span> · ${bal(w)}</div>${w!==g.w ? `<div class="dim" data-notr>${esc(w.uom)}</div>` : ""}` : "—",
+      st, cls});
+  }
+  if(wh){        // in the rooms, not shared with any kitchen
+    const inRoom = i => { const z = zoneOf(i); return z==="chilled" || z==="frozen" || /^(\w*?)CENT(ER|RE)$/i.test(String(i.store||"").replace(/[\s\-_]/g,"")); };
+    for(const i of state.items) if(inRoom(i) && !ix.of.has(dept+"|"+i.id) && !ix.groups.some(g=>g.blocked && g.blocked.id===i.id))
+      rows.push({todo:false, name:i.name, sub:i.uom+(i.code?" · "+i.code:""), room:(zoneInfo(zoneOf(i))||{label:"CENTER"}).label, kit:"—",
+        whc:`<div><b>${esc(deptCode(dept))}</b> <span class="dim" data-notr>${esc(posCode(i))}</span> · ${bal(i)}</div>`,
+        st:"Not shared —no kitchen product with this code and size", cls:"t-off"});
+  } else {       // mentions the warehouse but no room it knows
+    for(const i of state.items){
+      const t = String(i.store||"").toUpperCase();
+      if(linkRoom(i.store) || !whs.some(d=>[d.id, d.code].some(c=>c && t.includes(String(c).toUpperCase())))) continue;
+      rows.push({todo:true, name:i.name, sub:i.uom+(i.code?" · "+i.code:""), room:"—", kit:`<div><b>${esc(deptCode(dept))}</b> <span class="dim" data-notr>${esc(i.store)}</span> · ${bal(i)}</div>`, whc:"—",
+        st:"Location names no room —write it as 0434CH, 0434FR or 0434 Center", cls:"t-warn"});
+    }
+  }
+  const nShared = rows.filter(r=>r.cls==="t-ok" || r.st==="Shared —balances differ").length, nTodo = rows.filter(r=>r.todo).length;
+  if(lcFilter==null) lcFilter = nTodo ? "todo" : "all";
+  $("#lc-filter").value = lcFilter;
+  $("#lc-meta").textContent = `${nShared} shared · ${nTodo} need${nTodo===1?"s":""} attention`;
+  const list = rows.filter(r=>lcFilter==="all" || r.todo).sort((a,b)=>b.todo-a.todo || a.room.localeCompare(b.room) || a.name.localeCompare(b.name));
+  tbl.innerHTML = !list.length ? `<div class="empty">${lcFilter==="todo" ? "Nothing needs attention —every product that should be shared is." : "No products to share."}</div>`
+    : `<table><thead><tr><th>Product</th><th>Room</th><th>Kitchen</th><th>Warehouse</th><th>Status</th></tr></thead><tbody>${list.slice(0, 500).map(r=>`<tr>
+      <td class="name"><span data-notr>${esc(r.name)}</span><span class="sub" data-notr>${esc(r.sub)}</span></td>
+      <td>${esc(r.room)}</td><td style="font-size:12.5px">${r.kit}</td><td style="font-size:12.5px">${r.whc}</td>
+      <td><span class="tag ${r.cls}">${esc(r.st)}</span></td></tr>`).join("")}</tbody></table>`;
+}
 async function switchDept(id){
   closeDeptMenu();
   if(!id || id===dept) return;
@@ -10117,6 +10211,7 @@ function saveSettings(){
   save(); render(); toast("Settings saved");
 }
 function renderSetup(){
+  renderLinkCheck();
   const only0428 = (dept==="0428");
   const rb = $("#btn-reload-base"), rn = $("#reload-note");
   if(rb) rb.hidden = !only0428;
