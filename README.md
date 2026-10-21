@@ -487,17 +487,18 @@ Built from the imported sales.
 The kitchens keep their finished products in 0434's chiller, freezer and
 CENTER, so those products have **one balance** on both sides.
 
-- **Which products:** a kitchen product whose **Storage location** names one
-  of 0434's rooms.
+- **Which products:** a kitchen product whose **Storage location** has
+  `0434` in it and names one of 0434's rooms.
   - Chiller: `CH`, `Chiller`, `Chilled`, 冷藏.
   - Freezer: `FR`, `FZ`, `Freezer`, `Frozen`, 冷冻.
   - CENTER: `Center`, `Centre`, `CTR`.
-  - `0434` in front or after is optional (`0434CH`, `FR 0434`, plain
-    `CENTER`), as are spaces, dashes and capitals. A number after the room
-    is fine (`FR1`).
-  - A location with any other code in it is somewhere else, so it isn't
-    shared: another site's freezer (`0424FR`), or the kitchen's own
-    (`0428 FR`). The same goes for `Kitchen chiller` and 厨房.
+  - Examples: `0434CH`, `0434 Freezer`, `FR 0434`, `0434 CENTER`. Spaces,
+    dashes and capitals don't matter, and a number after the room is fine
+    (`0434FR2`).
+  - **Without `0434` it isn't 0434's,** so it isn't shared. That covers plain
+    `CENTER` or `Freezer`, another site's freezer (`0424FR`), and the
+    kitchen's own (`0428 FR`). A kitchen's Shared stock check lists these
+    under **All**: "no 0434 in its location".
   - A product 0434 added for a kitchen product whose location no longer
     points to 0434 is removed again when 0434 opens. That only happens if
     0434 never counted, issued, received or sold it itself. Otherwise it's

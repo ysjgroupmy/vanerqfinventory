@@ -2823,6 +2823,7 @@ const ZH_DICT = /*ZH_DICT*/{
 "Removed {n} product that isn't kept here":"已移除 {n} 个不在这里存放的货品",
 "Removed {n} products that aren't kept here":"已移除 {n} 个不在这里存放的货品",
 "Not shared —{n} keeps it at {s}":"未共享——{n} 把它放在 {s}",
+"Not shared —no {n} in its location":"未共享——位置里没有 {n}",
 "＋ insert {n}":"＋ 插入 {n}"
 }/*/ZH_DICT*/;
 const LANG_KEY = "qf_lang";
@@ -4269,25 +4270,27 @@ const LINK_ROOM_TAG = {chilled:"CH", frozen:"FR", center:"CENTER"};
 const LINK_ROOM_WORDS = {center:["CENTER","CENTRE","CTR"], frozen:["FR","FZ","FRZ","FRZR","FREEZER","FREEZERS","FROZEN"],
   chilled:["CH","CHL","CHILL","CHILLER","CHILLERS","CHILLED","COOLER"]};
 const LINK_ROOM_ZH = [["center", /中心/], ["frozen", /冷冻|急冻/], ["chilled", /冷藏|保鲜/]];
-/* Which warehouse room a kitchen product's Storage location names: a room word
-   —chiller, freezer or CENTER, short or long, English or Chinese— with the
-   warehouse's code or none ("0434CH", "0434 Freezer", "FR 0434", "CENTER", "冷冻").
-   A location with another code in it is somewhere else ("0424FR" —another
-   site's freezer, "0428 FR" —the kitchen's own); one with no code is the
-   warehouse's, as long as there's only one. "Kitchen chiller" is the kitchen's.
-   -> {wh, room} or null */
-function linkRoom(store){
+/* The room a Storage location names, whoever's it is: chiller, freezer or
+   CENTER, short or long, English or Chinese -> {toks, room} or null */
+function locRoom(store){
   const raw = String(store||"").toUpperCase();
-  const toks = raw.replace(/([0-9])([A-Z])/g, "$1 $2").replace(/([A-Z])([0-9])/g, "$1 $2").split(/[^0-9A-Z\u4e00-\u9fff]+/).filter(Boolean);
+  const toks = raw.replace(/([0-9])([A-Z])/g, "$1 $2").replace(/([A-Z])([0-9])/g, "$1 $2")
+    .replace(/([0-9A-Z])([\u4e00-\u9fff])/g, "$1 $2").replace(/([\u4e00-\u9fff])([0-9A-Z])/g, "$1 $2")
+    .split(/[^0-9A-Z\u4e00-\u9fff]+/).filter(Boolean);
   if(!toks.length) return null;
   let room = Object.keys(LINK_ROOM_WORDS).find(r=>toks.some(t=>LINK_ROOM_WORDS[r].includes(t)));
   if(!room){ const z = LINK_ROOM_ZH.find(([, re])=>re.test(raw)); room = z ? z[0] : null; }
-  if(!room) return null;
-  if(toks.includes("KITCHEN") || /厨房/.test(raw)) return null;
+  return room ? {toks, room} : null;
+}
+/* A kitchen product is in the warehouse only when its Storage location carries
+   the warehouse's code —"0434CH", "0434 Freezer", "FR 0434", "0434 CENTER".
+   Without it ("CENTER", "Freezer"), or with another code ("0424FR" —another
+   site's freezer, "0428 FR" —the kitchen's own), it isn't. -> {wh, room} or null */
+function linkRoom(store){
+  const r = locRoom(store); if(!r) return null;
   const codes = d => [d.id, d.code].map(c=>String(c||"").toUpperCase()).filter(Boolean);
-  const whs = depts.filter(d=>d.type==="warehouse"), nums = toks.filter(t=>/^\d{3,}$/.test(t));
-  if(nums.length){ const wh = whs.find(d=>codes(d).some(c=>nums.includes(c))); return wh ? {wh:wh.id, room} : null; }
-  return whs.length===1 ? {wh:whs[0].id, room} : null;
+  const wh = depts.find(d=>d.type==="warehouse" && codes(d).some(c=>r.toks.includes(c)));
+  return wh ? {wh:wh.id, room:r.room} : null;
 }
 function deptCode(id){ const d = depts.find(x=>x.id===id); return d ? d.code : String(id); }
 function deptIsWarehouse(id){ return (depts.find(d=>d.id===id)||{}).type==="warehouse"; }
@@ -4612,7 +4615,7 @@ let lcFilter = null;
 function renderLinkCheck(){
   const box = $("#link-check"); if(!box) return;
   const kitchens = depts.some(d=>d.type!=="warehouse"), whs = depts.filter(d=>d.type==="warehouse");
-  const wh = isWarehouse(), mine = wh ? kitchens : state.items.some(i=>linkRoom(i.store));
+  const wh = isWarehouse(), mine = wh ? kitchens : state.items.some(i=>locRoom(i.store) || whs.some(d=>String(i.store||"").toUpperCase().includes(String(d.code).toUpperCase())));
   box.classList.toggle("hidden", !whs.length || !mine);
   if(!whs.length || !mine) return;
   const ix = linkIndex(), tbl = $("#lc-table");
@@ -4648,8 +4651,13 @@ function renderLinkCheck(){
       rows.push({todo:false, name:i.name, sub:i.uom+(i.code?" · "+i.code:""), room:ROOM[rm], kit:"—",
         whc:`<div><b>${esc(deptCode(dept))}</b> <span class="dim" data-notr>${esc(posCode(i))}</span> · ${bal(i)}</div>`,
         st: kk && !linkRoom(kk.store) ? `Not shared —${deptCode(kk.dept)} keeps it at ${kk.store||"—"}` : "Not shared —no kitchen product with this code and size", cls:"t-off"}); }
-  } else {       // mentions the warehouse but no room it knows
+  } else {       // mentions the warehouse but no room it knows; a room with no warehouse code
+    const W = whs.map(d=>d.code).join(" / ");
     for(const i of state.items){
+      const lr = locRoom(i.store);
+      if(lr && !linkRoom(i.store)){ rows.push({todo:false, name:i.name, sub:i.uom+(i.code?" · "+i.code:""), room:ROOM[lr.room],
+        kit:`<div><b>${esc(deptCode(dept))}</b> <span class="dim" data-notr>${esc(i.store)}</span> · ${bal(i)}</div>`, whc:"—",
+        st:`Not shared —no ${W} in its location`, cls:"t-off"}); continue; }
       const t = String(i.store||"").toUpperCase();
       if(linkRoom(i.store) || !whs.some(d=>[d.id, d.code].some(c=>c && t.includes(String(c).toUpperCase())))) continue;
       rows.push({todo:true, name:i.name, sub:i.uom+(i.code?" · "+i.code:""), room:"—", kit:`<div><b>${esc(deptCode(dept))}</b> <span class="dim" data-notr>${esc(i.store)}</span> · ${bal(i)}</div>`, whc:"—",
