@@ -2824,6 +2824,8 @@ const ZH_DICT = /*ZH_DICT*/{
 "Removed {n} products that aren't kept here":"已移除 {n} 个不在这里存放的货品",
 "Not shared —{n} keeps it at {s}":"未共享——{n} 把它放在 {s}",
 "Not shared —no {n} in its location":"未共享——位置里没有 {n}",
+"{n} shared product put in its chiller, freezer or CENTER":"已把 {n} 个共享货品放进对应的冷藏库、冷冻库或 CENTER",
+"{n} shared products put in their chiller, freezer or CENTER":"已把 {n} 个共享货品放进对应的冷藏库、冷冻库或 CENTER",
 "＋ insert {n}":"＋ 插入 {n}"
 }/*/ZH_DICT*/;
 const LANG_KEY = "qf_lang";
@@ -3260,7 +3262,11 @@ const ZONES = [
 ];
 const ZONE_ORDER = {dry:0, chilled:1, frozen:2};
 function zoneInfo(id){ return ZONES.find(z=>z.id===id) || null; }
-function rackZone(name){ const rk = state.racks.find(r=>r.name===name); return rk ? (rk.zone||"dry") : "dry"; }
+function rackZone(name){
+  const rk = state.racks.find(r=>r.name===name); if(rk) return rk.zone||"dry";
+  if(name && !rackCoded(name)){ const z = parseZone(name); if(z==="chilled" || z==="frozen") return z; }   // "0434FR", seen only on products
+  return "dry";
+}
 function zoneOf(it){ const r = (it.store||"").trim(); return r ? rackZone(r) : ""; }
 function zoneChip(id){ const z = zoneInfo(id); return z ? `<span class="zchip ${z.cls}">${z.label}</span>` : ""; }
 function zoneOptions(sel){ return ZONES.map(z=>`<option value="${z.id}" ${z.id===sel?"selected":""}>${z.label} ${z.zh}</option>`).join(""); }
@@ -4282,15 +4288,20 @@ function locRoom(store){
   if(!room){ const z = LINK_ROOM_ZH.find(([, re])=>re.test(raw)); room = z ? z[0] : null; }
   return room ? {toks, room} : null;
 }
-/* A kitchen product is in the warehouse only when its Storage location carries
-   the warehouse's code —"0434CH", "0434 Freezer", "FR 0434", "0434 CENTER".
-   Without it ("CENTER", "Freezer"), or with another code ("0424FR" —another
-   site's freezer, "0428 FR" —the kitchen's own), it isn't. -> {wh, room} or null */
+/* A kitchen product is in the warehouse when its Storage location carries the
+   warehouse's code —"0434CH", "0434 Freezer", "FR 0434", "0434 CENTER"— or is
+   CENTER, the 2nd-floor dry-goods area only the warehouse has. A chiller or
+   freezer without the code ("Freezer") is the kitchen's, and one with another
+   code ("0424FR" —another site's freezer, "0428 FR") isn't the warehouse's.
+   -> {wh, room} or null */
 function linkRoom(store){
   const r = locRoom(store); if(!r) return null;
   const codes = d => [d.id, d.code].map(c=>String(c||"").toUpperCase()).filter(Boolean);
-  const wh = depts.find(d=>d.type==="warehouse" && codes(d).some(c=>r.toks.includes(c)));
-  return wh ? {wh:wh.id, room:r.room} : null;
+  const whs = depts.filter(d=>d.type==="warehouse");
+  const wh = whs.find(d=>codes(d).some(c=>r.toks.includes(c)));
+  if(wh) return {wh:wh.id, room:r.room};
+  if(r.room==="center" && whs.length===1 && !r.toks.some(t=>/^\d{3,}$/.test(t))) return {wh:whs[0].id, room:"center"};
+  return null;
 }
 function deptCode(id){ const d = depts.find(x=>x.id===id); return d ? d.code : String(id); }
 function deptIsWarehouse(id){ return (depts.find(d=>d.id===id)||{}).type==="warehouse"; }
@@ -4546,11 +4557,21 @@ async function linkDrain(){
    A log line marks the start ("shared from now on"); once it's there the two
    are never set from each other here again, so a change still on its way
    from another device is never undone. */
+/* The racks that are a room: CENTER by name; the chiller / freezer by zone or by
+   a name that says so ("0434FR", "FREEZER") —an open area, not a coded shelf rack. */
+function roomRacks(room){
+  return racksExplicitOrSeen().filter(r=> room==="center" ? /^(\w*?)CENT(ER|RE)$/i.test(String(r.name).replace(/[\s\-_]/g,""))
+    : !rackCoded(r.name) && (parseZone(r.name)===room || (state.racks.some(x=>x.name===r.name) && (r.zone||"dry")===room)));
+}
+function rackPlaced(name){ const rk = state.racks.find(r=>r.name===name); return !!rk && rk.x!=null; }
+/* Where a kitchen's product goes in the warehouse: the room drawn on the floor
+   plan if there is one, set to the room's zone so it shows as Chiller / Freezer. */
 function linkRack(room){
-  const want = room==="center" ? n=>/^(\w*?)CENT(ER|RE)$/i.test(String(n).replace(/[\s\-_]/g,""))
-    : n=>!rackCoded(n) && (parseZone(n)===room || rackZone(n)===room);
-  const name = rackList().find(want) || (room==="center" ? "CENTER" : room==="chilled" ? "CHILLER" : "FREEZER");
-  ensureRack(name, room==="center" ? "dry" : room); registerLevel(name, "1");
+  const c = roomRacks(room).sort((a,b)=>rackPlaced(b.name)-rackPlaced(a.name) || (a.row||1)-(b.row||1) || (a.order||0)-(b.order||0) || a.name.localeCompare(b.name));
+  const name = c.length ? c[0].name : (room==="center" ? "CENTER" : room==="chilled" ? "CHILLER" : "FREEZER");
+  const rk = ensureRack(name, room==="center" ? "dry" : room);
+  if(room!=="center" && rk.zone!==room) rk.zone = room;
+  registerLevel(name, "1");
   return name;
 }
 function linkReconcile(){
@@ -4560,7 +4581,7 @@ function linkReconcile(){
   const unsaved = it => { const was = persisted && persisted.items.get(it.id); return !was || was!==ser(itemRow(it)); };
   const linked = new Set(), own = new Set();
   for(const t of state.tx){ if(t.type==="link") linked.add(t.itemId); else if(!(t.type==="sale" && t.h)) own.add(t.itemId); }   // sales kept for the graphs only don't count
-  const added = [], joined = [], kept = [], gone = [], from = {added:new Set(), joined:new Set(), kept:new Set()};
+  const added = [], joined = [], kept = [], gone = [], placed = [], from = {added:new Set(), joined:new Set(), kept:new Set()};
   /* A product added here for a kitchen product whose location doesn't (or no
      longer) points here —"0424FR" is another site's freezer— goes again, as
      long as nothing was ever done with it here: no count, issue, receipt or
@@ -4589,6 +4610,20 @@ function linkReconcile(){
       state.tx.push(newTx({ts:Date.now(), date:todayStr(), itemId:id, type:"link", qty:k.stock, note:deptCode(k.dept)+" · added, shared from now on"}));
       added.push(id); from.added.add(deptCode(k.dept)); continue;
     }
+    /* in the room the kitchen names: a shared product with no rack yet, or on a
+       chiller / freezer / CENTER rack that isn't drawn on the floor plan while
+       the drawn one is, goes into the drawn one; a rack named for the room that
+       still says Dry is set to the room */
+    const wi = item(g.w.id);
+    if(wi && !unsaved(wi)){
+      const cur = (wi.store||"").trim(), rooms = roomRacks(g.room), onRoom = !!cur && rooms.some(r=>r.name===cur);
+      if(!cur || (onRoom && !rackPlaced(cur) && rooms.some(r=>rackPlaced(r.name)))){
+        const rack = linkRack(g.room);
+        if(rack!==cur){ wi.store = rack; wi.level = "1"; wi.slot = nextSlot(rack, "1", wi.id); placed.push(wi.id); }
+      } else if(onRoom && g.room!=="center"){
+        const rk = ensureRack(cur, g.room); if(rk.zone!==g.room){ rk.zone = g.room; placed.push(wi.id); }
+      }
+    }
     if(linked.has(g.w.id) || g.members.some(m=>busy.has(m.dept+"|"+m.id))) continue;
     const w = item(g.w.id); if(!w || unsaved(w)) continue;
     const q = r2(k.stock - w.stock);
@@ -4596,13 +4631,14 @@ function linkReconcile(){
     w.stock = k.stock; joined.push(w.id); from.joined.add(deptCode(k.dept));
     if(q){ kept.push(w.id); from.kept.add(deptCode(k.dept)); }
   }
-  if(!added.length && !joined.length && !gone.length) return;
+  if(!added.length && !joined.length && !gone.length && !placed.length) return;
   save(); render();
   const zh = x => LANG==="zh" ? (zhText(x) ?? x) : x, src = k => [...from[k]].join(" / ");
   toast([added.length ? (added.length===1 ? `Added 1 product from ${src("added")} to the chiller, freezer and CENTER —its stock is shared`
                                           : `Added ${added.length} products from ${src("added")} to the chiller, freezer and CENTER —their stock is shared`) : "",
     joined.length ? (joined.length===1 ? `1 product here now shares its balance with ${src("joined")}` : `${joined.length} products here now share their balance with ${src("joined")}`) : "",
     kept.length ? (kept.length===1 ? `1 took ${src("kept")}'s balance` : `${kept.length} took ${src("kept")}'s balance`) : "",
+    placed.length ? (placed.length===1 ? "1 shared product put in its chiller, freezer or CENTER" : `${placed.length} shared products put in their chiller, freezer or CENTER`) : "",
     gone.length ? (gone.length===1 ? "Removed 1 product that isn't kept here" : `Removed ${gone.length} products that aren't kept here`) : ""].filter(Boolean).map(zh).join(" · ")
     + (gone.length ? ": "+gone.join(", ") : ""));
 }
