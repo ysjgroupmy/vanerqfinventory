@@ -514,7 +514,8 @@ CENTER, so those products have **one balance** on both sides.
   - On 0434's side, it also lists the products in its chiller, freezer and
     CENTER that no kitchen product matches.
 - **Products 0434 doesn't have yet** are added to the room the kitchen names,
-  with the kitchen's balance.
+  with the kitchen's balance. In 0434 that room is the rack set to Chiller or
+  Freezer, or named for it (`0434CH`, `0434FR`), or `CENTER`.
   - Products made to order (Pre-order) or stopped with nothing in stock wait
     until there is some.
 - **When they're first linked**, a product 0434 already had takes the

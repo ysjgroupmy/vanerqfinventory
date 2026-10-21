@@ -4614,11 +4614,16 @@ function renderLinkCheck(){
       st, cls});
   }
   if(wh){        // in the rooms, not shared with any kitchen
-    const inRoom = i => { const z = zoneOf(i); return z==="chilled" || z==="frozen" || /^(\w*?)CENT(ER|RE)$/i.test(String(i.store||"").replace(/[\s\-_]/g,"")); };
-    for(const i of state.items) if(inRoom(i) && !ix.of.has(dept+"|"+i.id) && !ix.groups.some(g=>g.blocked && g.blocked.id===i.id))
-      rows.push({todo:false, name:i.name, sub:i.uom+(i.code?" · "+i.code:""), room:(zoneInfo(zoneOf(i))||{label:"CENTER"}).label, kit:"—",
+    /* a rack set to Chiller / Freezer, one named for it ("0434FR"), or CENTER */
+    const roomOf = i => { const r = String(i.store||"").trim(), z = zoneOf(i);
+      if(z==="chilled" || z==="frozen") return z;
+      if(r && !rackCoded(r)){ const p = parseZone(r); if(p==="chilled" || p==="frozen") return p; }
+      return /^(\w*?)CENT(ER|RE)$/i.test(r.replace(/[\s\-_]/g,"")) ? "center" : null; };
+    for(const i of state.items){ const rm = roomOf(i);
+      if(rm && !ix.of.has(dept+"|"+i.id) && !ix.groups.some(g=>g.blocked && g.blocked.id===i.id))
+      rows.push({todo:false, name:i.name, sub:i.uom+(i.code?" · "+i.code:""), room:ROOM[rm], kit:"—",
         whc:`<div><b>${esc(deptCode(dept))}</b> <span class="dim" data-notr>${esc(posCode(i))}</span> · ${bal(i)}</div>`,
-        st:"Not shared —no kitchen product with this code and size", cls:"t-off"});
+        st:"Not shared —no kitchen product with this code and size", cls:"t-off"}); }
   } else {       // mentions the warehouse but no room it knows
     for(const i of state.items){
       const t = String(i.store||"").toUpperCase();
