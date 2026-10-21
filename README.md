@@ -342,8 +342,23 @@ Stock arriving. Drop YonYou's purchase export (**PI_Item**: `MATCODE`,
 ### Issue Stock / Issued Summary
 
 **Issue Stock** records stock leaving for another company (Quan Feng Food
-Supply, Vaner Food Supply, …) in cartons + packets, showing the balance and
-rack code of the product picked. **Issued Summary** totals it per company over a
+Supply, Vaner Food Supply, …) in cartons + packets.
+
+- **Several products in one issue:** the company, date and note are filled in
+  once, then one line per product. **＋ Add another item** adds a line.
+- **Enter key:** on a product box, Enter moves to its quantity. On the last
+  quantity, Enter starts a new line.
+- **Under each line:** the balance now and after this issue, its rack code, and
+  how many packets make a carton. If the same product is on two lines, both are
+  counted. A balance that would go below zero shows in red.
+- **Issue N items:** issues every line at once.
+  - Blank lines are skipped.
+  - A line with a product but no quantity (or the other way round) stops the
+    issue and is marked, so nothing goes out half-entered.
+- **Each product is still its own line under Recent issues,** so one line can be
+  deleted on its own (with a reason, as before).
+
+**Issued Summary** totals it per company over a
 date range, with a by-item breakdown and CSV export. Issues also count as
 **usage**, so Use/day, Cover, trends and **Set minimums** work for a warehouse
 the way sales do for a kitchen.
@@ -447,6 +462,52 @@ Built from the imported sales.
     types.
   - **Prices that moved:** first and latest price on the same UOM, the change
     and the range.
+
+### Shared stock with the kitchens (0428, 0227)
+
+The kitchens keep their finished products in 0434's chiller, freezer and
+CENTER, so those products have **one balance** on both sides.
+
+- **Which products:** a kitchen product whose **Storage location** names a
+  0434 room: `0434CH` / `0434 Chiller`, `0434FR` / `0434 Freezer`, or
+  `0434 Center`. Spaces, dashes and upper or lower case don't matter. A
+  location without `0434` in front (just `CH`) is the kitchen's own, so it
+  isn't shared.
+- **Matched by code and unit size:** `2kg/pkt` and `0.2kg/pkt` of the same
+  code are separate products. 0434 can hold it as `2kg/pkt`, or as a carton
+  (`6x2kg/ctn`) with a pack size, because then its balance is in packets
+  too.
+  - A product 0434 counts by the carton with no pack size can't share yet.
+    The Stock page lists it; give it a pack size and it links.
+- **Products 0434 doesn't have yet** are added to the room the kitchen names,
+  with the kitchen's balance.
+  - Products made to order (Pre-order) or stopped with nothing in stock wait
+    until there is some.
+- **When they're first linked**, a product 0434 already had takes the
+  kitchen's balance. 0434's log notes it: "0428 · shared from now on".
+- **After that, any change on either side changes both.**
+  - This covers a cook, the kitchen's sales import, a count, a receipt, an
+    issue or an Undo.
+  - Each side's log shows the other side's changes as **Shared**, for
+    example "0428 · Cook" or "0434 · Count · Rack count".
+  - The Log page's filter has **Shared stock** to list only these.
+  - Both Stock pages tag these products **Shared** with the other side,
+    for example "Shared 0434 CH" or "Shared 0428".
+- **Sales come off once, on the kitchen side.**
+  - The kitchen's Sales import takes them off.
+  - 0434's Sales Deduction records them for the graphs only, and its preview
+    says so.
+  - Don't also **Receive** the kitchens' products into 0434: the kitchen's
+    Cook already adds them.
+- **No signal:**
+  - A change for the other side is kept on the phone that made it and sent
+    when the connection is back, as with any other save.
+  - A change made before the app knew which products are shared (still
+    opening, or no signal) is sent once it does.
+- Two products in both kitchens with the same code and size (for example the
+  same soup in 0428 and 0227) share one balance between all three.
+
+Nothing to run in Supabase for this.
 
 ### Stocktake / Count
 

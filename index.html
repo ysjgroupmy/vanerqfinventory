@@ -389,6 +389,18 @@ tr.link{cursor:pointer}tr.link:hover td{background:var(--panel-2)}
 .drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-ink)}
 .drop b{display:block;color:var(--ink);font-size:14px;margin-bottom:3px}
 .cookline{display:grid;grid-template-columns:1fr 96px 96px 88px 34px;gap:8px;align-items:center;margin-bottom:8px}
+/* Issue Stock: one company / date / note, any number of item lines */
+.is-head{display:grid;grid-template-columns:minmax(0,2fr) minmax(150px,1fr) minmax(0,2fr);gap:0 14px}
+.isline{display:grid;grid-template-columns:minmax(0,1fr) auto 34px;grid-template-areas:"item qty x";gap:4px 12px;align-items:start;
+  padding:10px 0;border-top:1px solid var(--rule)}
+.isline .is-it{grid-area:item;min-width:0} .isline .is-it input{width:100%} .isline .qpair{grid-area:qty} .isline .is-x{grid-area:x}
+.isline .qpair input[type=number]{width:88px}
+.isline .is-n{display:block;font-family:var(--f-mono);font-size:10px;color:var(--ink-3);margin-bottom:2px;text-transform:uppercase;letter-spacing:.06em}
+.isline .is-x .xbtn{margin-top:16px}
+.isline .qhint{margin:5px 0 0}
+.isline .qhint .neg{color:var(--crit)}
+.isline.bad input{border-color:var(--crit)}
+.is-foot{display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid var(--rule)}
 .cookline .yld{font-family:var(--f-mono);font-size:12px;text-align:right}
 .xbtn{background:none;border:1px solid var(--rule-2);color:var(--ink-3);cursor:pointer;
   font-family:var(--f-mono);font-size:13px;line-height:1;padding:6px 0;width:100%}
@@ -641,6 +653,8 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
   .demo-bar{padding:7px 14px;flex-wrap:wrap}
   .hrow{grid-template-columns:minmax(96px,1fr) 1.4fr 104px;padding:6px 10px}
   .cookline{grid-template-columns:1fr 1fr;gap:6px}
+  .is-head{grid-template-columns:1fr}
+  .isline{grid-template-columns:minmax(0,1fr) 40px;grid-template-areas:"item x" "qty qty"}
   /* thumb-sized controls; 16px text stops iPhones zooming in on a focused box */
   input,select,textarea{font-size:16px;min-height:40px}
   input[type=checkbox],input[type=radio]{min-height:0;width:20px;height:20px}
@@ -1035,21 +1049,20 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
     <div class="panel">
       <div class="panel-h"><h2>New issue</h2></div>
       <div class="panel-b">
-        <div class="field"><label>Item</label>
-          <input id="is-item-q" list="is-item-list" placeholder="Search name / code / rack code—" autocomplete="off">
-          <datalist id="is-item-list"></datalist>
+        <div class="is-head">
+          <div class="field"><label>Going to</label>
+            <input id="is-co" list="is-co-list" placeholder="Company name">
+            <datalist id="is-co-list"></datalist>
+          </div>
+          <div class="field"><label>Date</label><input type="date" id="is-date"></div>
+          <div class="field"><label>Note (optional)</label><input id="is-note" placeholder="DO number, driver, etc."></div>
         </div>
-        <div class="qhint" id="is-hint"></div>
-        <div class="field"><label>Qty</label><span class="qpair">
-          <label id="is-ctn-l">ctn<input id="is-ctn" type="number" step="any" min="0"></label>
-          <label id="is-pkt-l">pkt<input id="is-qty" type="number" step="any" min="0"></label></span></div>
-        <div class="field"><label>Going to</label>
-          <input id="is-co" list="is-co-list" placeholder="Company name">
-          <datalist id="is-co-list"></datalist>
+        <div id="is-lines"></div>
+        <datalist id="is-item-list"></datalist>
+        <div class="is-foot">
+          <button class="btn" onclick="issueAddLine(true)">＋ Add another item</button>
+          <button class="btn primary" id="is-submit" onclick="submitIssue()"><svg class="ic"><use href="#i-truck"/></svg><span id="is-submit-l">Issue stock</span></button>
         </div>
-        <div class="field"><label>Date</label><input type="date" id="is-date"></div>
-        <div class="field"><label>Note (optional)</label><input id="is-note" placeholder="DO number, driver, etc."></div>
-        <button class="btn primary" onclick="submitIssue()"><svg class="ic"><use href="#i-truck"/></svg>Issue stock</button>
       </div>
     </div>
     <div class="panel">
@@ -1120,6 +1133,7 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
           <option value="receive">Received</option>
           <option value="issue">Issued</option>
           <option value="adjust">Corrections</option>
+          <option value="link">Shared stock</option>
         </select>
         <button class="btn" onclick="undoLast()"><svg class="ic"><use href="#i-undo"/></svg>Undo last</button>
         <button class="btn danger" onclick="clearLog()">Clear log</button>
@@ -2722,6 +2736,53 @@ const ZH_DICT = /*ZH_DICT*/{
 "要做 Make":"要做",
 "要做公斤 Kg to make":"要做公斤",
 "货品 Item":"货品",
+"Shared":"共享",
+"Shared stock":"共享库存",
+"Same stock as {s} —a change on either side changes both.":"与 {s} 共用同一库存——任何一方的变动都会同步到另一方。",
+"1 kitchen product can't share its balance yet":"1 个厨房产品暂时无法共用库存",
+"{n} kitchen products can't share their balance yet":"{n} 个厨房产品暂时无法共用库存",
+"—counted here by the carton, with no pack size. Set one to share:":"——这里按箱计数，且没有设置每箱包数。设置后即可共用：",
+"shared with the kitchen":"与厨房共用库存",
+"1 product is shared with {s} —{s}'s Sales import takes it off stock, so here it's recorded for the graphs only.":"1 个产品与 {s} 共用库存——由 {s} 的销售导入扣减库存，这里只记录用于图表。",
+"{n} products are shared with {s} —{s}'s Sales import takes them off stock, so here they're recorded for the graphs only.":"{n} 个产品与 {s} 共用库存——由 {s} 的销售导入扣减库存，这里只记录用于图表。",
+"Checking which products are shared with the kitchens —a moment.":"正在核对哪些产品与厨房共用库存——请稍候。",
+"Couldn't check which products are shared with the kitchens —connect again, then take these off.":"无法核对哪些产品与厨房共用库存——请重新连接后再扣减。",
+"Added 1 product from {s} to the chiller, freezer and CENTER —its stock is shared":"已从 {s} 添加 1 个产品到冷藏库、冷冻库和 CENTER——库存共用",
+"Added {n} products from {s} to the chiller, freezer and CENTER —their stock is shared":"已从 {s} 添加 {n} 个产品到冷藏库、冷冻库和 CENTER——库存共用",
+"1 product here now shares its balance with {s}":"这里有 1 个产品现在与 {s} 共用库存",
+"{n} products here now share their balance with {s}":"这里有 {n} 个产品现在与 {s} 共用库存",
+"1 took {s}'s balance":"其中 1 个采用了 {s} 的库存数",
+"{n} took {s}'s balance":"其中 {n} 个采用了 {s} 的库存数",
+"{n} · Cook":"{n} · 生产",
+"{n} · Cook · {s}":"{n} · 生产 · {s}",
+"{n} · Count":"{n} · 盘点",
+"{n} · Count · {s}":"{n} · 盘点 · {s}",
+"{n} · Sales import":"{n} · 销售导入",
+"{n} · Sales import · {s}":"{n} · 销售导入 · {s}",
+"{n} · Issued":"{n} · 已出库",
+"{n} · Issued · {s}":"{n} · 已出库 · {s}",
+"{n} · Received":"{n} · 已收货",
+"{n} · Received · {s}":"{n} · 已收货 · {s}",
+"{n} · Undo":"{n} · 撤销",
+"{n} · Undo · {s}":"{n} · 撤销 · {s}",
+"{n} · Balance edited":"{n} · 库存已修改",
+"{n} · Balance edited · {s}":"{n} · 库存已修改 · {s}",
+"{n} · Balance":"{n} · 库存",
+"{n} · Balance · {s}":"{n} · 库存 · {s}",
+"{n} · Shared":"{n} · 共享",
+"{n} · Shared · {s}":"{n} · 共享 · {s}",
+"{n} · shared from now on":"{n} · 从此共用库存",
+"{n} · added, shared from now on":"{n} · 已添加，从此共用库存",
+"＋ Add another item":"＋ 再加一个货品",
+"Issue {n} items":"出库 {n} 个货品",
+"Item {n}":"货品 {n}",
+"Item {n}: pick an item from the list":"货品 {n}：请从列表中选择货品",
+"Item {n}: enter a qty greater than {n}":"货品 {n1}：请输入大于 {n2} 的数量",
+"Remove this item":"移除这个货品",
+"Clear this item":"清空这一行",
+"Issued {n} items to {s}":"已向 {s} 出库 {n} 个货品",
+"Issued {n} items to {s} —{n} is now below zero, recount it":"已向 {s} 出库 {n1} 个货品 —{n2} 个结存现为负数，请重新盘点",
+"Issued {n} items to {s} —{n} are now below zero, recount them":"已向 {s} 出库 {n1} 个货品 —{n2} 个结存现为负数，请重新盘点",
 "＋ insert {n}":"＋ 插入 {n}"
 }/*/ZH_DICT*/;
 const LANG_KEY = "qf_lang";
@@ -3857,9 +3918,11 @@ async function runFlush(){
     put(cache.racks, racksUpD, r=>r.name);        for(const k of racksDel) cache.racks.delete(k);
     put(cache.levels, levelsUpD, r=>lvKey(r.rack,r.level)); for(const k of levelsDel) cache.levels.delete(k);
     if(setRow) cache.settings = Object.assign({}, cache.settings||{}, setRow);
+    linkQueue(itemsUpD, txUpD, txDel);      // the same products in other departments (shared stock)
     persisted = now;
     dirty = saveSeq !== seq;               // changed again while this was on its way —the next flush sends it
     if(!dirty) writePending(null);
+    if(readLinkOut().length) linkDrain();
     flushErrorShown = false;
     setSync("shared");
   }catch(e){
@@ -4033,6 +4096,7 @@ async function subscribeDept(){
   DB_READY = true;
   if(upgradePlan0434()){ save(); render(); }
   if(dirty){ clearTimeout(flushTimer); flushTimer = setTimeout(runFlush, 250); }   // send what was kept / added while loading
+  linkStart();
 
   const filt = "dept_id=eq."+dept;
   deptChannel = sb.channel("dept-"+dept)
@@ -4106,6 +4170,7 @@ async function refetchDept(){
     cache.levels = new Map((levelsR.data||[]).map(r=>[lvKey(r.rack,r.level), r]));
     if(setR.data) cache.settings = setR.data;
     onStoreData();
+    linkStart();
   }catch(e){ /* stays as it was; the next wake or reconnect tries again */ }
   finally{ refetching = false; }
 }
@@ -4137,6 +4202,329 @@ setInterval(()=>{
   if(DB_READY && echoSince && rtSeen < echoSince && Date.now()-echoSince > 8000){ echoSince = 0; setLive(false); }
 }, 2000);
 
+/* ---------- shared stock: kitchen products kept in a warehouse's rooms ----------
+   The kitchens (0428, 0227) keep finished products in the warehouse's
+   chiller, freezer and CENTER —the product's Storage location says which
+   ("0434CH", "0434 FR", "0434 Center"). Those are the same goods the
+   warehouse counts in those rooms, so both sides hold one balance: a cook,
+   a sales import, an issue or a count on either side changes the other
+   side's figure too, and each log says where it came from ("Shared").
+   Products are matched by code and the size of one unit —a "2kg/pkt" and a
+   "0.2kg/pkt" of the same code stay separate. A kitchen product the
+   warehouse doesn't have yet is added to the room it names, and one it
+   already has takes the kitchen's balance when they're first linked (the
+   log notes it: "shared from now on"). After that each change is sent to
+   the other side by the device that made it, and kept on that device until
+   it lands (qf_link_out_v1) —the same way this department's own unsaved
+   changes are— so no signal only delays it. Sales come off on the kitchen
+   side only —its Sales import; the warehouse's Sales Deduction records these
+   products for the graphs only, so no sale is taken off twice. */
+const LINK_ROOM_RE = /^(.+?)(CHILLED|CHILLER|CHILL|CH|FROZEN|FREEZER|FRZ|FR|CENTER|CENTRE)$/;
+const LINK_ROOM_TAG = {chilled:"CH", frozen:"FR", center:"CENTER"};
+/* "0434CH" / "0434 Freezer" / "0434-Center" -> {wh:"0434", room}; null for anything else */
+function linkRoom(store){
+  const m = String(store||"").toUpperCase().replace(/[\s|\-_\/.·]+/g,"").match(LINK_ROOM_RE);
+  if(!m) return null;
+  const wh = depts.find(d=>d.type==="warehouse" && [d.id, d.code].some(c=>String(c||"").toUpperCase()===m[1]));
+  if(!wh) return null;
+  return {wh:wh.id, room: m[2].startsWith("CEN") ? "center" : m[2].startsWith("C") ? "chilled" : "frozen"};
+}
+function deptCode(id){ const d = depts.find(x=>x.id===id); return d ? d.code : String(id); }
+function deptIsWarehouse(id){ return (depts.find(d=>d.id===id)||{}).type==="warehouse"; }
+/* one unit of the product: its weight/volume when the UOM gives one */
+function linkPiece(uom){
+  if((packFromUom(uom)||1)>1) return "ctn:"+normUom(uom);
+  const s = uomSize(uom); return s ? s.dim+(+s.v.toFixed(4)) : normUom(uom);
+}
+function linkKey(k){ const c = String(k.code||"").trim().toUpperCase(); return (c ? "c"+c : "n"+norm(k.name))+"|"+linkPiece(k.uom); }
+function linkSamePiece(k, w){
+  if(normUom(k.uom)===normUom(w.uom)) return true;
+  if((packFromUom(k.uom)||1)>1) return false;
+  const a = uomSize(k.uom), b = uomSize(w.uom);
+  return !!a && !!b && a.dim===b.dim && Math.abs(a.v-b.v) <= 0.05*Math.max(a.v, b.v);
+}
+/* the warehouse product's balance is held in the unit the kitchen counts in */
+function linkSameUnit(k, w){
+  const kPiece = (packFromUom(k.uom)||1)<=1, wPiece = hasPack(w) || (packFromUom(w.uom)||1)<=1;
+  return kPiece ? wPiece : (!hasPack(w) && normUom(k.uom)===normUom(w.uom));
+}
+/* The id a kitchen product gets in the warehouse when it's added there —the
+   same on every device, so two warehouse phones adding it at once make one
+   product, not two. Ids from uid() are timestamps (1.7e15 and up); these sit
+   below them and above any counter-made id. */
+function linkNewId(k){
+  const s = "link|"+k.dept+"|"+k.id;
+  let a = 0x811c9dc5, b = 0x5bd1e995;
+  for(let i=0;i<s.length;i++){ const c = s.charCodeAt(i); a = Math.imul(a ^ c, 0x01000193); b = Math.imul(b ^ c, 0x5bd1e995); b ^= b>>>15; }
+  return 1e15 + ((a>>>0) % 100000)*1e9 + ((b>>>0) % 1e9);
+}
+
+let linkData = null, linkVer = 0, linkIx = null, linkChan = null, linkErr = null, linkSeq = 0, linkGen = 0;
+/* the other departments whose products can share a balance with this one's */
+function linkDeptIds(){
+  if(!depts.some(d=>d.id===dept)) return [];
+  if(isWarehouse()) return depts.filter(d=>d.id!==dept && d.type!=="warehouse").map(d=>d.id);
+  const whs = new Set(); for(const i of state.items){ const r = linkRoom(i.store); if(r) whs.add(r.wh); }
+  return whs.size ? depts.filter(d=>d.id!==dept && (d.type!=="warehouse" || whs.has(d.id))).map(d=>d.id) : [];
+}
+/* Which products share a balance: one group per product, holding each
+   kitchen's copy and the warehouse's. Worked out the same way on every
+   device from the same rows, so both sides always agree on the pairs. */
+function linkIndex(){
+  if(!linkData || !state) return null;
+  if(linkIx && linkIx.ref===state && linkIx.ver===stateVer && linkIx.ld===linkData.ver) return linkIx;
+  const all = state.items.map(i=>Object.assign({}, i, {dept})).concat([...linkData.rows.values()]);
+  const order = new Map(depts.map((d,i)=>[d.id, i]));
+  const groups = new Map(), byCode = new Map(), byName = new Map();
+  const add = (m, k, v) => { if(!m.has(k)) m.set(k, []); m.get(k).push(v); };
+  for(const x of all){
+    if(deptIsWarehouse(x.dept)){
+      const c = String(x.code||"").trim().toUpperCase();
+      if(c) add(byCode, x.dept+"|"+c, x); add(byName, x.dept+"|"+norm(x.name), x);
+      continue;
+    }
+    const r = linkRoom(x.store); if(!r) continue;
+    const key = r.wh+"|"+linkKey(x);
+    let g = groups.get(key); if(!g) groups.set(key, g = {key, wh:r.wh, rooms:new Map(), ks:[], w:null, blocked:null});
+    g.rooms.set(x.dept+"|"+x.id, r.room);
+    const i = g.ks.findIndex(o=>o.dept===x.dept);          // one per kitchen: the oldest
+    if(i<0) g.ks.push(x); else if(x.id<g.ks[i].id) g.ks[i] = x;
+  }
+  for(const g of groups.values()){
+    g.ks.sort((a,b)=>(order.get(a.dept)??99)-(order.get(b.dept)??99) || a.id-b.id);
+    const k = g.ks[0], c = String(k.code||"").trim().toUpperCase();
+    g.room = g.rooms.get(k.dept+"|"+k.id);
+    const same = ((c ? byCode.get(g.wh+"|"+c) : byName.get(g.wh+"|"+norm(k.name))) || []).filter(w=>linkSamePiece(k, w));
+    const ok = same.filter(w=>linkSameUnit(k, w))
+      .sort((a,b)=>(normUom(b.uom)===normUom(k.uom)) - (normUom(a.uom)===normUom(k.uom)) || a.id-b.id);
+    if(ok.length) g.w = ok[0]; else if(same.length) g.blocked = same[0];
+  }
+  const of = new Map(), list = [...groups.values()];
+  for(const g of list){
+    g.members = g.ks.concat(g.w ? [g.w] : []);
+    if(g.members.length>1) for(const m of g.members) of.set(m.dept+"|"+m.id, g);
+  }
+  return linkIx = {ref:state, ver:stateVer, ld:linkData.ver, groups:list, of};
+}
+function linkGroupOf(id){ const ix = linkIndex(); return ix ? ix.of.get(dept+"|"+id) || null : null; }
+/* Warehouse side: the kitchens whose Sales import takes this product's sales off. */
+function linkKitchens(id){
+  const g = isWarehouse() ? linkGroupOf(id) : null;
+  return g && g.w && g.w.dept===dept && g.w.id===id ? [...new Set(g.ks.map(k=>deptCode(k.dept)))] : null;
+}
+/* Warehouse side, with kitchens around: which products share a balance isn't known yet. */
+function linkWaiting(){ return isWarehouse() && !!sb && !linkData && depts.some(d=>d.type!=="warehouse"); }
+function sharedTag(it){
+  const g = linkGroupOf(it.id); if(!g) return "";
+  const who = g.members.filter(m=>!(m.dept===dept && m.id===it.id)).map(m=>deptCode(m.dept)+(m===g.w ? " "+LINK_ROOM_TAG[g.room] : ""));
+  return ` <span class="tag t-info" title="Same stock as ${esc(who.join(", "))} —a change on either side changes both.">Shared <span data-notr>${esc(who.join(" · "))}</span></span>`;
+}
+/* Warehouse side: a kitchen's product that is here, but counted by the carton
+   with no pack size, so the two balances aren't in the same unit. */
+function linkBlocked(){ const ix = isWarehouse() ? linkIndex() : null; return ix ? ix.groups.filter(g=>g.wh===dept && !g.w && g.blocked) : []; }
+
+async function linkLoad(){
+  if(!sb || !dept) return;
+  const d = dept, ids = linkDeptIds(), gen = linkGen;
+  if(!ids.length){ linkStop(); linkData = {ver:++linkVer, ids, rows:new Map()}; return; }
+  const rows = new Map();
+  for(let from=0;; from+=1000){
+    const { data, error } = await sb.from("items").select("*").in("dept_id", ids).order("dept_id").order("id").range(from, from+999);
+    if(d!==dept || gen!==linkGen) return;           // switched department / stopped meanwhile
+    if(error){ linkErr = error.message; return; }
+    for(const r of data||[]) rows.set(r.dept_id+"|"+r.id, Object.assign(rowItem(r), {dept:r.dept_id}));
+    if(!data || data.length<1000) break;
+  }
+  linkErr = null;
+  linkData = {ver:++linkVer, ids, rows};
+  const key = d+":"+ids.join(",");
+  if(linkChan && linkChan.key===key) return;
+  linkStop(true);
+  linkChan = sb.channel("link-"+d)
+    .on("postgres_changes", {event:"*", schema:"public", table:"items", filter:"dept_id=in.("+ids.join(",")+")"}, p=>{
+      const r = p.eventType==="DELETE" ? p.old : p.new;
+      if(!linkData || !r || !linkData.ids.includes(String(r.dept_id))) return;
+      if(p.eventType==="DELETE") linkData.rows.delete(r.dept_id+"|"+r.id);
+      else linkData.rows.set(r.dept_id+"|"+r.id, Object.assign(rowItem(r), {dept:r.dept_id}));
+      linkData.ver = ++linkVer;
+      linkSoon();
+    })
+    .subscribe();
+  linkChan.key = key;
+}
+function linkStop(keepData){
+  clearTimeout(linkSoonT);
+  if(!keepData) linkGen++;
+  if(linkChan){ const ch = linkChan; linkChan = null; try{ sb.removeChannel(ch); }catch(e){} }
+  if(!keepData){ linkData = null; linkIx = null; }
+}
+/* Another department's product changed: give its own write here a moment to
+   land, then add or link anything new (warehouse side) and show the new state. */
+let linkSoonT = null;
+function linkSoon(){
+  clearTimeout(linkSoonT);
+  linkSoonT = setTimeout(()=>{ if(isWarehouse()) linkReconcile(); render(); }, 3000);
+}
+let linkStarting = null;
+function linkStart(){
+  const d = dept;
+  if(linkStarting && linkStarting.d===d){ linkStarting.again = true; return linkStarting.p; }   // on its way: once more after it
+  const st = {d, again:false};
+  st.p = (async ()=>{
+    try{
+      do{
+        st.again = false;
+        await linkDrain(); await linkLoad();
+        if(d!==dept) return;
+        linkCatchUp(); await linkDrain();
+        if(d===dept && isWarehouse()) linkReconcile();
+        render();
+      }while(st.again && d===dept);
+    }finally{ if(linkStarting===st) linkStarting = null; }
+  })();
+  linkStarting = st;
+  return st.p;
+}
+
+/* Stock that changed here, for each department sharing it: the new balance
+   plus a log line there saying where it came from. Called once a save has
+   landed, before `persisted` moves on (it holds the balance before). */
+const LINK_WHAT = {production:"Cook", sale:"Sales import", adjust:"Count", issue:"Issued", receive:"Received", link:"Shared"};
+function linkWhat(id, txUp, txDel){
+  const fresh = txUp.filter(t=>t.item_id===id && !persisted.tx.has(t.id));
+  if(fresh.length){
+    const t = fresh[fresh.length-1];
+    const extra = t.type==="issue" && t.dest_company ? "→ "+t.dest_company : t.type==="receive" && t.supplier ? "← "+t.supplier : (t.note||"");
+    return (LINK_WHAT[t.type] || t.type) + (extra ? " · "+String(extra).slice(0, 60) : "");
+  }
+  if(txDel.some(x=>{ const was = persisted.tx.get(x); return was && JSON.parse(was).item_id===id; })) return "Undo";
+  return "Balance edited";
+}
+function linkQueue(itemsUp, txUp, txDel){
+  const moved = itemsUp.filter(r=>"stock" in r && persisted.items.has(r.id));
+  if(!moved.length) return;
+  const ix = linkIndex();
+  if(!ix){ linkLate(moved.map(r=>r.id)); linkStart(); return; }     // not known yet which are shared: sent once it is
+  if(moved.some(r=>!ix.of.has(dept+"|"+r.id) && linkRoom((item(r.id)||{}).store))) linkStart();   // a product just put in a room
+  const out = [], now = Date.now(), me = deptCode(dept);
+  for(const r of moved){
+    const g = ix.of.get(dept+"|"+r.id); if(!g) continue;
+    const nv = Number(r.stock);
+    if(Math.abs(nv - Number(JSON.parse(persisted.items.get(r.id)).stock)) < 0.001) continue;
+    const note = me+" · "+linkWhat(r.id, txUp, txDel);
+    for(const p of g.members){
+      if(p.dept===dept) continue;
+      /* the balance always goes (what's known of theirs may be behind); the log line
+         only when it changes theirs —not for one that already took ours */
+      const q = r2(nv - p.stock);
+      out.push({n:now+"-"+(++linkSeq), pd:p.dept, pid:p.id, stock:nv,
+        tx: q ? [{id:now*1000 + (linkSeq % 1000), dept_id:p.dept, ts:now, date:todayStr(), item_id:p.id, type:"link", qty:q, note,
+            batch:null, planned:null, hist:false, amount:null, dest_company:null}] : []});
+      p.stock = nv;                 // what they hold once this lands
+    }
+  }
+  if(out.length) writeLinkOut(readLinkOut().concat(out));
+}
+/* Balances changed here before it was known which products are shared (still
+   loading, or no signal): once it is, the ones that are shared are sent. */
+const LINK_LATE = "qf_link_late_v1";
+function linkLate(add, done){
+  try{ const m = JSON.parse(localStorage.getItem(LINK_LATE)||"{}") || {}, cur = m[dept]||[];
+    const next = add ? [...new Set(cur.concat(add))] : cur.filter(id=>!done.includes(id));
+    if(next.length) m[dept] = next; else delete m[dept];
+    localStorage.setItem(LINK_LATE, JSON.stringify(m)); return cur; }catch(e){ return []; }
+}
+function linkLateIds(){ try{ return (JSON.parse(localStorage.getItem(LINK_LATE)||"{}")||{})[dept] || []; }catch(e){ return []; } }
+/* The balance is sent whether or not the other side seems to have it already —
+   what's known of the other side may be from before the change. An id is
+   only taken off the list once it's been dealt with. */
+function linkCatchUp(){
+  const ix = linkIndex(), ids = linkLateIds(); if(!ix || !ids.length || !persisted) return;
+  const out = [], done = [], now = Date.now(), me = deptCode(dept);
+  for(const id of ids){
+    const it = item(id), was = persisted.items.get(id), g = ix.of.get(dept+"|"+id);
+    if(!it || !was){ done.push(id); continue; }                      // gone, or not saved yet (sent with that save)
+    if(!g){ if(isWarehouse() || !linkRoom(it.store)) done.push(id); continue; }   // not shared —or its other side isn't there yet
+    const nv = Number(JSON.parse(was).stock);
+    for(const p of g.members){
+      if(p.dept===dept) continue;
+      const q = r2(nv - p.stock);
+      out.push({n:now+"-"+(++linkSeq), pd:p.dept, pid:p.id, stock:nv, tx: q ? [{id:now*1000 + (linkSeq % 1000), dept_id:p.dept, ts:now, date:todayStr(), item_id:p.id,
+        type:"link", qty:q, note:me+" · Balance", batch:null, planned:null, hist:false, amount:null, dest_company:null}] : []});
+      p.stock = nv;
+    }
+    done.push(id);
+  }
+  if(out.length) writeLinkOut(readLinkOut().concat(out));
+  if(done.length) linkLate(null, done);
+}
+const LINK_OUT = "qf_link_out_v1";
+function readLinkOut(){ try{ const a = JSON.parse(localStorage.getItem(LINK_OUT)||"[]"); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
+function writeLinkOut(a){ try{ if(a.length) localStorage.setItem(LINK_OUT, JSON.stringify(a)); else localStorage.removeItem(LINK_OUT); }catch(e){} }
+let linkDraining = false, linkRetry = null;
+async function linkDrain(){
+  if(linkDraining || !sb) return;
+  linkDraining = true; clearTimeout(linkRetry);
+  try{
+    for(let e; (e = readLinkOut()[0]); ){
+      const a = await sb.from("items").update({stock:e.stock}).eq("dept_id", e.pd).eq("id", e.pid);
+      if(a && a.error) throw a.error;
+      const tx = [].concat(e.tx||[]);
+      if(tx.length){ const b = await sb.from("tx").upsert(tx, {onConflict:"dept_id,id"}); if(b && b.error) throw b.error; }
+      writeLinkOut(readLinkOut().filter(x=>x.n!==e.n));
+    }
+  }catch(err){ linkRetry = setTimeout(linkDrain, 8000); }      // no signal: tried again shortly, and after the next save
+  finally{ linkDraining = false; }
+}
+
+/* Warehouse side: add the kitchens' products it doesn't have yet, and link
+   the ones it has —taking the kitchen's balance— the first time they meet.
+   A log line marks the start ("shared from now on"); once it's there the two
+   are never set from each other here again, so a change still on its way
+   from another device is never undone. */
+function linkRack(room){
+  const want = room==="center" ? n=>/^(\w*?)CENT(ER|RE)$/i.test(String(n).replace(/[\s\-_]/g,""))
+    : n=>!rackCoded(n) && (parseZone(n)===room || rackZone(n)===room);
+  const name = rackList().find(want) || (room==="center" ? "CENTER" : room==="chilled" ? "CHILLER" : "FREEZER");
+  ensureRack(name, room==="center" ? "dry" : room); registerLevel(name, "1");
+  return name;
+}
+function linkReconcile(){
+  if(!isWarehouse() || !DB_READY || flushing || !linkData) return;
+  const ix = linkIndex(); if(!ix) return;
+  const busy = new Set(readLinkOut().map(e=>e.pd+"|"+e.pid));
+  const unsaved = it => { const was = persisted && persisted.items.get(it.id); return !was || was!==ser(itemRow(it)); };
+  const linked = new Set(); for(const t of state.tx) if(t.type==="link") linked.add(t.itemId);
+  const added = [], joined = [], kept = [], from = {added:new Set(), joined:new Set(), kept:new Set()};
+  for(const g of ix.groups){
+    if(g.wh!==dept || !g.ks.length || g.blocked) continue;
+    const k = g.ks[0];
+    if(!g.w){
+      if(k.stock<=0 && (k.preorder || k.stopped)) continue;   // made to order / stopped, none in the room
+      const id = linkNewId(k); if(item(id)) continue;
+      const rack = linkRack(g.room);
+      state.items.push({id, name:k.name, uom:k.uom||"", code:k.code||"", store:rack, level:"1", slot:nextSlot(rack, "1"),
+        stock:k.stock, min:0, baseDaily:0, cat:k.cat||"Uncategorised", preorder:!!k.preorder, stopped:!!k.stopped, watch:false,
+        counted:!!k.counted, looseQty:0, packSize:(packFromUom(k.uom)||1)<=1 ? 1 : null, unit:null});
+      state.tx.push(newTx({ts:Date.now(), date:todayStr(), itemId:id, type:"link", qty:k.stock, note:deptCode(k.dept)+" · added, shared from now on"}));
+      added.push(id); from.added.add(deptCode(k.dept)); continue;
+    }
+    if(linked.has(g.w.id) || g.members.some(m=>busy.has(m.dept+"|"+m.id))) continue;
+    const w = item(g.w.id); if(!w || unsaved(w)) continue;
+    const q = r2(k.stock - w.stock);
+    state.tx.push(newTx({ts:Date.now(), date:todayStr(), itemId:w.id, type:"link", qty:q, note:deptCode(k.dept)+" · shared from now on"}));
+    w.stock = k.stock; joined.push(w.id); from.joined.add(deptCode(k.dept));
+    if(q){ kept.push(w.id); from.kept.add(deptCode(k.dept)); }
+  }
+  if(!added.length && !joined.length) return;
+  save(); render();
+  const zh = x => LANG==="zh" ? (zhText(x) ?? x) : x, src = k => [...from[k]].join(" / ");
+  toast([added.length ? (added.length===1 ? `Added 1 product from ${src("added")} to the chiller, freezer and CENTER —its stock is shared`
+                                          : `Added ${added.length} products from ${src("added")} to the chiller, freezer and CENTER —their stock is shared`) : "",
+    joined.length ? (joined.length===1 ? `1 product here now shares its balance with ${src("joined")}` : `${joined.length} products here now share their balance with ${src("joined")}`) : "",
+    kept.length ? (kept.length===1 ? `1 took ${src("kept")}'s balance` : `${kept.length} took ${src("kept")}'s balance`) : ""].filter(Boolean).map(zh).join(" · "));
+}
+
 async function switchDept(id){
   closeDeptMenu();
   if(!id || id===dept) return;
@@ -4152,13 +4540,14 @@ async function switchDept(id){
     }
   }
   dept = id; writeDeptPref();
-  countDraft = {}; cookLines = []; pending = null; stockView = [];
+  countDraft = {}; cookLines = []; issueLines = []; pending = null; stockView = [];
   fpDraft = {}; fpSel = null; fpEdit = false; fpEditSel = null; fpFloor = 1; rcvPending = null;
   const mirror = readMirror();
   state = mirror ? Object.assign(defaultState(), mirror) : defaultState();
   persisted = snapshotOf(state); dirty = false; clearTimeout(flushTimer);
   applyDeptTypeNav();
   loadExpandedRacks();
+  linkStop();
   setSync("starting"); render();
   await subscribeDept();
   const d = depts.find(x=>x.id===id);
@@ -4756,8 +5145,11 @@ function renderStock(){
   if(zv!=="all") list = list.filter(i=>inZoneSel(i,zv));
   const unpacked = wh ? state.items.filter(i=>!hasPack(i)).length : 0;
   const note = $("#stock-note");
-  if(note) note.innerHTML = unpacked ? `<div class="notebar"><span><b>${unpacked} product${unpacked===1?" has":"s have"} no pack size yet</b>, so ${unpacked===1?"its":"their"} balance isn't split into cartons + packets.</span>
-      <button class="btn sm primary" onclick="openPackFromUom()">Set pack sizes from the UOM</button></div>` : "";
+  const blocked = linkBlocked();
+  if(note) note.innerHTML = (unpacked ? `<div class="notebar"><span><b>${unpacked} product${unpacked===1?" has":"s have"} no pack size yet</b>, so ${unpacked===1?"its":"their"} balance isn't split into cartons + packets.</span>
+      <button class="btn sm primary" onclick="openPackFromUom()">Set pack sizes from the UOM</button></div>` : "")
+    + (blocked.length ? `<div class="notebar"><span><b>${blocked.length===1 ? "1 kitchen product can't share its balance yet" : blocked.length+" kitchen products can't share their balance yet"}</b>
+      <span>—counted here by the carton, with no pack size. Set one to share:</span> <span data-notr>${esc(blocked.map(g=>g.blocked.name+" ("+g.blocked.uom+")").join(", "))}</span></span></div>` : "");
   if(f==="short") list = list.filter(i=>{ const m = effMin(i); return m>0 && i.stock<m; });
   else if(f==="out") list = list.filter(i=>i.stock<=0);
   else if(f==="watch") list = list.filter(i=>i.watch);
@@ -4787,7 +5179,7 @@ function renderStock(){
         const minDays = u>0 && mn>0 ? fmt1(mn/u) : "—";
         return `<tr class="sev-${s==="data"?"crit":s==="off"?"":s}">
           <td style="width:30px"><button class="star ${i.watch?"on":""}" onclick="toggleWatch(${i.id})" title="${i.watch?"Stop watching":"Watch this sauce"}"><svg class="ic"><use href="#i-star"/></svg></button></td>
-          <td class="name"><span style="${i.stopped?"text-decoration:line-through;color:var(--ink-3)":""}">${esc(i.name)}</span>
+          <td class="name"><span style="${i.stopped?"text-decoration:line-through;color:var(--ink-3)":""}">${esc(i.name)}</span>${sharedTag(i)}
             <span class="sub">${esc(i.uom)}${i.code?" · "+esc(i.code):""}${hasCat(i)?" · "+esc(i.cat):""}</span></td>
           <td class="num mono dim" style="font-size:11.5px">${wh ? (i.store ? zoneChip(zoneOf(i))+" "+esc(posCode(i)) : '<span class="faint">Unassigned</span>') : esc(i.store||"—")}</td>
           <td class="num" style="${i.stock<0?"color:var(--crit);font-weight:600":""}">${uncounted(i)?'<span class="faint">—</span>':fmtBal(i)}</td>
@@ -7327,7 +7719,7 @@ function planItemRow(it, q){
   const qty = p>1 ? step("c", sg*s.ctn, "ctn") + step("p", sg*s.pkt, unitOf(it)) : step("p", v, hasPack(it) ? unitOf(it) : "qty");
   const d = planDiff(it), pc = posCode(it);
   return `<div class="fp-it${d.chg?" chg":""}${planMatch(it,q)?" hit":""}" data-id="${it.id}">
-    <div class="fp-it-top">${pc&&rackCoded(it.store)?`<span class="mono fp-code">${esc(pc)}</span>`:""}<b>${esc(it.name)}</b>${stockFlag(it)}
+    <div class="fp-it-top">${pc&&rackCoded(it.store)?`<span class="mono fp-code">${esc(pc)}</span>`:""}<b>${esc(it.name)}</b>${stockFlag(it)}${sharedTag(it)}
       <span class="fp-acts"><button type="button" class="btn sm" onclick="openEdit(${it.id})">Edit</button><button type="button" class="btn sm danger" onclick="delItem(${it.id})">Delete</button></span></div>
     <div class="fp-it-sub">${esc(it.uom||"")}${p>1?` · ${p} ${esc(unitOf(it))}/ctn`:""}${it.code?" · "+esc(it.code):""}${!hasPack(it)&&it.looseQty?` · +${fmt(it.looseQty)} loose (set a pack size to merge)`:""}</div>
     <div class="fp-it-q">${qty}<span class="fp-diff" data-diff>${d.html}</span></div>
@@ -8145,12 +8537,73 @@ function issueCompanies(){
   const fromTx = state.tx.filter(t=>t.type==="issue" && t.destCompany).map(t=>t.destCompany);
   return [...new Set([...fromDepts, ...fromTx])].sort();
 }
+/* The lines of the issue being written —item box text and the two qty boxes.
+   Drawn only when a line is added or removed, so a redraw from another device
+   never takes the box being typed in away; balances under them are refreshed. */
+let issueLines = [];
+function issueLineQty(l, it){
+  const c = parseFloat(l.ctn), q = parseFloat(l.qty);
+  if(isNaN(c) && isNaN(q)) return NaN;
+  return r2((isNaN(c)||packOf(it)<=1 ? 0 : c)*packOf(it) + (isNaN(q) ? 0 : q));
+}
+function drawIssueLines(){
+  const host = $("#is-lines"); if(!host) return;
+  host.innerHTML = issueLines.map((l,i)=>`<div class="isline" id="is-line-${i}">
+      <div class="is-it"><label class="is-n" for="is-q-${i}">Item ${i+1}</label>
+        <input id="is-q-${i}" list="is-item-list" placeholder="Search name / code / rack code—" autocomplete="off" value="${esc(l.q)}" oninput="issueSet(${i},'q',this.value)">
+        <div class="qhint" id="is-h-${i}"></div></div>
+      <span class="qpair">
+        <label id="is-cl-${i}">ctn<input id="is-c-${i}" type="number" step="any" min="0" inputmode="decimal" value="${esc(l.ctn)}" oninput="issueSet(${i},'ctn',this.value)"></label>
+        <label id="is-pl-${i}">pkt<input id="is-p-${i}" type="number" step="any" min="0" inputmode="decimal" value="${esc(l.qty)}" oninput="issueSet(${i},'qty',this.value)"></label></span>
+      <div class="is-x"><button class="xbtn" onclick="issueRemoveLine(${i})" title="${issueLines.length>1 ? "Remove this item" : "Clear this item"}">✕</button></div>
+    </div>`).join("");
+  issueHints();
+}
+function issueAddLine(focus){
+  issueLines.push({q:"", ctn:"", qty:""});
+  drawIssueLines();
+  if(focus){ const el = $("#is-q-"+(issueLines.length-1)); if(el) el.focus(); }
+}
+function issueRemoveLine(i){
+  if(issueLines.length>1) issueLines.splice(i, 1); else issueLines = [{q:"", ctn:"", qty:""}];
+  drawIssueLines();
+}
+function issueSet(i, k, v){ if(!issueLines[i]) return; issueLines[i][k] = v; $("#is-line-"+i).classList.remove("bad"); issueHints(); }
+/* Under each line: the balance now and after this issue —every line of the
+   same product counted— and the ctn box only for a product that has cartons. */
+function issueHints(){
+  const take = new Map(), its = issueLines.map(l=>itemByLabel(l.q));
+  issueLines.forEach((l,i)=>{ const it = its[i], q = it ? issueLineQty(l, it) : NaN; if(it && q>0) take.set(it.id, r2((take.get(it.id)||0) + q)); });
+  let n = 0;
+  issueLines.forEach((l,i)=>{
+    const it = its[i], h = $("#is-h-"+i), cl = $("#is-cl-"+i), pl = $("#is-pl-"+i); if(!h) return;
+    const pk = it ? packOf(it) : 1;
+    if(cl) cl.classList.toggle("hidden", !!it && pk<=1);
+    if(pl) pl.firstChild.textContent = it && hasPack(it) ? unitOf(it) : (it ? "qty" : "pkt");
+    if(!it){ h.innerHTML = ""; return; }
+    if(issueLineQty(l, it)>0) n++;
+    const t = take.get(it.id), after = t ? r2(it.stock - t) : null;
+    h.innerHTML = `Balance <b>${esc(fmtBal(it))}</b>` + (t ? ` → <b class="${after<0?"neg":""}">${esc(fmtQty(it, after))}</b>` : "")
+      + (pk>1 ? ` · 1 ctn = ${pk} ${esc(unitOf(it))}` : "")
+      + (it.store ? ` · ${zoneChip(zoneOf(it))} <b>${esc(posCode(it))}</b>` : ` · <span style="color:var(--warn)">no rack yet</span>`);
+  });
+  const lbl = $("#is-submit-l"); if(lbl) lbl.textContent = n>1 ? `Issue ${n} items` : "Issue stock";
+}
+/* Enter on an item box goes to its qty; on a qty box, to the next line —or a new one. */
+function issueKey(e){
+  if(e.key!=="Enter" || e.isComposing) return;
+  const m = (e.target.id||"").match(/^is-([qcp])-(\d+)$/); if(!m) return;
+  e.preventDefault();
+  const i = +m[2];
+  if(m[1]==="q"){ const c = $("#is-c-"+i), p = $("#is-p-"+i); (c && !c.closest(".hidden") ? c : p).focus(); return; }
+  if(i < issueLines.length-1) $("#is-q-"+(i+1)).focus(); else issueAddLine(true);
+}
 function renderIssueStock(){
   const list = $("#is-item-list"); if(!list || !isWarehouse()) return;
   list.innerHTML = itemOptions();
   $("#is-co-list").innerHTML = issueCompanies().map(c=>`<option value="${esc(c)}">`).join("");
   if(!$("#is-date").value) $("#is-date").value = todayStr();
-  moveFormHint("is");
+  if(!issueLines.length) issueAddLine(); else issueHints();
 
   const filterSel = $("#is-co-filter");
   const companies = [...new Set(state.tx.filter(t=>t.type==="issue" && t.destCompany).map(t=>t.destCompany))].sort();
@@ -8224,20 +8677,37 @@ function deleteMove(txId){
   closeModal(); save(); render();
   toast((isIssue?"Issue":"Receipt")+" deleted"+(it?" —"+fmtQty(it, Math.abs(undo))+(isIssue?" restored to stock":" taken off the balance"):""));
 }
+/* Every line goes to the same company on the same date, with the same note;
+   blank lines are skipped, and nothing is issued while any line is half filled. */
 function submitIssue(){
-  const it = itemByLabel($("#is-item-q").value);
-  if(!it){ toast("Pick an item from the list"); return; }
-  const qty = readMoveQty("is", it);
-  if(!(qty>0)){ toast("Enter a qty greater than 0"); return; }
+  const lines = [];
+  for(let i=0;i<issueLines.length;i++){
+    const l = issueLines[i], q = String(l.q||"").trim();
+    if(!q && String(l.ctn).trim()==="" && String(l.qty).trim()==="") continue;
+    const it = itemByLabel(q), qty = it ? issueLineQty(l, it) : NaN;
+    const bad = !it ? `Item ${i+1}: pick an item from the list` : !(qty>0) ? `Item ${i+1}: enter a qty greater than 0` : "";
+    if(bad){
+      const row = $("#is-line-"+i); if(row){ row.classList.add("bad"); row.scrollIntoView({block:"center"}); (it ? $("#is-p-"+i) : $("#is-q-"+i)).focus(); }
+      toast(bad); return;
+    }
+    lines.push({it, qty});
+  }
+  if(!lines.length){ toast("Pick an item from the list"); return; }
   const co = ($("#is-co").value||"").trim();
-  if(!co){ toast("Enter which company this is going to"); return; }
+  if(!co){ toast("Enter which company this is going to"); $("#is-co").focus(); return; }
   const date = $("#is-date").value || todayStr();
   const note = ($("#is-note").value||"").trim();
-  it.stock = Math.round((it.stock-qty)*100)/100; it.counted = true;
-  state.tx.push(newTx({ts:Date.now(), date, itemId:it.id, type:"issue", qty:-qty, note, destCompany:co}));
-  save(); render();
-  clearMoveForm("is");
-  toast("Issued "+fmtQty(it, qty)+" of "+it.name+" to "+co+(it.stock<0?" —balance is now negative, recount it":""));
+  const b = lines.length>1 ? uid("batchSeq") : undefined, ts = Date.now();
+  for(const {it, qty} of lines){
+    it.stock = r2(it.stock - qty); it.counted = true;
+    state.tx.push(newTx({ts, date, itemId:it.id, type:"issue", qty:-qty, note, destCompany:co, b}));
+  }
+  save();
+  issueLines = []; $("#is-note").value = "";
+  render();
+  const neg = new Set(lines.filter(x=>x.it.stock<0).map(x=>x.it.id)).size;
+  if(lines.length===1){ const {it, qty} = lines[0]; toast("Issued "+fmtQty(it, qty)+" of "+it.name+" to "+co+(it.stock<0?" —balance is now negative, recount it":"")); }
+  else toast(`Issued ${lines.length} items to ${co}` + (neg ? (neg===1 ? " —1 is now below zero, recount it" : ` —${neg} are now below zero, recount them`) : ""));
 }
 
 /* ============================================================
@@ -8682,7 +9152,8 @@ function sdCompute(){
     b.fill = billInfoOk && b.status==="dup" && state.bills[b.bk+"@s"]!==b.infoS;      // already in —only its detail is new (and there's somewhere to keep it)
     b.delta = b.status==="new" ? b.qty : b.status==="dup" ? 0 : r2(b.qty-prev);
     const dk = b.itemId+"|"+(b.date||todayStr());
-    b.trend = trendAll || (cut!=null && (b.date||todayStr())<cut) || (b.status==="rev" && trendDay.has(dk) && !dedDay.has(dk));
+    /* a product sharing its balance with a kitchen comes off there (the kitchen's Sales import) —here it's for the graphs */
+    b.trend = trendAll || !!linkKitchens(b.itemId) || (cut!=null && (b.date||todayStr())<cut) || (b.status==="rev" && trendDay.has(dk) && !dedDay.has(dk));
     for(const [g, q] of b.parts){
       if(b.status==="dup"){ g.dup++; continue; }
       if(b.status==="rev") g.rev++;
@@ -8745,6 +9216,16 @@ function renderSdPreview(){
   const heldBar = held.length ? bar("background:var(--warn-bg);color:var(--warn)", pl(held.length,
       `${held.length} product was sold in a different pack size from the one stocked —it isn't taken off until you pick how to count it under Count as.`,
       `${held.length} products were sold in a different pack size from the one stocked —they aren't taken off until you pick how to count them under Count as.`)) : "";
+  /* Products sharing their balance with a kitchen: its Sales import takes them off. Until it's known
+     which those are (still loading), nothing is taken off —a sale could come off twice. */
+  const shared = ours.filter(g=>linkKitchens(g.itemId)), shKs = [...new Set(shared.flatMap(g=>linkKitchens(g.itemId)))].join(" / ");
+  const sharedBar = shared.length ? bar("background:var(--info-bg);color:var(--info)", pl(shared.length,
+      `1 product is shared with ${shKs} —${shKs}'s Sales import takes it off stock, so here it's recorded for the graphs only.`,
+      `${shared.length} products are shared with ${shKs} —${shKs}'s Sales import takes them off stock, so here they're recorded for the graphs only.`)) : "";
+  const wait = linkWaiting() && p.mode==="ded";
+  const waitBar = wait ? bar("background:var(--warn-bg);color:var(--warn)", linkErr
+      ? "Couldn't check which products are shared with the kitchens —connect again, then take these off."
+      : "Checking which products are shared with the kitchens —a moment.") : "";
   const otherBar = others.length ? bar("display:flex;gap:10px;align-items:center;flex-wrap:wrap", `<span class="dim">${pl(others.length,
       `${others.length} product isn't on this warehouse's item list —skipped.`, `${others.length} products aren't on this warehouse's item list —skipped.`)}</span>
       <button class="btn sm" onclick="sdSet('showOther', !sdPending.showOther)">${p.showOther?"Hide them":"Show them"}</button>`) : "";
@@ -8759,12 +9240,13 @@ function renderSdPreview(){
       ${o.map(([v,l])=>`<option value="${v}" ${g.choice===v?"selected":""}>${esc(l)}</option>`).join("")}</select>`;
   };
   const tag = g => g.itemId==null ? '<span class="tag t-off">not in this warehouse</span>'
+    : linkKitchens(g.itemId) && g.per ? '<span class="tag t-info">shared with the kitchen</span>'
     : !g.per ? `<span class="tag t-warn">${g.u.byCarton?"counted by the carton":"different pack size"}</span>`
     : !g.take && !g.trend && g.dup ? '<span class="tag t-off">already in</span>'
     : (g.ret ? '<span class="tag t-ok">returns</span> ' : "") + (g.rev ? '<span class="tag t-warn">revised</span>' : "");
   host.innerHTML = `<div class="panel">
     <div class="panel-h"><h2 data-notr>${esc(p.fname)}</h2><span class="meta">${pl(ours.length, `${fmt(ours.length)} product in this warehouse`, `${fmt(ours.length)} products in this warehouse`)} · ${fmt(new Set(p.lines.map(l=>l.bill)).size)} bills</span></div>
-    ${coBar}${billBar}${modeBar}${sumBar}${issueBar}${heldBar}${otherBar}
+    ${coBar}${billBar}${modeBar}${waitBar}${sumBar}${sharedBar}${issueBar}${heldBar}${otherBar}
     ${rows.length ? `<div class="scroll"><table><thead><tr><th>In the file</th><th>Matched item</th><th class="num">Sold</th><th>Count as</th><th class="num">Take off</th><th class="num">Trends only</th><th class="num">Balance after</th><th></th></tr></thead><tbody>
     ${rows.map(g=>{
       const it = g.itemId!=null ? item(g.itemId) : null, took = it ? takeItems.get(it.id)||0 : 0, after = it ? r2(it.stock - took) : null;
@@ -8781,7 +9263,7 @@ function renderSdPreview(){
     </tbody></table></div>` : `<div class="empty">Nothing in this file is for this warehouse's products.</div>`}</div>
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px;flex-wrap:wrap">
       <button class="btn" onclick="sdPending=null;renderSdPreview()">Cancel</button>
-      <button class="btn primary" onclick="applySalesDeduction()" ${live.length||fillB?"":"disabled"}>${!live.length ? (fillB ? pl(fillB, `Add detail to ${fmt(fillB)} bill`, `Add detail to ${fmt(fillB)} bills`) : "Nothing new")
+      <button class="btn primary" onclick="applySalesDeduction()" ${(live.length||fillB) && !wait?"":"disabled"}>${!live.length ? (fillB ? pl(fillB, `Add detail to ${fmt(fillB)} bill`, `Add detail to ${fmt(fillB)} bills`) : "Nothing new")
         : p.mode==="trend" ? pl(trendB, `Record ${fmt(trendB)} bill for trends`, `Record ${fmt(trendB)} bills for trends`)
         : !takeB ? pl(trendB, `Record ${fmt(trendB)} bill for trends`, `Record ${fmt(trendB)} bills for trends`)
         : pl(takeB, `Take off ${fmt(takeB)} bill`, `Take off ${fmt(takeB)} bills`)}</button>
@@ -8794,6 +9276,7 @@ function renderSdPreview(){
 }
 function applySalesDeduction(){
   if(!sdPending) return;
+  if(linkWaiting() && sdPending.mode==="ded"){ toast("Checking which products are shared with the kitchens —a moment."); return; }
   const {bills} = sdCompute(), live = bills.filter(b=>b.status!=="dup"), fills = bills.filter(b=>b.fill);
   if(!live.length && !fills.length){ toast("Nothing new in this file"); return; }
   const b = uid("batchSeq"), fname = sdPending.fname, roll = {}, days = new Map();
@@ -9357,7 +9840,7 @@ function renderLog(){
   let tx = state.tx.slice().sort((a,b)=>b.ts-a.ts);
   if(f!=="all") tx = tx.filter(t=>t.type===f);
   if(!tx.length){ $("#log-table").innerHTML='<div class="empty">Nothing recorded yet.</div>'; return; }
-  const tag = {sale:'<span class="tag t-warn">Sale out</span>', production:'<span class="tag t-ok">Cook</span>', adjust:'<span class="tag t-info">Correction</span>', issue:'<span class="tag t-crit">Issued</span>', receive:'<span class="tag t-ok">Received</span>'};
+  const tag = {sale:'<span class="tag t-warn">Sale out</span>', production:'<span class="tag t-ok">Cook</span>', adjust:'<span class="tag t-info">Correction</span>', issue:'<span class="tag t-crit">Issued</span>', receive:'<span class="tag t-ok">Received</span>', link:'<span class="tag t-info">Shared</span>'};
   $("#log-table").innerHTML = `<table><thead><tr><th>Date</th><th>Type</th><th>Item</th><th class="num">Qty</th><th class="num">Yield</th><th>Note</th></tr></thead><tbody>`
     + tx.slice(0,600).map(t=>{
         const it = item(t.itemId);
@@ -9875,8 +10358,8 @@ $("#rk-q").addEventListener("input", ()=>{ fpSel = null; renderRacks(); });
 $("#is-co-filter").addEventListener("change", renderIssueStock);
 $("#rc-sup-filter").addEventListener("change", renderReceive);
 $("#al-zone").addEventListener("change", renderLowStock);
-$("#is-item-q").addEventListener("input", ()=>moveFormHint("is"));
 $("#rc-item-q").addEventListener("input", ()=>moveFormHint("rc"));
+$("#is-lines").addEventListener("keydown", issueKey);
 $("#isum-from").addEventListener("change", renderIssueSummary);
 $("#isum-to").addEventListener("change", renderIssueSummary);
 $("#isum-co-drill").addEventListener("change", renderIssueSummary);
