@@ -205,6 +205,17 @@ needs nothing special.
   balance, minimum and past movements into packets and folds Loose Qty in, so
   history and totals stay right. Setting a pack size by hand in **Edit** does
   the same, asking once whether the old figures were cartons or packets.
+  - The sales bills remembered for the product are rescaled too. Importing the
+    same sales file again then compares like with like, and puts right a sale
+    that was counted in the wrong unit.
+- **A pack size of 1 on a UOM that holds more** (`24x0.397kg/ctn` with pack
+  size 1) keeps the balance in whole cartons, so one can sold or issued would
+  come off as a carton.
+  - The Stock page lists these products.
+  - **Set pack sizes from the UOM** and **Edit** convert them: 4 ctn becomes
+    96 cans, not 4.
+- **Add item:** the pack size fills in from the UOM as you type it
+  (`24x0.397kg/ctn` → 24), until you change it by hand.
 - Until a product has a pack size it behaves exactly as before (one number,
   plus Loose Qty).
 - **What's inside a carton** (`items.unit`) names the small unit when the UOM
@@ -389,6 +400,9 @@ Takes what was sold off the stock on hand. Drop YonYou's sales export
     carton, so one box is one unit. Only the item's own carton UOM, a UOM that
     says how many it holds, or the whole carton's size (`10kg/ctn` of
     `10x1kg/ctn`) counts as a carton. Receiving follows the same rule.
+  - The item's own UOM counts as a carton only if it actually is one
+    (`24x0.397kg/ctn`, `15kg/ctn`). A product stocked as `0.397kg/can`, 24 to
+    a carton, sold as `0.397kg/can` is one can.
   - **Corrections:** a bill whose quantity changed is corrected the way it was
     first applied. One recorded for trends only stays trends only; one taken
     off stock gets the difference taken off or put back. So importing the same
@@ -397,6 +411,11 @@ Takes what was sold off the stock on hand. Drop YonYou's sales export
   - A product sold in a different pack size from the one stocked (sold
     `0.1kg/pkt`, stocked `0.5kg/pkt`) isn't taken off until someone picks how
     to count it.
+  - **Kept in whole cartons:** a single can or packet of a product whose
+    balance is in whole cartons isn't taken off. That means no pack size, or a
+    pack size of 1 on a UOM like `24x0.397kg/ctn`. The preview names it: give
+    it a pack size, then import the file again. A whole carton sold still
+    comes off.
 - **Subtotals and returns:** 分节小计 subtotal rows (they carry the product
   code and its total for the whole file) are skipped. 退换货 return lines have a
   negative quantity and put stock back.
