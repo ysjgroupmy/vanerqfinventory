@@ -2820,6 +2820,9 @@ const ZH_DICT = /*ZH_DICT*/{
 "Nothing needs attention —every product that should be shared is.":"没有需要处理的——该共享的货品都已共享。",
 "No products to share.":"没有要共享的货品。",
 "Location names no room —write it as {n}CH, {n}FR or {n} Center":"位置没有写明区域——请写成 {n1}CH、{n2}FR 或 {n3} Center",
+"Removed {n} product that isn't kept here":"已移除 {n} 个不在这里存放的货品",
+"Removed {n} products that aren't kept here":"已移除 {n} 个不在这里存放的货品",
+"Not shared —{n} keeps it at {s}":"未共享——{n} 把它放在 {s}",
 "＋ insert {n}":"＋ 插入 {n}"
 }/*/ZH_DICT*/;
 const LANG_KEY = "qf_lang";
@@ -4267,10 +4270,11 @@ const LINK_ROOM_WORDS = {center:["CENTER","CENTRE","CTR"], frozen:["FR","FZ","FR
   chilled:["CH","CHL","CHILL","CHILLER","CHILLERS","CHILLED","COOLER"]};
 const LINK_ROOM_ZH = [["center", /中心/], ["frozen", /冷冻|急冻/], ["chilled", /冷藏|保鲜/]];
 /* Which warehouse room a kitchen product's Storage location names: a room word
-   —chiller, freezer or CENTER, short or long, English or Chinese— with or without
-   the warehouse's code ("0434CH", "0434 Freezer", "FR 0434", "CENTER", "冷冻").
-   Without a code it's the warehouse's, as long as there's only one. A location
-   that names a kitchen ("0428 FR", "Kitchen chiller") is that kitchen's own.
+   —chiller, freezer or CENTER, short or long, English or Chinese— with the
+   warehouse's code or none ("0434CH", "0434 Freezer", "FR 0434", "CENTER", "冷冻").
+   A location with another code in it is somewhere else ("0424FR" —another
+   site's freezer, "0428 FR" —the kitchen's own); one with no code is the
+   warehouse's, as long as there's only one. "Kitchen chiller" is the kitchen's.
    -> {wh, room} or null */
 function linkRoom(store){
   const raw = String(store||"").toUpperCase();
@@ -4279,11 +4283,11 @@ function linkRoom(store){
   let room = Object.keys(LINK_ROOM_WORDS).find(r=>toks.some(t=>LINK_ROOM_WORDS[r].includes(t)));
   if(!room){ const z = LINK_ROOM_ZH.find(([, re])=>re.test(raw)); room = z ? z[0] : null; }
   if(!room) return null;
+  if(toks.includes("KITCHEN") || /厨房/.test(raw)) return null;
   const codes = d => [d.id, d.code].map(c=>String(c||"").toUpperCase()).filter(Boolean);
-  if(toks.includes("KITCHEN") || /厨房/.test(raw) || depts.some(d=>d.type!=="warehouse" && codes(d).some(c=>toks.includes(c)))) return null;
-  const whs = depts.filter(d=>d.type==="warehouse");
-  const wh = whs.find(d=>codes(d).some(c=>toks.includes(c))) || (whs.length===1 ? whs[0] : null);
-  return wh ? {wh:wh.id, room} : null;
+  const whs = depts.filter(d=>d.type==="warehouse"), nums = toks.filter(t=>/^\d{3,}$/.test(t));
+  if(nums.length){ const wh = whs.find(d=>codes(d).some(c=>nums.includes(c))); return wh ? {wh:wh.id, room} : null; }
+  return whs.length===1 ? {wh:whs[0].id, room} : null;
 }
 function deptCode(id){ const d = depts.find(x=>x.id===id); return d ? d.code : String(id); }
 function deptIsWarehouse(id){ return (depts.find(d=>d.id===id)||{}).type==="warehouse"; }
@@ -4551,8 +4555,24 @@ function linkReconcile(){
   const ix = linkIndex(); if(!ix) return;
   const busy = new Set(readLinkOut().map(e=>e.pd+"|"+e.pid));
   const unsaved = it => { const was = persisted && persisted.items.get(it.id); return !was || was!==ser(itemRow(it)); };
-  const linked = new Set(); for(const t of state.tx) if(t.type==="link") linked.add(t.itemId);
-  const added = [], joined = [], kept = [], from = {added:new Set(), joined:new Set(), kept:new Set()};
+  const linked = new Set(), own = new Set();
+  for(const t of state.tx){ if(t.type==="link") linked.add(t.itemId); else if(!(t.type==="sale" && t.h)) own.add(t.itemId); }   // sales kept for the graphs only don't count
+  const added = [], joined = [], kept = [], gone = [], from = {added:new Set(), joined:new Set(), kept:new Set()};
+  /* A product added here for a kitchen product whose location doesn't (or no
+     longer) points here —"0424FR" is another site's freezer— goes again, as
+     long as nothing was ever done with it here: no count, issue, receipt or
+     sale of its own. One that was is kept, and Setup's check lists it. */
+  const madeFor = new Map();
+  for(const r of linkData.rows.values()) if(!deptIsWarehouse(r.dept)) madeFor.set(linkNewId(r), r);
+  for(const it of state.items.slice()){
+    const k = madeFor.get(it.id); if(!k || ix.of.has(dept+"|"+it.id)) continue;
+    const r = linkRoom(k.store); if(r && r.wh===dept) continue;
+    if(own.has(it.id) || (persisted && persisted.items.get(it.id)!==ser(itemRow(it)))) continue;
+    state.items = state.items.filter(i=>i.id!==it.id);
+    state.plan = state.plan.filter(p=>p.itemId!==it.id);
+    if(typeof fpDraft!=="undefined") delete fpDraft[it.id];
+    gone.push(`${it.name} (${deptCode(k.dept)} ${k.store||"—"})`);
+  }
   for(const g of ix.groups){
     if(g.wh!==dept || !g.ks.length || g.blocked) continue;
     const k = g.ks[0];
@@ -4573,13 +4593,15 @@ function linkReconcile(){
     w.stock = k.stock; joined.push(w.id); from.joined.add(deptCode(k.dept));
     if(q){ kept.push(w.id); from.kept.add(deptCode(k.dept)); }
   }
-  if(!added.length && !joined.length) return;
+  if(!added.length && !joined.length && !gone.length) return;
   save(); render();
   const zh = x => LANG==="zh" ? (zhText(x) ?? x) : x, src = k => [...from[k]].join(" / ");
   toast([added.length ? (added.length===1 ? `Added 1 product from ${src("added")} to the chiller, freezer and CENTER —its stock is shared`
                                           : `Added ${added.length} products from ${src("added")} to the chiller, freezer and CENTER —their stock is shared`) : "",
     joined.length ? (joined.length===1 ? `1 product here now shares its balance with ${src("joined")}` : `${joined.length} products here now share their balance with ${src("joined")}`) : "",
-    kept.length ? (kept.length===1 ? `1 took ${src("kept")}'s balance` : `${kept.length} took ${src("kept")}'s balance`) : ""].filter(Boolean).map(zh).join(" · "));
+    kept.length ? (kept.length===1 ? `1 took ${src("kept")}'s balance` : `${kept.length} took ${src("kept")}'s balance`) : "",
+    gone.length ? (gone.length===1 ? "Removed 1 product that isn't kept here" : `Removed ${gone.length} products that aren't kept here`) : ""].filter(Boolean).map(zh).join(" · ")
+    + (gone.length ? ": "+gone.join(", ") : ""));
 }
 
 /* Setup: every product that should share a balance between a kitchen and the
@@ -4619,11 +4641,13 @@ function renderLinkCheck(){
       if(z==="chilled" || z==="frozen") return z;
       if(r && !rackCoded(r)){ const p = parseZone(r); if(p==="chilled" || p==="frozen") return p; }
       return /^(\w*?)CENT(ER|RE)$/i.test(r.replace(/[\s\-_]/g,"")) ? "center" : null; };
-    for(const i of state.items){ const rm = roomOf(i);
+    const kByCode = new Map();
+    for(const r of linkData.rows.values()) if(!deptIsWarehouse(r.dept) && r.code) kByCode.set(String(r.code).trim().toUpperCase(), r);
+    for(const i of state.items){ const rm = roomOf(i), kk = kByCode.get(String(i.code||"").trim().toUpperCase());
       if(rm && !ix.of.has(dept+"|"+i.id) && !ix.groups.some(g=>g.blocked && g.blocked.id===i.id))
       rows.push({todo:false, name:i.name, sub:i.uom+(i.code?" · "+i.code:""), room:ROOM[rm], kit:"—",
         whc:`<div><b>${esc(deptCode(dept))}</b> <span class="dim" data-notr>${esc(posCode(i))}</span> · ${bal(i)}</div>`,
-        st:"Not shared —no kitchen product with this code and size", cls:"t-off"}); }
+        st: kk && !linkRoom(kk.store) ? `Not shared —${deptCode(kk.dept)} keeps it at ${kk.store||"—"}` : "Not shared —no kitchen product with this code and size", cls:"t-off"}); }
   } else {       // mentions the warehouse but no room it knows
     for(const i of state.items){
       const t = String(i.store||"").toUpperCase();

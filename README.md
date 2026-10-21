@@ -495,8 +495,13 @@ CENTER, so those products have **one balance** on both sides.
   - `0434` in front or after is optional (`0434CH`, `FR 0434`, plain
     `CENTER`), as are spaces, dashes and capitals. A number after the room
     is fine (`FR1`).
-  - A location that names a kitchen (`0428 FR`, `Kitchen chiller`, 厨房) is
-    that kitchen's own, so it isn't shared.
+  - A location with any other code in it is somewhere else, so it isn't
+    shared: another site's freezer (`0424FR`), or the kitchen's own
+    (`0428 FR`). The same goes for `Kitchen chiller` and 厨房.
+  - A product 0434 added for a kitchen product whose location no longer
+    points to 0434 is removed again when 0434 opens. That only happens if
+    0434 never counted, issued, received or sold it itself. Otherwise it's
+    kept and listed on Setup.
 - **Matched by code and unit size:** `2kg/pkt` and `0.2kg/pkt` of the same
   code are separate products. 0434 can hold it as `2kg/pkt`, or as a carton
   (`6x2kg/ctn`) with a pack size, because then its balance is in packets
