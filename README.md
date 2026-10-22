@@ -330,14 +330,35 @@ floor's layout was added) and leaves the other floor as it is.
   **Enter** opens the first match.
 - **Print** opens the plan as a printable page, one A4 page per floor, each
   with a table of its racks (zone, levels, products, out, low).
+- **Adding a rack:**
+  - **Add rack** (top of the page) suggests the next name in the series on
+    the floor you're looking at (R10A after R9A; R6B upstairs). Pick the zone,
+    the number of levels and the floor.
+  - The rack goes straight onto that floor, in the middle of the screen and
+    clear of other racks, walls and doorways. Edit layout opens with it
+    selected so you can drag it to where it really stands.
+  - A name that isn't a rack code (like CENTER or Cold Room) makes an open
+    area, drawn as a room.
+  - Or, in Edit layout, pick **+ Rack** and drag out where the rack stands;
+    it then asks for the name.
+  - On the Shelves view, Add rack still asks for a row and doesn't touch the
+    plan.
+- **Rack settings (⚙):** rename the rack (its products' rack codes and its
+  levels go with it), set its zone and walking order (row / position, used
+  by count sheets and the Shelves board), **Put it on / Move it on the
+  plan**, or **Remove rack** (its products go to Unassigned, never deleted).
+- **Levels:** **+ Add level** at the bottom of a rack's panel adds the next
+  level. An empty level has **Remove level**.
+- A rack that isn't on the plan says so at the top of its panel, with **Put
+  it on the plan**.
 - **Edit layout** moves things to match the floor:
   - **Move and resize:** tap a rack, wall, door, stairs or area to select it,
     then drag it to move it. Drag one of the handles on its corners and sides
     to resize from that side (a wall or door has one on each end). Or type
     exact numbers in the side panel.
-  - **Draw:** pick a tool (**Wall**, **Door**, **Stairs**, **No-access
-    block**, **Area**, **Floor**, **Label**) and drag on the plan to draw one
-    that size. A single tap drops a standard-size one instead.
+  - **Draw:** pick a tool (**+ Rack**, **Wall**, **Door**, **Stairs**,
+    **No-access block**, **Area**, **Floor**, **Label**) and drag on the plan
+    to draw one that size. A single tap drops a standard-size one instead.
   - **Rotate** turns the selection a quarter (a door's swing turns with it).
     **Duplicate** copies a shape.
   - **Undo / Redo** step back and forward through every layout change until
@@ -351,7 +372,10 @@ floor's layout was added) and leaves the other floor as it is.
     the floor selects it.
   - Racks not on the plan yet are listed with **Place**. Place puts the rack
     in the middle of what's on screen, at the nearest spot clear of other
-    racks.
+    racks, walls and doorways. A room keeps its zone.
+  - On a phone, the selected shape's actions (rotate, settings, off the
+    plan / duplicate, delete) are in a bar at the bottom of the screen;
+    **Details** scrolls down to its exact size and place.
   - Rack positions are saved on the rack (`racks.x/y/w/h/floor`); walls,
     doors, no-access blocks and areas in `settings.floor_plan`.
 

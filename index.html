@@ -609,6 +609,18 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
 @keyframes fpflash{0%{background:var(--fp-low)}100%{background:transparent}}
 .fp-warn{background:var(--crit-bg);border:1px solid var(--crit-rule);color:var(--crit);font-size:12px;padding:6px 9px;margin-top:8px}
 .fp-acts2{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.fp-offnote{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 12px;background:var(--warn-bg);border-bottom:1px solid var(--warn-rule);color:var(--warn);font-size:12.5px;flex:none}
+.fp-offnote .btn{margin-left:auto}
+.fp-addlv{margin:12px 0 4px}
+.fp-tool-rack{font-weight:600}
+.fp-selbar{display:none}
+@media(max-width:860px){
+  .fp-selbar{display:flex;gap:6px;align-items:center;position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--panel);border-top:1px solid var(--rule-2);
+    box-shadow:0 -4px 12px rgba(0,0,0,.1);padding:8px 10px calc(8px + env(safe-area-inset-bottom));overflow-x:auto}
+  .fp-selbar b{margin-right:auto;font-size:14px;white-space:nowrap}
+  .fp-selbar .btn{flex:none}
+  #page-racks:has(.fp-selbar){padding-bottom:64px}
+}
 .fp-mv{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px}
 .fp-mv .field{margin-bottom:8px}
 .fp-side-b{overflow-y:auto;padding:4px 12px 12px;flex:1;min-height:0}
@@ -2967,6 +2979,44 @@ const ZH_DICT = /*ZH_DICT*/{
 "{n} · {n}th floor":"{n1} · {n2} 楼",
 "{n} racks · {n} products · {n} out · {n} low · {d}":"{n1} 个货架 · {n2} 个货品 · {n3} 缺货 · {n4} 低库存 · {d}",
 "{n} rack · {n} products · {n} out · {n} low · {d}":"{n1} 个货架 · {n2} 个货品 · {n3} 缺货 · {n4} 低库存 · {d}",
+"Open one and press Put it on the plan, or place them in Edit layout.":"打开其中一个并点“放上平面图”，或在编辑布局中放置。",
+"Rack settings —name, zone, levels, remove":"货架设置 —名称、区域、层、移除",
+"+ Add level":"+ 添加层",
+"Selection":"所选对象",
+"Rotate":"旋转",
+"Settings":"设置",
+"Off plan":"移出平面图",
+"Deselect":"取消选择",
+"Rename, zone, remove":"改名、区域、移除",
+"⚙ Settings":"⚙ 设置",
+"Levels":"层数",
+"Put it on the floor plan now —you then drag it to where it stands":"现在就放上平面图 —然后把它拖到实际位置",
+"A labelled rack —its products get rack codes like {s}.":"有编码的货架 —其货品的货位编码如 {s}。",
+"An open area, like CENTER —drawn as a room, its products are just listed.":"开放区域（如 CENTER）—画成一个房间，货品只按清单列出。",
+"{s} added —drag it to where it stands, then press Done editing":"已添加 {s} —把它拖到实际位置，然后点“完成编辑”",
+"Position in row":"排内位置",
+"Row and position set the walking order —on count sheets and the Shelves board (lower = earlier).":"排和位置决定巡货顺序 —用于盘点表和货架视图（数字越小越靠前）。",
+"on the {n}st floor plan":"在 {n} 楼平面图上",
+"on the {n}nd floor plan":"在 {n} 楼平面图上",
+"on the {n}rd floor plan":"在 {n} 楼平面图上",
+"on the {n}th floor plan":"在 {n} 楼平面图上",
+"not on the floor plan":"不在平面图上",
+"Move it on the plan":"在平面图上移动",
+"Put it on the plan":"放上平面图",
+"Not on the floor plan yet.":"尚未放上平面图。",
+"{n} products · {n} levels · not on the plan":"{n1} 个货品 · {n2} 层 · 不在平面图上",
+"{n} product · {n} levels · not on the plan":"{n1} 个货品 · {n2} 层 · 不在平面图上",
+"{n} products · {n} level · not on the plan":"{n1} 个货品 · {n2} 层 · 不在平面图上",
+"{n} product · {n} level · not on the plan":"{n1} 个货品 · {n2} 层 · 不在平面图上",
+"{n} products · not on the plan":"{n} 个货品 · 不在平面图上",
+"{n} product · not on the plan":"{n} 个货品 · 不在平面图上",
+"Level {n} added to {s}":"已为 {s} 添加第 {n} 层",
+"{s} saved —{s} · renamed from {s}":"{s1} 已保存 —{s2} · 原名 {s3}",
+"{s} saved —{s}":"{s1} 已保存 —{s2}",
+"A rack name can't have quotes, \\, <, > or & in it":"货架名称不能包含引号、\\、<、> 或 &",
+"Keep the rack name to {n} characters or fewer":"货架名称不能超过 {n} 个字符",
+"\"Unassigned\" is kept for products with no rack":"“Unassigned” 保留给没有货架的货品",
+"There's already a rack called {s}":"已有名为 {s} 的货架",
 "＋ insert {n}":"＋ 插入 {n}"
 }/*/ZH_DICT*/;
 const LANG_KEY = "qf_lang";
@@ -7564,52 +7614,168 @@ function cmpLevel(a,b){
   if(an!==bn) return an?-1:1;
   return String(a).localeCompare(String(b));
 }
-function promptAddRack(){
-  const z = rkZoneTab!=="all" ? rkZoneTab : "dry";
+/* A rack name has to be unique (ignoring case) and safe to put in a rack
+   code and a button —no quotes, backslash, < > or &. */
+function rackNameError(name, except){
+  if(!name) return "Enter a rack name";
+  if(/['"\\<>&]/.test(name)) return "A rack name can't have quotes, \\, <, > or & in it";
+  if(name.length>24) return "Keep the rack name to 24 characters or fewer";
+  if(name.toLowerCase()==="unassigned") return "\"Unassigned\" is kept for products with no rack";
+  const clash = rackList().find(n=>n!==except && n.toLowerCase()===name.toLowerCase());
+  return clash ? "There's already a rack called "+clash : "";
+}
+/* The next name in the series on this floor: R1A…R9A → R10A, R1B…R5B → R6B. */
+function suggestRackName(){
+  const pat = /^([A-Za-z]{1,3})(\d+)([A-Za-z]{0,2})$/;
+  let pool = rkView!=="shelves" ? state.racks.filter(r=>r.x!=null && (r.floor||1)===fpFloor && pat.test(r.name)).map(r=>r.name) : [];
+  if(!pool.length) pool = rackList().filter(n=>pat.test(n));
+  if(!pool.length) return rackNameError("R1A") ? "" : "R1A";
+  const groups = new Map();      // the commonest letters-number-letters pattern wins
+  for(const n of pool){
+    const [, pre, num, suf] = n.match(pat), k = pre.toUpperCase()+"|"+suf.toUpperCase();
+    const g = groups.get(k) || {pre, suf, n:0, max:0};
+    g.n++; g.max = Math.max(g.max, +num); groups.set(k, g);
+  }
+  const g = [...groups.values()].sort((a,b)=>b.n-a.n)[0];
+  for(let i = g.max+1; i < g.max+100; i++){ const n = g.pre+i+g.suf; if(!rackNameError(n)) return n; }
+  return "";
+}
+/* Add a rack. On the floor plan it goes straight onto the floor —in the
+   middle of the screen, or where it was drawn with the Rack tool— and Edit
+   layout opens with it selected, ready to be dragged to where it stands.
+   On Shelves it joins a row there, as before. It starts with the number of
+   levels asked for (1L at the top). */
+let addRackRect = null;
+function promptAddRack(rect){
+  const plan = rkView!=="shelves";
+  addRackRect = rect || null;
+  const z = !plan && rkZoneTab!=="all" ? rkZoneTab : "dry";
+  const floors = planFloors(); if(!floors.includes(fpFloor)) floors.push(fpFloor);
   modal(`<h3>Add a rack</h3>
-    <div class="field"><label>Rack name</label><input id="m-rackname" placeholder="e.g. R10A or CENTER"></div>
-    <div class="field"><label>Zone —the room this rack stands in</label><select id="m-rackzone">${zoneOptions(z)}</select></div>
-    <div class="field"><label>Row</label><input id="m-rackrow" type="number" min="1" step="1" value="1"></div>
+    <div class="field"><label>Rack name</label><input id="m-rackname" value="${esc(suggestRackName())}" placeholder="e.g. R10A or CENTER" autocomplete="off"></div>
+    <p class="dim" id="m-rackkind" style="font-size:12px;margin:-4px 0 10px"></p>
+    <div class="fp-mv">
+      <div class="field"><label>Zone</label><select id="m-rackzone">${zoneOptions(z)}</select></div>
+      <div class="field"><label>Levels</label><input id="m-racklv" type="number" min="1" max="20" step="1" value="3" inputmode="numeric"></div>
+      ${plan ? (rect ? "" : `<div class="field"><label>Floor</label><select id="m-rackfloor">${floors.sort((x,y)=>x-y).map(f=>`<option value="${f}" ${f===fpFloor?"selected":""}>${ordinal(f)} floor</option>`).join("")}</select></div>`)
+             : `<div class="field"><label>Row</label><input id="m-rackrow" type="number" min="1" step="1" value="1"></div>`}
+    </div>
+    ${plan && !rect ? `<div class="field"><label class="opt"><input type="checkbox" id="m-rackplace" checked> Put it on the floor plan now —you then drag it to where it stands</label></div>` : ""}
     <div class="mfoot"><button class="btn" onclick="closeModal()">Cancel</button>
-      <button class="btn primary" onclick="addRack()">Add</button></div>`);
-  $("#m-rackname").focus();
+      <button class="btn primary" onclick="addRack()">Add rack</button></div>`);
+  const nm = $("#m-rackname"), lvBox = $("#m-racklv");
+  const kind = () => {
+    const v = nm.value.trim();
+    $("#m-rackkind").textContent = !v ? "" : rackCoded(v)
+      ? "A labelled rack —its products get rack codes like "+v+"1L01."
+      : "An open area, like CENTER —drawn as a room, its products are just listed.";
+    if(!lvBox.dataset.user) lvBox.value = rackCoded(v) || !v ? 3 : 1;
+  };
+  nm.addEventListener("input", kind);
+  lvBox.addEventListener("input", ()=>{ lvBox.dataset.user = "1"; });
+  kind(); nm.focus(); nm.select();
 }
 function addRack(){
   const name = ($("#m-rackname").value||"").trim();
-  if(!name){ toast("Enter a rack name"); return; }
-  if(state.racks.some(r=>r.name===name) || name==="Unassigned"){ toast("That rack already exists"); return; }
-  const row = Math.max(1, parseInt($("#m-rackrow").value,10)||1);
+  const err = rackNameError(name); if(err){ toast(err); return; }
   const zone = $("#m-rackzone").value || "dry";
+  const nLv = Math.min(20, Math.max(1, parseInt($("#m-racklv").value,10)||1));
+  const plan = rkView!=="shelves", rect = addRackRect;
+  const place = plan && (!!rect || !!($("#m-rackplace") && $("#m-rackplace").checked));
+  const floor = rect ? rect.floor : $("#m-rackfloor") ? (+$("#m-rackfloor").value||1) : fpFloor;
+  const row = plan ? floor : Math.max(1, parseInt($("#m-rackrow").value,10)||1);
   const inRow = state.racks.filter(r=>(r.row||1)===row);
   const order = (inRow.length?Math.max(...inRow.map(r=>r.order||0)):0)+1;
-  state.racks.push({name, order, row, zone});
-  registerLevel(name, "1");
-  closeModal(); save(); render();
-  toast("Rack "+name+" added —"+zoneInfo(zone).label);
+  if(place && fpEdit) planPush();
+  const rk = {name, order, row, zone};
+  state.racks.push(rk);
+  for(let l=1; l<=nLv; l++) registerLevel(name, String(l));
+  closeModal(); addRackRect = null;
+  if(!place){ save(); render(); toast("Rack "+name+" added —"+zoneInfo(zone).label); return; }
+  /* onto the plan, in Edit layout with it selected */
+  fpSel = null; fpTool = null;
+  if(!fpEdit){ fpEdit = true; fpHist = []; fpRedo = []; }
+  if(fpFloor!==floor){ fpFloor = floor; fpZoom = 1; }
+  let r = rect;
+  if(!r){
+    const coded = rackCoded(name), w = coded ? 5 : 10, h = coded ? Math.max(4, nLv*2+2) : 8;
+    renderRacks();
+    const c = planViewCenter(), at = planFreeSpot(c.x, c.y, w, h, name);
+    r = {x:at.x, y:at.y, w, h};
+  }
+  Object.assign(rk, {x:r.x, y:r.y, w:r.w, h:r.h, floor});
+  fpEditSel = {kind:"rack", key:name};
+  save(); render();
+  planShowMap(); planCenterOn(name);
+  toast(name+" added —drag it to where it stands, then press Done editing");
 }
-/* Rack settings: which zone it stands in, and where it sits on the board. */
+/* Rack settings: name, zone, walking order, and its place on the plan. */
 function promptMoveRack(name){
   const rk = state.racks.find(r=>r.name===name);
   const curRow = rk ? (rk.row||1) : defaultRackRow(name);
   const curOrder = rk ? (rk.order||0) : 0;
-  const n = state.items.filter(i=>(i.store||"")===name).length;
+  const n = state.items.filter(i=>(i.store||"")===name).length, lv = levelsOf(name), placed = rk && rk.x!=null;
   modal(`<h3>Rack ${esc(name)}</h3>
+    <div class="field"><label>Name</label><input id="m-mv-name" value="${esc(name)}" autocomplete="off"></div>
     <div class="field"><label>Zone —the room this rack stands in</label><select id="m-mv-zone">${zoneOptions(rackZone(name))}</select></div>
-    <div class="field"><label>Row</label><input id="m-mv-row" type="number" min="1" step="1" value="${curRow}"></div>
-    <div class="field"><label>Position in row (lower = further left)</label><input id="m-mv-order" type="number" step="1" value="${curOrder}"></div>
-    <p class="dim" style="font-size:12px">The ${n} item${n===1?"":"s"} on this rack count as stock in whichever zone it's set to.</p>
+    <div class="fp-mv" style="grid-template-columns:1fr 1fr">
+      <div class="field"><label>Row</label><input id="m-mv-row" type="number" min="1" step="1" value="${curRow}"></div>
+      <div class="field"><label>Position in row</label><input id="m-mv-order" type="number" step="1" value="${curOrder}"></div>
+    </div>
+    <p class="dim" style="font-size:12px;margin:-4px 0 10px">Row and position set the walking order —on count sheets and the Shelves board (lower = earlier).</p>
+    <p class="dim" style="font-size:12.5px"><span>${n} product${n===1?"":"s"} · ${lv.length} level${lv.length===1?"":"s"}</span> · <span>${placed ? "on the "+ordinal(rk.floor||1)+" floor plan" : "not on the floor plan"}</span></p>
+    <div class="fp-acts2">
+      <button class="btn sm" onclick="planEditRack('${esc(name)}')">${placed ? "Move it on the plan" : "Put it on the plan"}</button>
+      <button class="btn sm danger" style="margin-left:auto" onclick="closeModal();removeRack('${esc(name)}')">Remove rack</button>
+    </div>
     <div class="mfoot"><button class="btn" onclick="closeModal()">Cancel</button>
       <button class="btn primary" onclick="moveRack('${esc(name)}')">Save</button></div>`);
 }
 function moveRack(name){
+  const newName = ($("#m-mv-name").value||"").trim();
+  if(newName!==name){ const err = rackNameError(newName, name); if(err){ toast(err); return; } }
   const row = Math.max(1, parseInt($("#m-mv-row").value,10)||1);
   const order = parseInt($("#m-mv-order").value,10)||0;
   const zone = $("#m-mv-zone").value || "dry";
   let rk = state.racks.find(r=>r.name===name);
   if(!rk){ rk = {name, order:0, row:1, zone:"dry"}; state.racks.push(rk); }
   rk.row = row; rk.order = order; rk.zone = zone;
+  if(newName!==name) renameRack(name, newName);
   closeModal(); save(); render();
-  toast(name+" saved —"+zoneInfo(zone).label+", row "+row);
+  toast(newName+" saved —"+zoneInfo(zone).label+(newName!==name?" · renamed from "+name:""));
+}
+/* Renaming moves everything with it: the products on it (their rack codes
+   change with the name), its levels, its place on the plan. */
+function renameRack(oldName, newName){
+  const rk = state.racks.find(r=>r.name===oldName);
+  if(rk) rk.name = newName;
+  for(const lv of state.levels) if(lv.rack===oldName) lv.rack = newName;
+  for(const it of state.items) if((it.store||"")===oldName) it.store = newName;
+  if(expandedRacks.has(oldName)){ expandedRacks.delete(oldName); expandedRacks.add(newName); saveExpandedRacks(); }
+  if(fpSel===oldName) fpSel = newName;
+  if(fpEditSel && fpEditSel.kind==="rack" && fpEditSel.key===oldName) fpEditSel = {kind:"rack", key:newName};
+}
+/* "Put it on / Move it on the plan": Edit layout with the rack selected —placed
+   in the middle of the screen first if it isn't on the plan yet. */
+function planEditRack(name){
+  closeModal();
+  if(rkView==="shelves"){ rkView = "plan"; try{ localStorage.setItem("qf_racks_view", "plan"); }catch(e){} }
+  const rk = state.racks.find(r=>r.name===name);
+  fpSel = null; fpTool = null;
+  if(!fpEdit){ fpEdit = true; fpHist = []; fpRedo = []; }
+  if(rk && rk.x!=null){ fpFloor = rk.floor||1; fpEditSel = {kind:"rack", key:name}; renderRacks(); planShowMap(); planCenterOn(name); }
+  else { fpEditSel = null; renderRacks(); planShowMap(); planPlace(name); }
+}
+/* bring the map on screen (on a phone it's often scrolled away above the panel) */
+function planShowMap(){ const b = $("#fp-mapbox"); if(b) b.scrollIntoView({block: narrowScreen() ? "center" : "nearest", behavior:"instant"}); }
+/* "+ Add level" on the rack panel: the next number, straight away. */
+function addLevelQuick(rackName){
+  const lv = levelsOf(rackName), nums = lv.map(Number).filter(n=>!isNaN(n));
+  const next = String(nums.length ? Math.max(...nums)+1 : lv.length+1);
+  registerLevel(rackName, next);
+  save();
+  fpLvl = next; renderRacks();
+  toast("Level "+next+" added to "+rackName);
 }
 /* Removing a rack also unassigns whatever is on it (back to Unassigned,
    never deleted) and drops its registered levels —matching what the
@@ -8088,7 +8254,7 @@ function renderPlan(){
       <button type="button" class="fp-zb" data-z="out" onclick="planZoomBy(1/1.5)" title="Zoom out" aria-label="Zoom out">−</button>
       <button type="button" class="fp-zb" data-z="fit" onclick="planZoomTo(1)" title="Fit the whole floor" aria-label="Fit the whole floor"><svg viewBox="0 0 24 24" class="ic"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button></div>`;
   const marks = scrollMarks(host);
-  host.innerHTML = `${drawBar}<div class="fp-wrap"><div class="fp-left">${bar}<div class="fp-stage"><div class="fp-mapbox${empty&&!fpEdit?" empty-map":""}" id="fp-mapbox" data-keep="map:${fpFloor}:${fpEdit?1:0}:${Math.round(fpZoom*100)}">${map}</div>${zoomCtl}</div></div>
+  host.innerHTML = `${drawBar}${fpEdit ? planSelBar() : ""}<div class="fp-wrap"><div class="fp-left">${bar}<div class="fp-stage"><div class="fp-mapbox${empty&&!fpEdit?" empty-map":""}" id="fp-mapbox" data-keep="map:${fpFloor}:${fpEdit?1:0}:${Math.round(fpZoom*100)}">${map}</div>${zoomCtl}</div></div>
     <div class="fp-side" id="fp-side">${side}${planSaveBar()}</div></div>`;
   planFit();
   wirePlanBox();
@@ -8346,7 +8512,7 @@ function planRackPanel(name, q){
       <span class="dim" style="font-size:12px">${its.length} product${its.length===1?"":"s"}${coded?" · "+lv.length+" level"+(lv.length===1?"":"s"):""}${rk&&rk.x==null?" · not on the plan":""}</span>
       <span class="fp-side-btns">
         ${walk.length>1 && walk.includes(name) ? `<button class="btn sm" onclick="planStep(-1)" title="Previous rack" aria-label="Previous rack">‹</button><button class="btn sm" onclick="planStep(1)" title="Next rack" aria-label="Next rack">›</button>` : ""}
-        <button class="btn sm" onclick="promptMoveRack('${esc(name)}')" title="Rack settings —zone">⚙</button>
+        <button class="btn sm" onclick="promptMoveRack('${esc(name)}')" title="Rack settings —name, zone, levels, remove">⚙</button>
         <button class="btn sm m-only" onclick="$('#fp-mapbox').scrollIntoView({behavior:'smooth',block:'center'})" title="Back to the map">↑ Map</button>
         <button class="btn sm" onclick="planSelect(null)" title="Close">✕</button></span></div>`;
   const chips = L.length>1 ? `<div class="fp-lchips">${L.map(b=>`<button type="button" class="fp-lchip s-${b.s}${b.chg?" chg":""}${b.hit?" hit":""}" onclick="planJumpLevel('${esc(b.l)}')" title="Go to level ${esc(b.l)}">${esc(b.l)}L<span>${b.its.length}</span></button>`).join("")}
@@ -8354,10 +8520,14 @@ function planRackPanel(name, q){
   const body = lv.map(l=>{
     const rows = its.filter(i=>(i.level||"1")===l).sort((a,b)=>(a.slot||0)-(b.slot||0) || a.name.localeCompare(b.name));
     return `<div class="fp-lvl" data-l="${esc(l)}"><div class="fp-lvl-h">${coded||lv.length>1 ? esc(l)+"L" : "Products"}<span class="dim" style="font-weight:400">${rows.length}</span>
-        <button class="btn sm" style="margin-left:auto" onclick="planAddHere('${esc(name)}','${esc(l)}')">+ Add product</button></div>
+        ${!rows.length && lv.length>1 ? `<button class="btn sm" style="margin-left:auto" onclick="removeLevel('${esc(name)}','${esc(l)}')" title="Remove this empty level">Remove level</button>` : ""}
+        <button class="btn sm" style="${!rows.length && lv.length>1 ? "" : "margin-left:auto"}" onclick="planAddHere('${esc(name)}','${esc(l)}')">+ Add product</button></div>
       ${rows.length ? rows.map((it,k)=>(coded && !q ? insertLine(name, l, rows[k-1], it) : "")+planItemRow(it, q)).join("") : '<div class="dim" style="font-size:12px;padding:6px 0 8px">Nothing on this level.</div>'}</div>`;
   }).join("");
-  return head + chips + `<div class="fp-side-b" id="fp-side-b" data-keep="rack:${esc(name)}">${body}</div>`;
+  const off = !rk || rk.x==null
+    ? `<div class="fp-offnote"><span>Not on the floor plan yet.</span><button class="btn sm primary" onclick="planEditRack('${esc(name)}')">Put it on the plan</button></div>` : "";
+  return head + off + chips + `<div class="fp-side-b" id="fp-side-b" data-keep="rack:${esc(name)}">${body}
+    <button type="button" class="btn sm fp-addlv" onclick="addLevelQuick('${esc(name)}')">+ Add level</button></div>`;
 }
 function planItemRow(it, q){
   const v = fpDraft[it.id]!==undefined ? fpDraft[it.id] : it.stock;
@@ -8623,7 +8793,7 @@ function planOverview(q, empty){
   if(off.length){
     html += `<div class="fp-lvl-h" style="margin-top:14px">Not on the plan<span class="dim" style="font-weight:400">${off.length}</span></div>`
       + off.map(n=>`<button class="fp-hit" onclick="planSelect('${esc(n)}')"><span class="mono">${esc(n)}</span><b>${zoneInfo(rackZone(n)).label}</b><span class="dim">${state.items.filter(i=>(i.store||"")===n).length} products</span></button>`).join("")
-      + (empty ? "" : `<p class="dim" style="font-size:12px;margin-top:6px">Place these with <b>Edit layout</b>.</p>`);
+      + (empty ? "" : `<p class="dim" style="font-size:12px;margin-top:6px">Open one and press Put it on the plan, or place them in Edit layout.</p>`);
   }
   const noRack = active().filter(i=>!(i.store||"").trim()).length;
   if(noRack) html += `<p style="font-size:12.5px;margin-top:12px;color:var(--warn)"><b>${noRack} product${noRack===1?" has":"s have"} no rack yet</b> —give ${noRack===1?"it":"them"} a rack code with Edit on station 02, or drag ${noRack===1?"it":"them"} in the Shelves view.</p>`;
@@ -8635,20 +8805,36 @@ function planOverview(q, empty){
    Redo, Ctrl+Z) until Done editing. Pick a tool (Wall, Door…) and drag on
    the plan to draw one that size —or tap to drop a standard one. A shape is
    selected by tapping it; it then shows handles on its corners and sides. */
-const FP_TOOLS = ["wall","door","stairs","block","area","floor","label"];
+const FP_TOOLS = ["rack","wall","door","stairs","block","area","floor","label"];
+const fpToolName = t => t==="rack" ? "Rack" : DECO_TYPES[t];
 const FP_DECO_SIZE = {wall:{w:8,h:1}, door:{w:4,h:1,text:"Door",swing:"up"}, block:{w:4,h:4}, area:{w:10,h:6,text:"Area"},
   floor:{w:20,h:20}, stairs:{w:6,h:8,text:"Stairs"}, label:{w:8,h:2,text:"Label"}};
 function planToolbar(){
   const redraw = [...PLAN_0434.racks, ...PLAN_0434.shapes].some(x=>x.floor===fpFloor);
   const hint = fpTool
-    ? `<b>${esc(DECO_TYPES[fpTool])}</b> · <span>drag on the plan to draw one —or tap once for a standard one. Esc or Select stops.</span>`
+    ? `<b>${esc(fpToolName(fpTool))}</b> · <span>drag on the plan to draw one —or tap once for a standard one. Esc or Select stops.</span>`
     : `Tap a shape to select it · drag to move it · drag a handle to resize${FP_COARSE?"":" · arrow keys nudge (Shift = 5) · R rotates · D duplicates · Delete removes"}`;
   return `<div class="fp-bar fp-tools">
-      <span class="fp-toolset" role="group" aria-label="Tools"><button class="btn sm ${!fpTool?"on":""}" onclick="planSetTool(null)">Select</button>${FP_TOOLS.map(t=>`<button class="btn sm ${fpTool===t?"on":""}" onclick="planSetTool('${t}')">${DECO_TYPES[t]}</button>`).join("")}</span>
+      <span class="fp-toolset" role="group" aria-label="Tools"><button class="btn sm ${!fpTool?"on":""}" onclick="planSetTool(null)">Select</button>${FP_TOOLS.map(t=>`<button class="btn sm ${fpTool===t?"on":""}${t==="rack"?" fp-tool-rack":""}" onclick="planSetTool('${t}')">${t==="rack"?"+ ":""}${fpToolName(t)}</button>`).join("")}</span>
       <span class="fp-bar-r"><button class="btn sm" onclick="planUndo()" ${fpHist.length?"":"disabled"} title="Undo (Ctrl+Z)">↶ Undo</button><button class="btn sm" onclick="planRedo()" ${fpRedo.length?"":"disabled"} title="Redo (Ctrl+Shift+Z)">↷ Redo</button></span></div>
     <div class="fp-hint">${hint}${redraw && !fpTool ? ` <button class="linkbtn" onclick="loadPlan0434(${fpFloor})">Redraw ${ordinal(fpFloor)} floor from the 0434 plan</button>` : ""}</div>`;
 }
 function planSetTool(t){ fpTool = t || null; renderRacks(); }
+/* On a phone the side panel is below the map, out of sight while you work on
+   the map —so what can be done to the selection sits in a bar at the bottom
+   of the screen. */
+function planSelBar(){
+  const s = fpEditSel ? planObj(fpEditSel.kind, fpEditSel.key) : null;
+  if(!s || s.x==null) return "";
+  const isRack = fpEditSel.kind==="rack";
+  return `<div class="fp-selbar" role="toolbar" aria-label="Selection">
+    <b class="mono">${isRack ? esc(s.name) : esc(DECO_TYPES[s.t]||"")}</b>
+    <button class="btn sm" onclick="planRotate()" aria-label="Rotate">↻</button>
+    ${isRack ? `<button class="btn sm" onclick="promptMoveRack('${esc(s.name)}')" aria-label="Settings">⚙</button><button class="btn sm" onclick="planUnplace()">Off plan</button>`
+             : `<button class="btn sm" onclick="planDuplicate()">Duplicate</button><button class="btn sm danger" onclick="planDeleteDeco()">Delete</button>`}
+    <button class="btn sm" onclick="$('#fp-side').scrollIntoView({behavior:'smooth',block:'start'})">Details</button>
+    <button class="btn sm" onclick="fpEditSel=null;renderRacks()" aria-label="Deselect">✕</button></div>`;
+}
 /* undo / redo: the whole layout (every rack's place, every shape) before each change */
 const FP_SNAP_KEYS = ["x","y","w","h","floor","zone"];
 function planSnap(){ return JSON.stringify({r:state.racks.map(r=>[r.name, ...FP_SNAP_KEYS.map(k=>r[k]??null)]), p:state.floorPlan||[]}); }
@@ -8671,9 +8857,12 @@ function planViewCenter(){
   const br = box.getBoundingClientRect(), p = svgPoint(svg, {clientX:br.left+box.clientWidth/2, clientY:br.top+box.clientHeight/2});
   return {x:Math.max(0, Math.floor(p.x/FPU)), y:Math.max(0, Math.floor(p.y/FPU))};
 }
-/* a free w×h spot near (cx, cy) on this floor —clear of every rack and room */
+/* a free w×h spot near (cx, cy) on this floor —clear of every rack and room,
+   and of walls, doors, stairs and no-access blocks */
 function planFreeSpot(cx, cy, w, h, except){
-  const rs = state.racks.filter(r=>r.x!=null && (r.floor||1)===fpFloor && r.name!==except);
+  const rs = state.racks.filter(r=>r.x!=null && (r.floor||1)===fpFloor && r.name!==except)
+    .concat((state.floorPlan||[]).filter(s=>(s.floor||1)===fpFloor && ["wall","door","stairs","block"].includes(s.t))
+      .map(s=>s.t==="door" ? {x:s.x-1, y:s.y-1, w:s.w+2, h:s.h+2} : s));      // and a step clear of a doorway
   const free = (x, y) => x>=0 && y>=0 && !rs.some(b=>x < b.x+b.w && b.x < x+w && y < b.y+b.h && b.y < y+h);
   const x0 = Math.max(0, Math.round(cx-w/2)), y0 = Math.max(0, Math.round(cy-h/2));
   for(let r=0; r<40; r++) for(let dy=-r; dy<=r; dy++) for(let dx=-r; dx<=r; dx++){
@@ -8704,7 +8893,7 @@ function planInspector(){
       <div class="fp-acts2">
         <button class="btn sm" onclick="planRotate()" title="Turn it a quarter (R)">↻ Rotate</button>
         ${isRack
-          ? `<button class="btn sm" onclick="planOpenRack('${esc(s.name)}')">Open rack</button><button class="btn sm" onclick="planUnplace()">Take off the plan</button>`
+          ? `<button class="btn sm" onclick="planOpenRack('${esc(s.name)}')">Open rack</button><button class="btn sm" onclick="promptMoveRack('${esc(s.name)}')" title="Rename, zone, remove">⚙ Settings</button><button class="btn sm" onclick="planUnplace()">Take off the plan</button>`
           : `<button class="btn sm" onclick="planDuplicate()" title="D">Duplicate</button><button class="btn sm danger" onclick="planDeleteDeco()">Delete</button>`}
       </div>`;
   } else html += `<p class="dim" style="font-size:12.5px;margin-top:8px">Tap a rack, wall or door on the plan to select it —then drag it to move it, or drag one of its handles to resize it. Pick a tool above to draw new walls, doors and areas. Everything snaps to the grid and saves as you go; Undo takes back one change at a time.</p>`;
@@ -8736,7 +8925,8 @@ function planUnplace(){
    nearest spot that's clear of other racks. */
 function planPlace(name){
   planPush();
-  const rk = ensureRack(name), w = 5, h = Math.max(4, levelsOf(name).length*2+2), c = planViewCenter();
+  const coded = rackCoded(name), rk = ensureRack(name, rackZone(name));
+  const w = coded ? 5 : 10, h = coded ? Math.max(4, levelsOf(name).length*2+2) : 8, c = planViewCenter();
   const at = planFreeSpot(c.x, c.y, w, h, name);
   Object.assign(rk, {x:at.x, y:at.y, w, h, floor:fpFloor});
   fpEditSel = {kind:"rack", key:name};
@@ -8887,6 +9077,12 @@ function planPointerUp(){
     return;
   }
   const d = fpDrag; fpDrag = null; if(!d) return;
+  if(d.draw==="rack"){
+    const r = d.n || {x:d.c0.x, y:d.c0.y, w:5, h:8};
+    fpTool = null; renderRacks();
+    promptAddRack(Object.assign({floor:fpFloor}, r));
+    return;
+  }
   if(d.draw){
     planPush();
     const sz = FP_DECO_SIZE[d.draw];
