@@ -178,6 +178,31 @@ in the menu shows a red dot while anything is low. **Turn on desktop alerts**
 (per device) also pops up a system notification when the app isn't the
 window in front.
 
+### Minimums never below one order (kitchens and 0434)
+
+Some products go out rarely but in one go: a customer takes 5 packets once a
+month. Their use per day averages almost nothing, so 3 in stock reads as
+weeks of cover. A percentile minimum comes out 0, and the next order takes the
+balance negative with no warning.
+
+**One order** is the most that's gone out in a single day over the last 6
+months. With 4 or more orders, a day more than 3× the usual size is left out,
+so one freak bulk order doesn't set it.
+
+- **Kitchens:** the minimum in use is the larger of the product's minimum and
+  one order. It drives the status (Below min), the Panel's make list, the stock
+  against minimum bars and the printed cook sheet.
+  - The Stock page's Min column shows it with ↑ when it's been raised. Hover
+    for the order size.
+  - **Set minimums** gives the same.
+- **Warehouse:** automatic minimums are never below one issue or sale either.
+  A manual minimum stays exactly as typed.
+- **Cover:** when the balance can't cover one order, the Cover column says
+  **< 1 order** instead of a number of days. The cook sheet files the product
+  under THIS WEEK, showing 不够 1 单.
+- **Pre-order** (made to order) products still have no minimum and never
+  alert. A rarely sold product you do keep in stock should not be Pre-order.
+
 ### Storage zones —Dry / Chiller / Freezer
 
 A zone belongs to a **rack**, because a rack stands in one room: an item is in
