@@ -881,7 +881,7 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
   <!-- ======== 02 STOCK ======== -->
   <section id="page-stock" class="hidden">
     <div class="phead">
-      <div><h1>Stock Register</h1><div class="psub" id="stock-sub">Every item on this line, its balance, its minimum, and how many days that balance covers. <b>Set minimums</b> rebuilds them from real sales —the 90th percentile of rolling 7-day demand, enough for a bad week in 9 weeks out of 10.</div></div>
+      <div><h1>Stock Register</h1><div class="psub" id="stock-sub">Every item on this line, its balance, its minimum, and how many days that balance covers. <b>Set minimums</b> rebuilds them from real sales —the 90th percentile of rolling 7-day demand, enough for a bad week in 9 weeks out of 10. <span>A product bought rarely but in one go never has a minimum below its biggest single order, so the next order can't take it negative unseen.</span></div></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn" onclick="copyCodes()"><svg class="ic"><use href="#i-copy"/></svg><span id="copy-label">Copy codes</span></button>
         <button class="btn" onclick="openMinTool()"><svg class="ic"><use href="#i-scale"/></svg><span id="btn-mins-l">Set minimums</span></button>
@@ -2826,6 +2826,12 @@ const ZH_DICT = /*ZH_DICT*/{
 "Not shared —no {n} in its location":"未共享——位置里没有 {n}",
 "{n} shared product put in its chiller, freezer or CENTER":"已把 {n} 个共享货品放进对应的冷藏库、冷冻库或 CENTER",
 "{n} shared products put in their chiller, freezer or CENTER":"已把 {n} 个共享货品放进对应的冷藏库、冷冻库或 CENTER",
+"A product bought rarely but in one go never has a minimum below its biggest single order, so the next order can't take it negative unseen.":"偶尔才一次性大量拿货的货品，最低库存不会低于它单次最大的一单，这样下一单不会在没人察觉的情况下把库存扣成负数。",
+"< {n} order":"不够 {n} 单",
+"Up to {s} has gone out in one day —this balance can't cover one order":"一天内最多出过 {s} —这个结存不够一单",
+"Raised to one order: up to {s} has gone out in one day (set minimum {s})":"已提高到一单：一天内最多出过 {s}（设定的最低库存 {s}）",
+"of issues (and sales, once imported), sized for the busiest weeks so a bad week is still covered. It updates by itself as history builds up; a product with no movement yet has no automatic minimum. It's never less than the most that's gone out in one day over the last {n} months, so a product taken rarely but in bulk still warns before the next order.":"的出库量（导入销售后也包括销售），并按最繁忙的几周计算，即使遇到用量大的一周也够用。它会随着历史数据积累自动更新；还没有任何流水的货品没有自动最低库存。它不会低于过去 {n} 个月里一天内出货最多的数量，所以偶尔才大批出货的货品在下一单之前也会提醒。",
+"Below min":"低于最低库存",
 "＋ insert {n}":"＋ 插入 {n}"
 }/*/ZH_DICT*/;
 const LANG_KEY = "qf_lang";
@@ -3383,6 +3389,25 @@ function smartDailyRate(id){
   return Math.max(0, rate);
 }
 function usageRate(it){ const r=smartDailyRate(it.id); return r>0 ? r : (it.baseDaily||0); }
+/* One order's worth: the most a customer has taken in one day over the last
+   6 months. A product bought rarely but in one go —5 packets once a month—
+   averages almost nothing a day, so its cover looks like weeks and a
+   percentile minimum comes out 0, and the next order takes it negative with
+   no warning. Its minimum is never below this. With 4 or more orders, one
+   more than 3× the usual size is left out, so a freak bulk order doesn't
+   set it. */
+function orderSize(it){
+  const ix = usageIndex(), k = "order|"+it.id;
+  if(ix.series.has(k)) return ix.series.get(k)[0];
+  const nz = salesSeries(it.id, 180).filter(v=>v>0).sort((a,b)=>a-b);
+  let v = 0;
+  if(nz.length){
+    const med = nz[Math.floor(nz.length/2)], use = nz.length>=4 ? nz.filter(x=>x<=med*3) : nz;
+    v = Math.ceil(use[use.length-1] - 1e-9);
+  }
+  ix.series.set(k, [v]);
+  return v;
+}
 function coverDays(it){ const r=usageRate(it); return r>0 ? it.stock/r : null; }
 function shortfall(it){ return Math.max(0, Math.round((effMin(it) - it.stock)*100)/100); }
 
@@ -3407,7 +3432,7 @@ function autoMin(it){
 }
 function minMode(it){ return !isWarehouse() ? "fixed" : it.preorder ? "none" : it.min>0 ? "fixed" : "auto"; }
 function effMin(it){
-  if(!isWarehouse()) return it.min||0;
+  if(!isWarehouse()) return it.preorder || it.stopped ? (it.min||0) : Math.max(it.min||0, orderSize(it));   // a kitchen's minimum, never under one order
   if(it.preorder || it.stopped) return 0;
   return it.min>0 ? it.min : autoMin(it);
 }
@@ -3437,7 +3462,7 @@ document.addEventListener("click", e=>{ if(!e.target.closest(".info")) closeInfo
 window.addEventListener("scroll", closeInfos, true);
 function minInfo(){
   const d = state.coverTarget||7;
-  return `<b>Auto</b> —the system sets the minimum from what goes out: enough stock for <b>${d} days</b> of issues${isWarehouse()?" (and sales, once imported)":""}, sized for the busiest weeks so a bad week is still covered. It updates by itself as history builds up; a product with no movement yet has no automatic minimum.<br><br><b>Manual</b> —you type the minimum and it stays exactly as you set it until you switch back to Auto.<br><br>Either way, when the balance drops below the minimum the product goes on <b>Low Stock</b> and you get an alert. The ${d} days can be changed in <b>Minimums</b>.`;
+  return `<b>Auto</b> —the system sets the minimum from what goes out: enough stock for <b>${d} days</b> of issues${isWarehouse()?" (and sales, once imported)":""}, sized for the busiest weeks so a bad week is still covered. It updates by itself as history builds up; a product with no movement yet has no automatic minimum. It's never less than the most that's gone out in one day over the last 6 months, so a product taken rarely but in bulk still warns before the next order.<br><br><b>Manual</b> —you type the minimum and it stays exactly as you set it until you switch back to Auto.<br><br>Either way, when the balance drops below the minimum the product goes on <b>Low Stock</b> and you get an alert. The ${d} days can be changed in <b>Minimums</b>.`;
 }
 /* Auto | Manual pill for one product's minimum. Manual opens the editor,
    starting from what Auto gives now so the number doesn't jump. */
@@ -3513,30 +3538,42 @@ function sevTag(it){
   if(s==="data") return '<span class="tag t-crit">Negative</span>';
   if(it.stock<=0 && s==="crit") return '<span class="tag t-crit">Out</span>';
   if(s==="crit") return '<span class="tag t-crit">'+fmt1(c)+'d left</span>';
-  if(s==="warn") return c!=null ? '<span class="tag t-warn">'+fmt1(c)+'d left</span>' : '<span class="tag t-warn">Below min</span>';
+  if(s==="warn") return c!=null && c<=3 ? '<span class="tag t-warn">'+fmt1(c)+'d left</span>' : '<span class="tag t-warn">Below min</span>';
   return '<span class="tag t-ok">OK</span>';
 }
 function coverCell(it){
-  const c = coverDays(it);
+  const c = coverDays(it), o = it.preorder || it.stopped ? 0 : orderSize(it);
+  if(o>0 && it.stock>=0 && it.stock<o)      // days mean nothing if the next order alone takes more than there is
+    return `<span style="color:var(--warn);font-weight:600" title="Up to ${esc(fmtQty(it, o))} has gone out in one day —this balance can't cover one order">&lt; 1 order</span>`;
   if(c==null) return '<span class="faint">—</span>';
   return fmt1(c);
+}
+/* The kitchen's Min column: the minimum in use, marked when it's been raised to one order. */
+function kitMinCell(it){
+  const m = effMin(it);
+  if(!(m>0)) return "—";
+  const up = !it.preorder && orderSize(it)>(it.min||0);
+  return up ? `<span title="Raised to one order: up to ${esc(fmtQty(it, orderSize(it)))} has gone out in one day (set minimum ${esc(fmtQty(it, it.min||0))})">${esc(fmtQty(it, m))} ↑</span>` : esc(fmtQty(it, m));
 }
 
 /* ---------- the make list: the decision this page exists to produce ---------- */
 function makeList(){
   const cat = panelCat();
   return active()
-    .filter(i => inCat(i,cat) && !i.preorder && !uncounted(i) && usageRate(i)>0 && i.min>0 && i.stock < i.min)
-    .map(i => ({it:i, need:shortfall(i), cover:coverDays(i), s:sev(i)}))
-    .sort((a,b)=> (a.cover==null?9e9:a.cover) - (b.cover==null?9e9:b.cover));
+    .filter(i => inCat(i,cat) && !i.preorder && !uncounted(i) && (usageRate(i)>0 || orderSize(i)>0) && effMin(i)>0 && i.stock < effMin(i))
+    .map(i => ({it:i, need:shortfall(i), cover:coverDays(i), s:sev(i), short:shortOfOrder(i)}))
+    /* by days left —one that can't cover the next order counts as due within the week */
+    .sort((a,b)=> mkKey(a) - mkKey(b));
 }
+function shortOfOrder(it){ const o = it.preorder || it.stopped ? 0 : orderSize(it); return o>0 && it.stock < o; }
+function mkKey(m){ const c = m.cover==null ? 9e9 : m.cover; return m.short ? Math.min(c, 7) : c; }
 /* items climbing fast that are NOT low yet —tomorrow's problem */
 function risingList(){
   const cat = panelCat();
   const out=[];
   for(const i of active()){
     if(!inCat(i,cat) || i.preorder || uncounted(i)) continue;
-    if(i.min>0 && i.stock<i.min) continue;      // already on the make list
+    if(effMin(i)>0 && i.stock<effMin(i)) continue;      // already on the make list
     const t = trend(i), c = coverDays(i);
     if(t && t.dir==="up" && c!=null && c<=14) out.push({it:i, t, cover:c});
   }
@@ -4901,7 +4938,7 @@ function renderPanel(){
       html += `<tr class="sev-${m.s==="crit"?"crit":"warn"}">
         <td class="name">${esc(m.it.name)}<span class="sub">${esc(m.it.uom)} · ${esc(m.it.cat||"Uncategorised")}</span></td>
         <td class="num">${fmt(m.it.stock)}</td>
-        <td class="num dim">${fmt(m.it.min)}</td>
+        <td class="num dim">${kitMinCell(m.it)}</td>
         <td class="num">${coverCell(m.it)}</td>
         <td class="num dim">${fmt1(usageRate(m.it))}</td>
         <td class="num"><b>${fmt(m.need)}</b></td>
@@ -4986,22 +5023,22 @@ function renderPanel(){
   }
 
   /* ---- stock against minimum ---- */
-  const bars = active().filter(i=>inCat(i,panelCat()) && i.min>0)
-    .map(i=>({i, ratio: i.stock/i.min})).sort((a,b)=>a.ratio-b.ratio).slice(0,14);
+  const bars = active().filter(i=>inCat(i,panelCat()) && !i.preorder && effMin(i)>0)
+    .map(i=>({i, mn:effMin(i), ratio: i.stock/effMin(i)})).sort((a,b)=>a.ratio-b.ratio).slice(0,14);
   html += `<div class="panel"><div class="panel-h"><h2>Stock against minimum</h2>
     <span class="meta">Bar = balance · marker = minimum · lowest 14</span></div>`;
   if(!bars.length){ html += `<div class="empty">No minimums set yet —station 02 —Set minimums.</div>`; }
   else{
-    const scale = Math.max(...bars.map(b=>Math.max(b.i.min, Math.max(b.i.stock,0))))*1.15 || 1;
+    const scale = Math.max(...bars.map(b=>Math.max(b.mn, Math.max(b.i.stock,0))))*1.15 || 1;
     html += `<div style="padding:10px 0 12px">` + bars.map(b=>{
       const s = sev(b.i);
       const col = s==="crit"?"var(--crit)" : s==="warn"?"var(--warn)" : "var(--ok)";
       const w = Math.max(Math.min(Math.max(b.i.stock,0)/scale*100,100),0);
-      const mw = Math.min(b.i.min/scale*100,100);
+      const mw = Math.min(b.mn/scale*100,100);
       return `<div class="hrow">
         <div class="nm" title="${esc(b.i.name)}">${esc(b.i.name)}</div>
         <div class="track"><div class="fill" style="width:${w}%;background:${col}"></div><div class="tick" style="left:${mw}%"></div></div>
-        <div class="num" style="font-size:12px">${fmt(b.i.stock)} <span class="faint">/ ${fmt(b.i.min)}</span></div>
+        <div class="num" style="font-size:12px">${fmt(b.i.stock)} <span class="faint">/ ${fmt(b.mn)}</span></div>
       </div>`;
     }).join("") + `</div>`;
   }
@@ -5322,7 +5359,8 @@ function renderStock(){
   const sub = $("#stock-sub");
   if(sub) sub.innerHTML = wh
     ? "Every product in this warehouse: where it's stored, its balance in cartons + packets, its minimum, and how many days that balance covers at the rate it's going out. Each minimum is <b>Auto</b> (worked out from usage and kept up to date) or <b>Manual</b> (your number) —flip the pill on any row; ⓘ explains it."
-    : "Every item on this line, its balance, its minimum, and how many days that balance covers. <b>Set minimums</b> rebuilds them from real sales —the 90th percentile of rolling 7-day demand, enough for a bad week in 9 weeks out of 10.";
+    : "Every item on this line, its balance, its minimum, and how many days that balance covers. <b>Set minimums</b> rebuilds them from real sales —the 90th percentile of rolling 7-day demand, enough for a bad week in 9 weeks out of 10."
+      + " <span>A product bought rarely but in one go never has a minimum below its biggest single order, so the next order can't take it negative unseen.</span>";
   const hide = $("#s-hide").getAttribute("aria-pressed")==="true";
   let list = state.items.slice().sort((a,b)=>
     (a.cat||"Uncategorised").localeCompare(b.cat||"Uncategorised") || a.name.localeCompare(b.name));
@@ -5374,7 +5412,7 @@ function renderStock(){
             <span class="sub">${esc(i.uom)}${i.code?" · "+esc(i.code):""}${hasCat(i)?" · "+esc(i.cat):""}</span></td>
           <td class="num mono dim" style="font-size:11.5px">${wh ? (i.store ? zoneChip(zoneOf(i))+" "+esc(posCode(i)) : '<span class="faint">Unassigned</span>') : esc(i.store||"—")}</td>
           <td class="num" style="${i.stock<0?"color:var(--crit);font-weight:600":""}">${uncounted(i)?'<span class="faint">—</span>':fmtBal(i)}</td>
-          <td class="num dim">${wh ? minCell(i) : fmtQty(i, i.min)}</td>
+          <td class="num dim">${wh ? minCell(i) : kitMinCell(i)}</td>
           <td class="num dim">${minDays}</td>
           <td class="num">${coverCell(i)}</td>
           <td class="num dim">${u>0?fmt1(u)+(hasPack(i)?" "+esc(unitOf(i)):""):"—"}</td>
@@ -6419,6 +6457,9 @@ function minMethod(days){
 }
 function recommendMin(it, days){
   if(it.preorder || it.stopped) return 0;
+  return Math.max(demandMin(it, days), orderSize(it));     // never less than one order
+}
+function demandMin(it, days){
   if(minMethod(days)==="p90"){
     const p = rollingP90(salesSeries(it.id, Math.min(Math.max(historyDays(),days*4), 180)), days);
     if(p!==null) return p>0 ? Math.max(1, Math.ceil(p)) : 0;
@@ -10155,7 +10196,7 @@ function printCookSheet(){
 
   /* ---- section 1: what to make ---- */
   const buckets = [[],[],[]];
-  for(const m of mk){ buckets[m.s==="crit" ? 0 : (m.cover!=null && m.cover<=8) ? 1 : 2].push(m); }
+  for(const m of mk){ buckets[m.s==="crit" ? 0 : (m.short || (m.cover!=null && m.cover<=8)) ? 1 : 2].push(m); }
   const meta = [
     {t:"优先 MAKE FIRST", s:"缺货或剩余1 天内"},
     {t:"本周 THIS WEEK",  s:"剩余 1—7 天"},
@@ -10169,8 +10210,8 @@ function printCookSheet(){
       n++;
       rows += `<tr><td class="rk">${n}</td>
         <td><b>${esc(m.it.name)}</b><span class="u">${esc(m.it.uom)} · ${esc(m.it.store||"")}</span></td>
-        <td class="c">${fmt(m.it.stock)}</td><td class="c g">${fmt(m.it.min)}</td>
-        <td class="c d${bi}">${m.it.stock<=0?"缺货":(m.cover!=null?fmt1(m.cover)+" 天":"—")}</td>
+        <td class="c">${fmt(m.it.stock)}</td><td class="c g">${fmt(effMin(m.it))}</td>
+        <td class="c d${bi}">${m.it.stock<=0?"缺货":m.short?"不够 1 单":(m.cover!=null?fmt1(m.cover)+" 天":"—")}</td>
         <td class="mk">${fmt(m.need)}</td></tr>`;
     }
   });
@@ -10194,13 +10235,13 @@ function printCookSheet(){
       : uncounted(i)      ? '<span class="pill p-non">未盘点NOT COUNTED</span>'
       : i.stock<0         ? '<span class="pill p-out">负数 NEGATIVE</span>'
       : i.stock<=0        ? '<span class="pill p-out">缺货 OUT</span>'
-      : (i.min>0 && i.stock<i.min) ? '<span class="pill p-low">低LOW</span>'
+      : (effMin(i)>0 && i.stock<effMin(i)) ? '<span class="pill p-low">低LOW</span>'
       : '<span class="pill p-ok">OK</span>';
     locTot[st] = (locTot[st]||0) + kgOf(i, Math.max(i.stock,0));
     brows += `<tr><td class="rk">${bn}</td>
       <td><b>${esc(i.name)}</b><span class="u">${esc(i.uom)} · ${esc(i.code||"")}</span></td>
       <td class="c ${i.stock<0?"d0":""}">${uncounted(i)?"—":fmt(i.stock)}</td>
-      <td class="c g">${i.preorder?"—":fmt(i.min)}</td>
+      <td class="c g">${i.preorder?"—":fmt(effMin(i))}</td>
       <td class="c">${i.preorder||c==null?"—":fmt1(c)+" 天"}</td>
       <td class="c">${tag}</td></tr>`;
   }
