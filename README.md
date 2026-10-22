@@ -540,8 +540,9 @@ CENTER, so those products have **one balance** on both sides.
   - Each side's log shows the other side's changes as **Shared**, for
     example "0428 · Cook" or "0434 · Count · Rack count".
   - The Log page's filter has **Shared stock** to list only these.
-  - Both Stock pages tag these products **Shared** with the other side,
-    for example "Shared 0434 CH" or "Shared 0428".
+  - 0434's Stock page and rack panel tag these products **Shared** with the
+    kitchen, for example "Shared 0428". A kitchen's Stock page doesn't tag
+    them, so it looks the way it did before sharing.
 - **Sales come off once, on the kitchen side.**
   - The kitchen's Sales import takes them off.
   - 0434's Sales Deduction records them for the graphs only, and its preview

@@ -4389,6 +4389,7 @@ function linkKitchens(id){
 }
 /* Warehouse side, with kitchens around: which products share a balance isn't known yet. */
 function linkWaiting(){ return isWarehouse() && !!sb && !linkData && depts.some(d=>d.type!=="warehouse"); }
+/* Warehouse pages only: a kitchen's Stock page stays its own list, as before sharing. */
 function sharedTag(it){
   const g = linkGroupOf(it.id); if(!g) return "";
   const who = g.members.filter(m=>!(m.dept===dept && m.id===it.id)).map(m=>deptCode(m.dept)+(m===g.w ? " "+LINK_ROOM_TAG[g.room] : ""));
@@ -5369,7 +5370,7 @@ function renderStock(){
         const minDays = u>0 && mn>0 ? fmt1(mn/u) : "—";
         return `<tr class="sev-${s==="data"?"crit":s==="off"?"":s}">
           <td style="width:30px"><button class="star ${i.watch?"on":""}" onclick="toggleWatch(${i.id})" title="${i.watch?"Stop watching":"Watch this sauce"}"><svg class="ic"><use href="#i-star"/></svg></button></td>
-          <td class="name"><span style="${i.stopped?"text-decoration:line-through;color:var(--ink-3)":""}">${esc(i.name)}</span>${sharedTag(i)}
+          <td class="name"><span style="${i.stopped?"text-decoration:line-through;color:var(--ink-3)":""}">${esc(i.name)}</span>${wh ? sharedTag(i) : ""}
             <span class="sub">${esc(i.uom)}${i.code?" · "+esc(i.code):""}${hasCat(i)?" · "+esc(i.cat):""}</span></td>
           <td class="num mono dim" style="font-size:11.5px">${wh ? (i.store ? zoneChip(zoneOf(i))+" "+esc(posCode(i)) : '<span class="faint">Unassigned</span>') : esc(i.store||"—")}</td>
           <td class="num" style="${i.stock<0?"color:var(--crit);font-weight:600":""}">${uncounted(i)?'<span class="faint">—</span>':fmtBal(i)}</td>
