@@ -180,14 +180,16 @@ window in front.
 
 ### Minimums never below one order (kitchens and 0434)
 
-Some products go out rarely but in one go: a customer takes 5 packets once a
-month. Their use per day averages almost nothing, so 3 in stock reads as
-weeks of cover. A percentile minimum comes out 0, and the next order takes the
-balance negative with no warning.
+Some products go out rarely but in one go: a customer takes 5 packets at a
+time, a few times a month. Their use per day averages almost nothing, so 3 in
+stock reads as weeks of cover. A percentile minimum comes out 0, and the next
+order takes the balance negative with no warning.
 
-**One order** is the most that's gone out in a single day over the last 6
-months. With 4 or more orders, a day more than 3× the usual size is left out,
-so one freak bulk order doesn't set it.
+**One order** is the most that's gone out in a single day over the last 30
+days (`ORDER_DAYS` in the code). With 4 or more orders, a day more than 3× the
+usual size is left out, so one freak bulk order doesn't set it. A product that
+hasn't gone out at all in the last 30 days has no one-order floor; its normal
+minimum applies.
 
 - **Kitchens:** the minimum in use is the larger of the product's minimum and
   one order. It drives the status (Below min), the Panel's make list, the stock

@@ -2900,9 +2900,9 @@ const ZH_DICT = /*ZH_DICT*/{
 "{n} shared products put in their chiller, freezer or CENTER":"已把 {n} 个共享货品放进对应的冷藏库、冷冻库或 CENTER",
 "A product bought rarely but in one go never has a minimum below its biggest single order, so the next order can't take it negative unseen.":"偶尔才一次性大量拿货的货品，最低库存不会低于它单次最大的一单，这样下一单不会在没人察觉的情况下把库存扣成负数。",
 "< {n} order":"不够 {n} 单",
-"Up to {s} has gone out in one day —this balance can't cover one order":"一天内最多出过 {s} —这个结存不够一单",
-"Raised to one order: up to {s} has gone out in one day (set minimum {s})":"已提高到一单：一天内最多出过 {s}（设定的最低库存 {s}）",
-"of issues (and sales, once imported), sized for the busiest weeks so a bad week is still covered. It updates by itself as history builds up; a product with no movement yet has no automatic minimum. It's never less than the most that's gone out in one day over the last {n} months, so a product taken rarely but in bulk still warns before the next order.":"的出库量（导入销售后也包括销售），并按最繁忙的几周计算，即使遇到用量大的一周也够用。它会随着历史数据积累自动更新；还没有任何流水的货品没有自动最低库存。它不会低于过去 {n} 个月里一天内出货最多的数量，所以偶尔才大批出货的货品在下一单之前也会提醒。",
+"Up to {s} has gone out in one day in the last {n} days —this balance can't cover one order":"过去 {n} 天里一天内最多出过 {s} —这个结存不够一单",
+"Raised to one order: up to {s} has gone out in one day in the last {n} days (set minimum {s})":"已提高到一单：过去 {n} 天里一天内最多出过 {s}（设定的最低库存 {s}）",
+"of issues (and sales, once imported), sized for the busiest weeks so a bad week is still covered. It updates by itself as history builds up; a product with no movement yet has no automatic minimum. It's never less than the most that's gone out in one day over the last {n} days, so a product taken rarely but in bulk still warns before the next order.":"的出库量（导入销售后也包括销售），并按最繁忙的几周计算，即使遇到用量大的一周也够用。它会随着历史数据积累自动更新；还没有任何流水的货品没有自动最低库存。它不会低于过去 {n} 天里一天内出货最多的数量，所以偶尔才大批出货的货品在下一单之前也会提醒。",
 "Below min":"低于最低库存",
 "Show":"显示",
 "Show on the map":"在平面图上显示",
@@ -3575,16 +3575,17 @@ function smartDailyRate(id){
 }
 function usageRate(it){ const r=smartDailyRate(it.id); return r>0 ? r : (it.baseDaily||0); }
 /* One order's worth: the most a customer has taken in one day over the last
-   6 months. A product bought rarely but in one go —5 packets once a month—
+   ORDER_DAYS (30) days. A product bought rarely but in one go —5 packets at a time—
    averages almost nothing a day, so its cover looks like weeks and a
    percentile minimum comes out 0, and the next order takes it negative with
    no warning. Its minimum is never below this. With 4 or more orders, one
    more than 3× the usual size is left out, so a freak bulk order doesn't
    set it. */
+const ORDER_DAYS = 30;
 function orderSize(it){
   const ix = usageIndex(), k = "order|"+it.id;
   if(ix.series.has(k)) return ix.series.get(k)[0];
-  const nz = salesSeries(it.id, 180).filter(v=>v>0).sort((a,b)=>a-b);
+  const nz = salesSeries(it.id, ORDER_DAYS).filter(v=>v>0).sort((a,b)=>a-b);
   let v = 0;
   if(nz.length){
     const med = nz[Math.floor(nz.length/2)], use = nz.length>=4 ? nz.filter(x=>x<=med*3) : nz;
@@ -3647,7 +3648,7 @@ document.addEventListener("click", e=>{ if(!e.target.closest(".info")) closeInfo
 window.addEventListener("scroll", closeInfos, true);
 function minInfo(){
   const d = state.coverTarget||7;
-  return `<b>Auto</b> —the system sets the minimum from what goes out: enough stock for <b>${d} days</b> of issues${isWarehouse()?" (and sales, once imported)":""}, sized for the busiest weeks so a bad week is still covered. It updates by itself as history builds up; a product with no movement yet has no automatic minimum. It's never less than the most that's gone out in one day over the last 6 months, so a product taken rarely but in bulk still warns before the next order.<br><br><b>Manual</b> —you type the minimum and it stays exactly as you set it until you switch back to Auto.<br><br>Either way, when the balance drops below the minimum the product goes on <b>Low Stock</b> and you get an alert. The ${d} days can be changed in <b>Minimums</b>.`;
+  return `<b>Auto</b> —the system sets the minimum from what goes out: enough stock for <b>${d} days</b> of issues${isWarehouse()?" (and sales, once imported)":""}, sized for the busiest weeks so a bad week is still covered. It updates by itself as history builds up; a product with no movement yet has no automatic minimum. It's never less than the most that's gone out in one day over the last ${ORDER_DAYS} days, so a product taken rarely but in bulk still warns before the next order.<br><br><b>Manual</b> —you type the minimum and it stays exactly as you set it until you switch back to Auto.<br><br>Either way, when the balance drops below the minimum the product goes on <b>Low Stock</b> and you get an alert. The ${d} days can be changed in <b>Minimums</b>.`;
 }
 /* Auto | Manual pill for one product's minimum. Manual opens the editor,
    starting from what Auto gives now so the number doesn't jump. */
@@ -3729,7 +3730,7 @@ function sevTag(it){
 function coverCell(it){
   const c = coverDays(it), o = it.preorder || it.stopped ? 0 : orderSize(it);
   if(o>0 && it.stock>=0 && it.stock<o)      // days mean nothing if the next order alone takes more than there is
-    return `<span style="color:var(--warn);font-weight:600" title="Up to ${esc(fmtQty(it, o))} has gone out in one day —this balance can't cover one order">&lt; 1 order</span>`;
+    return `<span style="color:var(--warn);font-weight:600" title="Up to ${esc(fmtQty(it, o))} has gone out in one day in the last ${ORDER_DAYS} days —this balance can't cover one order">&lt; 1 order</span>`;
   if(c==null) return '<span class="faint">—</span>';
   return fmt1(c);
 }
@@ -3738,7 +3739,7 @@ function kitMinCell(it){
   const m = effMin(it);
   if(!(m>0)) return "—";
   const up = !it.preorder && orderSize(it)>(it.min||0);
-  return up ? `<span title="Raised to one order: up to ${esc(fmtQty(it, orderSize(it)))} has gone out in one day (set minimum ${esc(fmtQty(it, it.min||0))})">${esc(fmtQty(it, m))} ↑</span>` : esc(fmtQty(it, m));
+  return up ? `<span title="Raised to one order: up to ${esc(fmtQty(it, orderSize(it)))} has gone out in one day in the last ${ORDER_DAYS} days (set minimum ${esc(fmtQty(it, it.min||0))})">${esc(fmtQty(it, m))} ↑</span>` : esc(fmtQty(it, m));
 }
 
 /* ---------- the make list: the decision this page exists to produce ---------- */
