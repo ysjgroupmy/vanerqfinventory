@@ -250,6 +250,8 @@ tbody tr:hover td{background:var(--panel-2)}
 tr.rowlink{cursor:pointer}
 td.name{min-width:190px}
 .sub{display:block;font-size:11px;color:var(--ink-3);font-family:var(--f-mono);margin-top:1px}
+.idesc{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:11.5px;line-height:1.35;color:var(--ink-2);margin-top:2px;white-space:pre-line;font-family:var(--f-ui)}
+#m-desc{font-family:var(--f-ui);font-size:13px}
 tr.sev-crit td:first-child{box-shadow:inset 3px 0 0 var(--crit)}
 tr.sev-warn td:first-child{box-shadow:inset 3px 0 0 var(--warn)}
 tr.sev-ok td:first-child{box-shadow:inset 3px 0 0 var(--ok)}
@@ -3017,6 +3019,8 @@ const ZH_DICT = /*ZH_DICT*/{
 "Keep the rack name to {n} characters or fewer":"货架名称不能超过 {n} 个字符",
 "\"Unassigned\" is kept for products with no rack":"“Unassigned” 保留给没有货架的货品",
 "There's already a rack called {s}":"已有名为 {s} 的货架",
+"Description (optional)":"描述（可选）",
+"Descriptions turn on once supabase-schema.sql has been re-run in Supabase (see README).":"在 Supabase 中重新运行 supabase-schema.sql 后即可使用描述（见 README）。",
 "＋ insert {n}":"＋ 插入 {n}"
 }/*/ZH_DICT*/;
 const LANG_KEY = "qf_lang";
@@ -3847,13 +3851,15 @@ function itemRow(i){ const r = {id:i.id, dept_id:dept, name:i.name, uom:i.uom||"
   if(i.packSize!=null) r.pack_size = i.packSize;
   if(i.unit!=null) r.unit = i.unit;
   if(i.orderedOn!==undefined) r.ordered_on = i.orderedOn || null;
+  if(itemDescOk && i.desc!==undefined) r.description = i.desc || null;
   return r; }
 function rowItem(r){ return {id:Number(r.id), name:r.name, uom:r.uom, code:r.code, store:r.store, cat:r.cat,
   stock:Number(r.stock), min:Number(r.min), baseDaily:Number(r.base_daily),
   preorder:!!r.preorder, stopped:!!r.stopped, watch:!!r.watch, counted:!!r.counted,
   looseQty:Number(r.loose_qty||0), level:r.level||"1", slot:Number(r.slot||0),
   packSize:r.pack_size==null?null:Number(r.pack_size), unit:r.unit??null,
-  ...(r.ordered_on!==undefined ? {orderedOn:r.ordered_on} : {})}; }
+  ...(r.ordered_on!==undefined ? {orderedOn:r.ordered_on} : {}),
+  ...(r.description!==undefined ? {desc:r.description||""} : {})}; }
 
 function txRow(t){ const r = {id:t.id, dept_id:dept, ts:t.ts, date:t.date, item_id:t.itemId, type:t.type,
   qty:t.qty, note:t.note||"", batch:t.b??null, planned:(t.planned??null), hist:!!t.h, amount:(t.amount??null),
@@ -3897,6 +3903,9 @@ function rowSettings(r){ return {capacity:Number(r.capacity), coverTarget:Number
    bills.info —a column added by a later supabase-schema.sql; until that's
    run (billInfoOk false) the detail stays on this device and isn't sent. */
 let billInfoOk = true;
+/* items.description came with a later supabase-schema.sql too: until this
+   database has it, a description typed here stays on this device. */
+let itemDescOk = false;
 const billSide = k => k.endsWith("@d") || k.endsWith("@s");
 function billRowsFromState(b){
   const out=[];
@@ -4368,6 +4377,7 @@ async function subscribeDept(){
   /* bills.info arrived with a later supabase-schema.sql —ask once whether
      this database has it, before anything is compared with the server */
   try{ billInfoOk = !(await sb.from("bills").select("info").range(0,0)).error; }catch(e){ billInfoOk = false; }
+  try{ itemDescOk = !(await sb.from("items").select("description").range(0,0)).error; }catch(e){ itemDescOk = false; }
   applyStore(readPending());
   DB_READY = true;
   if(upgradePlan0434()){ save(); render(); }
@@ -5550,7 +5560,7 @@ function renderStock(){
   const hide = $("#s-hide").getAttribute("aria-pressed")==="true";
   let list = state.items.slice().sort((a,b)=>
     (a.cat||"Uncategorised").localeCompare(b.cat||"Uncategorised") || a.name.localeCompare(b.name));
-  if(q) list = list.filter(i=>norm(i.name).includes(q)||norm(i.code).includes(q)||norm(i.uom).includes(q)||norm(posCode(i)).includes(q));
+  if(q) list = list.filter(i=>norm(i.name).includes(q)||norm(i.code).includes(q)||norm(i.uom).includes(q)||norm(posCode(i)).includes(q)||norm(i.desc).includes(q));
   if(cat!=="all") list = list.filter(i=>inCat(i,cat));
   if(sv!=="all") list = list.filter(i=>inStore(i,sv));
   if(zv!=="all") list = list.filter(i=>inZoneSel(i,zv));
@@ -5595,7 +5605,7 @@ function renderStock(){
         return `<tr class="sev-${s==="data"?"crit":s==="off"?"":s}">
           <td style="width:30px"><button class="star ${i.watch?"on":""}" onclick="toggleWatch(${i.id})" title="${i.watch?"Stop watching":"Watch this sauce"}"><svg class="ic"><use href="#i-star"/></svg></button></td>
           <td class="name"><span style="${i.stopped?"text-decoration:line-through;color:var(--ink-3)":""}">${esc(i.name)}</span>${wh ? sharedTag(i) : ""}
-            <span class="sub">${esc(i.uom)}${i.code?" · "+esc(i.code):""}${hasCat(i)?" · "+esc(i.cat):""}</span></td>
+            <span class="sub">${esc(i.uom)}${i.code?" · "+esc(i.code):""}${hasCat(i)?" · "+esc(i.cat):""}</span>${descLine(i)}</td>
           <td class="num mono dim" style="font-size:11.5px">${wh ? (i.store ? zoneChip(zoneOf(i))+" "+esc(posCode(i)) : '<span class="faint">Unassigned</span>') : esc(i.store||"—")}</td>
           <td class="num" style="${i.stock<0?"color:var(--crit);font-weight:600":""}">${uncounted(i)?'<span class="faint">—</span>':fmtBal(i)}</td>
           <td class="num dim">${wh ? minCell(i) : kitMinCell(i)}</td>
@@ -6439,6 +6449,7 @@ function openAdd(pos, note){
             ${minBox(null)}`
          : `<div class="field"><label>Opening balance</label><input type="number" id="m-stock" step="any" value="0" style="width:100%"></div>
             <div class="field"><label>Minimum</label><input type="number" id="m-min" step="any" value="0" style="width:100%"></div>`}
+    ${descField("")}
     <div class="mfoot"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="doAdd()">Add item</button></div>`);
   /* "24x0.397kg/ctn" typed as the UOM fills in 24 per carton, until the box is changed by hand */
   $("#m-uom").addEventListener("input", e=>{ const pk = $("#m-pack"); if(pk && pk.dataset.auto) pk.value = packFromUom(e.target.value) || 1; });
@@ -6470,12 +6481,24 @@ function doAdd(){
     it.stock = parseFloat($("#m-stock").value)||0;
     it.min = parseFloat($("#m-min").value)||0;
   }
+  const desc = readDesc(); if(desc) it.desc = desc;
   it.id = uid("nextId");
   state.items.push(it);
   addInsert = null;
   save(); closeModal(); render(); toast("Added —"+name);
   if(moved.length) showInsertResult(it, moved);
 }
+/* Description: free text about the product, at the bottom of Add / Edit item.
+   Shown in small type under the product on Stock and the rack panel, and
+   found by the Stock search. It's the user's own words, so never translated. */
+function descField(v){
+  const off = DB_READY && !itemDescOk;       // the database has nowhere to keep it yet
+  return `<div class="field"><label for="m-desc">Description (optional)</label>
+    <textarea id="m-desc" rows="3" maxlength="500" ${off?"disabled":""} placeholder="${LANG==="zh" ? "例如：品牌、用途、储存方式" : "e.g. brand, what it's used for, how to store it"}" data-notr>${esc(v||"")}</textarea>
+    ${off ? `<div class="qhint" style="color:var(--warn);margin-top:4px">Descriptions turn on once supabase-schema.sql has been re-run in Supabase (see README).</div>` : ""}</div>`;
+}
+function readDesc(){ const el = $("#m-desc"); return el && !el.disabled ? el.value.trim().slice(0, 500) : ""; }
+function descLine(it){ return it.desc ? `<span class="idesc" title="${esc(it.desc)}" data-notr>${esc(it.desc)}</span>` : ""; }
 function openEdit(id){
   const it = item(id); if(!it) return;
   const wh = isWarehouse();
@@ -6493,6 +6516,7 @@ function openEdit(id){
       <input type="checkbox" id="m-pre" ${it.preorder?"checked":""}> Pre-order —made only when ordered, so no minimum is held and it never joins the cook list</label></div>`}
     <div class="field"><label class="opt">
       <input type="checkbox" id="m-stop" ${it.stopped?"checked":""}> Stopped —${wh?"no longer stocked":"no longer made at all"}</label></div>
+    ${descField(it.desc)}
     <div class="mfoot"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="doEdit(${id})">Save</button></div>`);
 }
 function doEdit(id){
@@ -6518,6 +6542,7 @@ function doEdit(id){
   else it.preorder = $("#m-pre").checked;
   if(it.preorder) it.min=0;
   it.stopped=$("#m-stop").checked;
+  const desc = readDesc(); if(desc || it.desc) it.desc = desc;
   let note = "";
   if(wh && pack!=null && pack!==it.packSize){
     const legacy = !hasPack(it) || packOf(it)<=1;
@@ -8539,7 +8564,7 @@ function planItemRow(it, q){
   return `<div class="fp-it${d.chg?" chg":""}${planMatch(it,q)?" hit":""}" data-id="${it.id}">
     <div class="fp-it-top">${pc&&rackCoded(it.store)?`<span class="mono fp-code">${esc(pc)}</span>`:""}<b>${esc(it.name)}</b>${stockFlag(it)}${sharedTag(it)}
       <span class="fp-acts"><button type="button" class="btn sm" onclick="planMoveItem(${it.id})" title="Move to another rack or level">Move</button><button type="button" class="btn sm" onclick="openEdit(${it.id})">Edit</button><button type="button" class="btn sm danger" onclick="delItem(${it.id})">Delete</button></span></div>
-    <div class="fp-it-sub">${esc(it.uom||"")}${p>1?` · ${p} ${esc(unitOf(it))}/ctn`:""}${it.code?" · "+esc(it.code):""}${!hasPack(it)&&it.looseQty?` · +${fmt(it.looseQty)} loose (set a pack size to merge)`:""}</div>
+    <div class="fp-it-sub">${esc(it.uom||"")}${p>1?` · ${p} ${esc(unitOf(it))}/ctn`:""}${it.code?" · "+esc(it.code):""}${!hasPack(it)&&it.looseQty?` · +${fmt(it.looseQty)} loose (set a pack size to merge)`:""}</div>${descLine(it)}
     <div class="fp-it-q">${qty}<span class="fp-diff" data-diff>${d.html}</span></div>
   </div>`;
 }

@@ -688,6 +688,21 @@ now, in shelf order, zone by zone.
     Last count change, Min and Status.
   - A **Summary** sheet with the totals per zone.
 
+### Product description
+
+**Add item** and **Edit item** have a **Description** box at the bottom
+for free text about the product: brand, what it's used for, how to store it
+(up to 500 characters, several lines are fine).
+
+- It shows in small type under the product on the Stock page and in a rack's
+  panel on the floor plan. The Stock search finds products by it.
+- It's your own text, so it's never translated when the app is in Chinese.
+- It's saved in `items.description`, so it needs that column. Re-run
+  `supabase-schema.sql` in the Supabase SQL editor (or just
+  `alter table items add column if not exists description text;`). Until
+  then the box is shown greyed out with a note, and nothing else is
+  affected.
+
 ### Item list import (warehouse)
 
 **Setup → Item list import** reads `Rack Position`, `Zone`, `Product Code`,
