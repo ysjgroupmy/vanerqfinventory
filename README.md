@@ -114,8 +114,8 @@ Every page fits the screen width, with no sideways scrolling:
   reach.
 - **Count:** the Apply button stays on screen while you count.
 - **Racks floor plan:**
-  - The whole floor fits the screen. **Zoom in** makes it bigger, and you
-    scroll it inside its box.
+  - The whole floor fits the screen. Pinch, double-tap or use **+ / −** (just
+    above the map) to zoom in, then scroll it inside its box with one finger.
   - Tapping a rack scrolls down to its panel, and **↑ Map** goes back up.
   - **Save changes** stays at the bottom of the screen until you press it.
 - **Shelves view:** dragging cards may not work on every phone. If it doesn't,
@@ -180,14 +180,16 @@ window in front.
 
 ### Minimums never below one order (kitchens and 0434)
 
-Some products go out rarely but in one go: a customer takes 5 packets once a
-month. Their use per day averages almost nothing, so 3 in stock reads as
-weeks of cover. A percentile minimum comes out 0, and the next order takes the
-balance negative with no warning.
+Some products go out rarely but in one go: a customer takes 5 packets at a
+time, a few times a month. Their use per day averages almost nothing, so 3 in
+stock reads as weeks of cover. A percentile minimum comes out 0, and the next
+order takes the balance negative with no warning.
 
-**One order** is the most that's gone out in a single day over the last 6
-months. With 4 or more orders, a day more than 3× the usual size is left out,
-so one freak bulk order doesn't set it.
+**One order** is the most that's gone out in a single day over the last 30
+days (`ORDER_DAYS` in the code). With 4 or more orders, a day more than 3× the
+usual size is left out, so one freak bulk order doesn't set it. A product that
+hasn't gone out at all in the last 30 days has no one-order floor; its normal
+minimum applies.
 
 - **Kitchens:** the minimum in use is the larger of the product's minimum and
   one order. It drives the status (Below min), the Panel's make list, the stock
@@ -303,13 +305,81 @@ floor's layout was added) and leaves the other floor as it is.
   (**Undo** puts the whole save back). Leaving the page with unsaved changes
   warns first. **+ Add product** on a level opens Add item with the next free
   rack code filled in.
+- **Zoom and pan:** the map box is sized so the whole floor fits on screen.
+  Zoom in with **+ / −** (bottom-right of the map), Ctrl + mouse wheel, a
+  trackpad or two-finger pinch, or a double-click. Then drag the floor or
+  scroll to move around. **⤢** fits the whole floor again. Double-clicking a
+  rack zooms in on it.
+- **Show** picks out what needs a look:
+  - **Out or low**, **Out**, **Low**, **Empty levels** or **Unsaved changes**
+    fade every rack without one. On the racks that are left, they also fade
+    the levels that aren't the problem.
+  - **Dry**, **Chiller** or **Freezer** pick out that zone.
+  - Each floor tab shows how many products are out on that floor.
+- **Hover** (with a mouse) over a rack for a card showing its zone, levels,
+  product count and the first few products that are out or low.
+- **Tap a level band** to open the rack straight at that level. In the panel,
+  the level chips (1L, 2L, … coloured like the map) jump to a level. **‹ ›**
+  step to the previous / next rack in walking order.
+- **Move** on a product moves it to another rack or level. Pick the rack and
+  level, and the next free position is filled in (or type any free one). A
+  taken spot is refused, so no rack code is ever used twice. Only the
+  product's rack code changes; its stock and history stay.
 - **Search** lists matching products by rack code; tapping one opens its rack
-  with the product highlighted, and the map dims every rack without a match.
-- **Edit layout** moves things to match the floor: drag a rack/wall/door/
-  stairs/area to move it, drag its corner square to resize, or type exact
-  numbers in the side panel. Racks not on the plan yet are listed there with **Place**. Rack
-  positions are saved on the rack (`racks.x/y/w/h/floor`); walls, doors,
-  no-access blocks and areas in `settings.floor_plan`.
+  with the product highlighted. On the map, every rack without a match is
+  dimmed, and the level holding it is outlined. A search that only matches
+  upstairs switches to that floor, and the floor tabs count the matches.
+  **Enter** opens the first match.
+- **Print** opens the plan as a printable page, one A4 page per floor, each
+  with a table of its racks (zone, levels, products, out, low).
+- **Adding a rack:**
+  - **Add rack** (top of the page) suggests the next name in the series on
+    the floor you're looking at (R10A after R9A; R6B upstairs). Pick the zone,
+    the number of levels and the floor.
+  - The rack goes straight onto that floor, in the middle of the screen and
+    clear of other racks, walls and doorways. Edit layout opens with it
+    selected so you can drag it to where it really stands.
+  - A name that isn't a rack code (like CENTER or Cold Room) makes an open
+    area, drawn as a room.
+  - Or, in Edit layout, pick **+ Rack** and drag out where the rack stands;
+    it then asks for the name.
+  - On the Shelves view, Add rack still asks for a row and doesn't touch the
+    plan.
+- **Rack settings (⚙):** rename the rack (its products' rack codes and its
+  levels go with it), set its zone and walking order (row / position, used
+  by count sheets and the Shelves board), **Put it on / Move it on the
+  plan**, or **Remove rack** (its products go to Unassigned, never deleted).
+- **Levels:** **+ Add level** at the bottom of a rack's panel adds the next
+  level. An empty level has **Remove level**.
+- A rack that isn't on the plan says so at the top of its panel, with **Put
+  it on the plan**.
+- **Edit layout** moves things to match the floor:
+  - **Move and resize:** tap a rack, wall, door, stairs or area to select it,
+    then drag it to move it. Drag one of the handles on its corners and sides
+    to resize from that side (a wall or door has one on each end). Or type
+    exact numbers in the side panel.
+  - **Draw:** pick a tool (**+ Rack**, **Wall**, **Door**, **Stairs**,
+    **No-access block**, **Area**, **Floor**, **Label**) and drag on the plan
+    to draw one that size. A single tap drops a standard-size one instead.
+  - **Rotate** turns the selection a quarter (a door's swing turns with it).
+    **Duplicate** copies a shape.
+  - **Undo / Redo** step back and forward through every layout change until
+    **Done editing**.
+  - **Keys:** arrows nudge one cell (Shift: five), **R** rotates, **D**
+    duplicates, **Delete** removes a shape or takes a rack off the plan, and
+    **Ctrl+Z** / **Ctrl+Shift+Z** undo and redo. **Esc** drops the tool or
+    the selection.
+  - Racks that overlap each other are outlined red, and the panel says which.
+  - Dragging the floor pans the map instead of moving the building; a tap on
+    the floor selects it.
+  - Racks not on the plan yet are listed with **Place**. Place puts the rack
+    in the middle of what's on screen, at the nearest spot clear of other
+    racks, walls and doorways. A room keeps its zone.
+  - On a phone, the selected shape's actions (rotate, settings, off the
+    plan / duplicate, delete) are in a bar at the bottom of the screen;
+    **Details** scrolls down to its exact size and place.
+  - Rack positions are saved on the rack (`racks.x/y/w/h/floor`); walls,
+    doors, no-access blocks and areas in `settings.floor_plan`.
 
 ### Racks —shelves view, and rack codes
 

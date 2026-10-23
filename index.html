@@ -485,15 +485,36 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
 }
 .fp-wrap{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(340px,1fr);gap:16px;align-items:start}
 .fp-left{min-width:0}
-.fp-bar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
-.fp-legend{display:inline-flex;gap:10px;flex-wrap:wrap;margin-left:6px;font-size:11.5px;color:var(--ink-2)}
+.fp-bar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.fp-bar-r{margin-left:auto;display:inline-flex;gap:6px;align-items:center}
+.fp-legend{display:flex;gap:10px;flex-wrap:wrap;margin:-2px 0 8px;font-size:11.5px;color:var(--ink-2)}
+.fp-fb{display:inline-block;min-width:16px;padding:0 4px;margin-left:6px;border-radius:8px;font:700 10px/16px var(--f-mono);text-align:center;color:#fff;background:var(--fp-out)}
+.fp-fb.hit{background:var(--fp-hit)}
+.fp-show{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2)}
+.fp-show select{padding:4px 6px;font-size:12.5px}
+.fp-show.on select{border-color:var(--fp-hit);box-shadow:0 0 0 1px var(--fp-hit)}
+.fp-toolset{display:inline-flex;flex-wrap:wrap;gap:4px}
+.fp-hint{font-size:12px;color:var(--ink-2);margin:-2px 0 8px;line-height:1.5}
+.fp-hint .linkbtn{margin-left:4px}
+.linkbtn{background:none;border:none;padding:0;color:var(--accent);font:inherit;text-decoration:underline;cursor:pointer}
+.fp-stage{position:relative}
+.fp-zctl{position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;box-shadow:0 1px 4px rgba(0,0,0,.18);z-index:2}
+.fp-zb{width:34px;height:34px;border:1px solid var(--rule-2);background:var(--panel);color:var(--ink);font:600 18px/1 var(--f-mono);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.fp-zb+.fp-zb{border-top:none}
+.fp-zb:hover:not(:disabled){background:var(--panel-3)}
+.fp-zb:disabled{color:var(--rule-2);cursor:default}
+.fp-zb .ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .fp-leg{display:inline-flex;align-items:center;gap:5px}
 .fp-sw{display:inline-block;width:14px;height:9px;border:1px solid rgba(0,0,0,.18);border-radius:2px}
 .fp-sw.sw-ok{background:var(--fp-ok)}.fp-sw.sw-low{background:var(--fp-low);border-color:#D18A1C}.fp-sw.sw-out{background:var(--fp-out);border-color:#B5342A}
 .fp-sw.sw-empty{background:transparent;border:1px dashed rgba(0,0,0,.35)}
-.fp-mapbox{background:var(--panel);border:1px solid var(--rule);padding:10px;overflow:auto}
-.fp-svg{display:block;width:100%;max-width:780px;height:auto;margin:0 auto;font-family:var(--f-mono);user-select:none;-webkit-user-select:none}
+.fp-mapbox{background:var(--panel);border:1px solid var(--rule);padding:10px;overflow:auto;display:flex;touch-action:pan-x pan-y;overscroll-behavior:contain}
+.fp-mapbox.empty-map{display:block;height:auto!important}
+.fp-mapbox.zoomed{cursor:grab}
+.fp-mapbox.panning,.fp-mapbox.panning *{cursor:grabbing!important}
+.fp-svg{display:block;flex:none;width:100%;height:auto;margin:auto;font-family:var(--f-mono);user-select:none;-webkit-user-select:none}
 .fp-svg.fp-edit{touch-action:none}
+.fp-svg.fp-drawing,.fp-svg.fp-drawing [data-kind]{cursor:crosshair!important}
 .fp-svg [data-kind="rack"]{cursor:pointer;outline:none}
 .fp-svg.fp-edit [data-kind]{cursor:move}
 .fp-wall{fill:var(--fp-wall)}
@@ -549,12 +570,59 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
 .fp-rk.dim,.fp-room.dim{opacity:.28}
 /* edit layout */
 .fp-hitbox{fill:transparent}
-.fp-rs{fill:var(--accent);stroke:#fff;stroke-width:1;cursor:nwse-resize}
+.fp-rs{fill:#fff;stroke:var(--accent);stroke-width:1.4}
+.fp-h-hit{fill:transparent}
+.fp-h.h-nw,.fp-h.h-se{cursor:nwse-resize}.fp-h.h-ne,.fp-h.h-sw{cursor:nesw-resize}.fp-h.h-n,.fp-h.h-s{cursor:ns-resize}.fp-h.h-e,.fp-h.h-w{cursor:ew-resize}
+.fp-svg.fp-edit .fp-h-hit,.fp-svg.fp-edit .fp-rs{cursor:inherit}
+.fp-svg.fp-edit .fp-sel-layer .fp-esel{pointer-events:none}
+.fp-ghost-t{font:700 7px var(--f-mono);fill:var(--accent);paint-order:stroke;stroke:#fff;stroke-width:2.5px;pointer-events:none}
+.fp-rk.ovl .fp-rk-b,.fp-room.ovl .fp-room-b{stroke:var(--fp-out);stroke-width:2;stroke-dasharray:4 2}
+.fp-lv{cursor:pointer}
+.fp-lv.fade{opacity:.3}
+.fp-svg:not(.fp-edit) .fp-lv:hover .fp-band{stroke:var(--accent);stroke-width:1.2}
+.fp-band.hit{stroke:var(--fp-hit);stroke-width:1.8;stroke-dasharray:none}
+.fp-room-f .t-hit{fill:#A66F00}
 .fp-esel{fill:none;stroke:var(--fp-hit);stroke-width:1.5;stroke-dasharray:4 2}
 .fp-ghost{fill:rgba(11,79,74,.12);stroke:var(--accent);stroke-width:1.2;stroke-dasharray:3 2;pointer-events:none}
+.fp-tip{position:fixed;z-index:60;max-width:300px;background:var(--panel);border:1px solid var(--rule-2);box-shadow:0 4px 14px rgba(0,0,0,.16);padding:8px 10px;font-size:12px;pointer-events:none}
+.fp-tip-h{display:flex;gap:8px;align-items:baseline;margin-bottom:3px}.fp-tip-h b{font-size:13px}.fp-tip-h span{color:var(--ink-2);font-size:11.5px}
+.fp-tip-f{display:flex;gap:10px;font:600 11px var(--f-mono);margin-bottom:4px}
+.t-out{color:var(--crit)}.t-low{color:var(--warn)}.t-chg{color:var(--accent)}
+.fp-tip-r{display:flex;gap:6px;align-items:baseline;padding:2px 0;border-top:1px solid var(--rule)}
+.fp-tip-r .mono{font-size:10.5px;color:var(--ink-2);min-width:30px}.fp-tip-r .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fp-tip-m{color:var(--ink-3);font-size:11px;margin-top:3px}
 /* side panel */
 .fp-side{background:var(--panel);border:1px solid var(--rule);position:sticky;top:64px;max-height:calc(100vh - 80px);display:flex;flex-direction:column}
 .fp-side-h{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--rule);background:var(--panel-2);flex:none}
+.fp-side-btns{margin-left:auto;display:flex;gap:4px}
+.fp-lchips{display:flex;gap:4px;flex-wrap:wrap;align-items:center;padding:8px 12px;border-bottom:1px solid var(--rule);flex:none}
+.fp-lchip{display:inline-flex;gap:5px;align-items:baseline;padding:3px 7px;border:1px solid var(--rule-2);background:var(--fp-ok);font:600 11px var(--f-mono);cursor:pointer;color:var(--fp-ink)}
+.fp-lchip span{font-weight:400;opacity:.75}
+.fp-lchip.s-low{background:var(--fp-low);border-color:#D18A1C;color:var(--fp-low-ink)}
+.fp-lchip.s-out{background:var(--fp-out);border-color:#B5342A;color:#fff}
+.fp-lchip.s-empty{background:transparent;border-style:dashed;color:#7C858A}
+.fp-lchip.chg{box-shadow:inset 0 -2px 0 var(--accent)}
+.fp-lchip.hit{outline:2px solid var(--fp-hit);outline-offset:-1px}
+.fp-lchip:hover{filter:brightness(.95)}
+.fp-lsum{margin-left:auto;display:inline-flex;gap:8px;font:600 11px var(--f-mono)}
+.fp-lvl.flash>.fp-lvl-h{animation:fpflash 1.2s ease-out}
+@keyframes fpflash{0%{background:var(--fp-low)}100%{background:transparent}}
+.fp-warn{background:var(--crit-bg);border:1px solid var(--crit-rule);color:var(--crit);font-size:12px;padding:6px 9px;margin-top:8px}
+.fp-acts2{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.fp-offnote{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 12px;background:var(--warn-bg);border-bottom:1px solid var(--warn-rule);color:var(--warn);font-size:12.5px;flex:none}
+.fp-offnote .btn{margin-left:auto}
+.fp-addlv{margin:12px 0 4px}
+.fp-tool-rack{font-weight:600}
+.fp-selbar{display:none}
+@media(max-width:860px){
+  .fp-selbar{display:flex;gap:6px;align-items:center;position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--panel);border-top:1px solid var(--rule-2);
+    box-shadow:0 -4px 12px rgba(0,0,0,.1);padding:8px 10px calc(8px + env(safe-area-inset-bottom));overflow-x:auto}
+  .fp-selbar b{margin-right:auto;font-size:14px;white-space:nowrap}
+  .fp-selbar .btn{flex:none}
+  #page-racks:has(.fp-selbar){padding-bottom:64px}
+}
+.fp-mv{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px}
+.fp-mv .field{margin-bottom:8px}
 .fp-side-b{overflow-y:auto;padding:4px 12px 12px;flex:1;min-height:0}
 .fp-lvl-h{display:flex;align-items:center;gap:8px;font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.05em;color:var(--ink-2);padding:10px 0 6px;border-bottom:1.5px solid var(--rule-2)}
 .fp-it{padding:8px 12px 9px;margin:0 -12px;border-bottom:1px solid var(--rule)}
@@ -603,9 +671,9 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
 .fp-zt th{text-align:left;font-family:var(--f-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);padding:6px 4px;border-bottom:1.5px solid var(--rule-2)}
 .fp-zt td{padding:7px 4px;border-bottom:1px solid var(--rule)}
 .fp-zt th.num,.fp-zt td.num{text-align:right}
-.fp-ins{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:8px}
-.fp-ins label{display:flex;flex-direction:column;gap:2px;font-family:var(--f-mono);font-size:10px;color:var(--ink-2)}
-.fp-ins input[type=number]{width:100%}
+.fp-insp{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:8px}
+.fp-insp label{display:flex;flex-direction:column;gap:2px;font-family:var(--f-mono);font-size:10px;color:var(--ink-2)}
+.fp-insp input[type=number]{width:100%}
 .fp-off{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--rule);font-size:12.5px}
 .fp-off .btn{margin-left:auto}
 @media(max-width:1000px){
@@ -616,10 +684,14 @@ tr.grp td .zchip{margin-right:8px;vertical-align:1px}
 /* on a phone the whole floor fits the screen; Zoom in makes it readable and it scrolls */
 @media(max-width:860px){
   .fp-mapbox{padding:6px}
-  .fp-bar .m-only+.btn{margin-left:0!important}
+  .fp-mv{grid-template-columns:1fr 1fr}
+  .fp-stage{display:flex;flex-direction:column}
+  .fp-zctl{position:static;order:-1;flex-direction:row;align-self:flex-end;margin:0 0 6px;box-shadow:none}
+  .fp-zb+.fp-zb{border-top:1px solid var(--rule-2);border-left:none}
+  .fp-mv .field:first-child{grid-column:1/-1}
 }
-@media(max-width:640px){ .fp-mapbox.zoom .fp-svg{width:760px;max-width:none} }
-@media(min-width:641px){ .fp-zoom-b{display:none!important} .fp-bar .fp-zoom-b+.btn{margin-left:auto!important} }
+@media(hover:none){ .fp-tip{display:none!important} }
+@media(pointer:coarse){ .fp-zb{width:42px;height:42px} .fp-lchip{padding:6px 10px;font-size:12px} }
 
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition-duration:.01ms!important}}
 /* ---------------- tablet & phone ----------------
@@ -1324,8 +1396,8 @@ const ZH_DICT = /*ZH_DICT*/{
 "Actual out":"实际产出",
 "Add a bit of detail for \"Other\"":"请为“其他”补充一些说明",
 "Add a level to R{n}A":"为 R{n}A 添加一层",
-"Add a product at {s}":"在 {s} 添加货品",
 "Add a product at {s} —{s} and the ones after it move up one":"在 {s1} 添加货品 —{s2} 及其后的货品各后移一位",
+"Add a product at {s}":"在 {s} 添加货品",
 "Add a rack":"添加货架",
 "Add all shown":"添加全部显示项",
 "Add an item":"添加货品",
@@ -2828,10 +2900,123 @@ const ZH_DICT = /*ZH_DICT*/{
 "{n} shared products put in their chiller, freezer or CENTER":"已把 {n} 个共享货品放进对应的冷藏库、冷冻库或 CENTER",
 "A product bought rarely but in one go never has a minimum below its biggest single order, so the next order can't take it negative unseen.":"偶尔才一次性大量拿货的货品，最低库存不会低于它单次最大的一单，这样下一单不会在没人察觉的情况下把库存扣成负数。",
 "< {n} order":"不够 {n} 单",
-"Up to {s} has gone out in one day —this balance can't cover one order":"一天内最多出过 {s} —这个结存不够一单",
-"Raised to one order: up to {s} has gone out in one day (set minimum {s})":"已提高到一单：一天内最多出过 {s}（设定的最低库存 {s}）",
-"of issues (and sales, once imported), sized for the busiest weeks so a bad week is still covered. It updates by itself as history builds up; a product with no movement yet has no automatic minimum. It's never less than the most that's gone out in one day over the last {n} months, so a product taken rarely but in bulk still warns before the next order.":"的出库量（导入销售后也包括销售），并按最繁忙的几周计算，即使遇到用量大的一周也够用。它会随着历史数据积累自动更新；还没有任何流水的货品没有自动最低库存。它不会低于过去 {n} 个月里一天内出货最多的数量，所以偶尔才大批出货的货品在下一单之前也会提醒。",
+"Up to {s} has gone out in one day in the last {n} days —this balance can't cover one order":"过去 {n} 天里一天内最多出过 {s} —这个结存不够一单",
+"Raised to one order: up to {s} has gone out in one day in the last {n} days (set minimum {s})":"已提高到一单：过去 {n} 天里一天内最多出过 {s}（设定的最低库存 {s}）",
+"of issues (and sales, once imported), sized for the busiest weeks so a bad week is still covered. It updates by itself as history builds up; a product with no movement yet has no automatic minimum. It's never less than the most that's gone out in one day over the last {n} days, so a product taken rarely but in bulk still warns before the next order.":"的出库量（导入销售后也包括销售），并按最繁忙的几周计算，即使遇到用量大的一周也够用。它会随着历史数据积累自动更新；还没有任何流水的货品没有自动最低库存。它不会低于过去 {n} 天里一天内出货最多的数量，所以偶尔才大批出货的货品在下一单之前也会提醒。",
 "Below min":"低于最低库存",
+"Show":"显示",
+"Show on the map":"在平面图上显示",
+"Everything":"全部",
+"Out or low":"缺货或低库存",
+"Empty levels":"空层",
+"Unsaved changes":"未保存的改动",
+"Print the floor plan":"打印平面图",
+"Print":"打印",
+"ENTRANCE":"入口",
+"Zoom":"缩放",
+"Zoom in (Ctrl + scroll, or pinch)":"放大（Ctrl + 滚轮，或双指张开）",
+"Zoom out":"缩小",
+"Fit the whole floor":"显示整层",
+"Tap one of a rack's levels to open it at that level. Zoom with + / −, a pinch or Ctrl + scroll; Show picks out what's out, low or empty.":"点货架上的某一层，可直接打开到该层。用 + / −、双指或 Ctrl + 滚轮缩放；“显示”可突出缺货、低库存或空层。",
+"and {n} more —Low Stock (station {n}) has the full list.":"还有 {n1} 项 —完整清单见低库存（{n2} 站）。",
+"Previous rack":"上一个货架",
+"Next rack":"下一个货架",
+"Go to level {n}":"转到第 {n} 层",
+"Move to another rack or level":"移到其他货架或层",
+"Move":"移动",
+"Move {s}":"移动 {s}",
+"Moved {s} to {s}":"已将 {s1} 移到 {s2}",
+"Click to open":"点击打开",
+"{n} level":"{n} 层",
+"{n} levels":"{n} 层",
+"{n} found":"找到 {n} 个",
+"{n} unsaved":"{n} 项未保存",
+"{n} edited":"{n} 项已改",
+"Now at":"当前位置",
+"Pick where it goes —the next free spot there is filled in.":"选择要移到的位置 —会自动填入那里的下一个空位。",
+"Rack":"货架",
+"Position":"位置",
+"That's where it is now.":"这就是它现在的位置。",
+"Type a position number.":"请输入位置编号。",
+"It goes to":"移到",
+"—that spot is free, nothing else moves.":"—该位置空着，其他货品不动。",
+"is already the rack code of {s} —pick another position.":"已是 {s} 的货架编码 —请换一个位置。",
+", at the end of its list.":"，排在清单末尾。",
+"level {n}, at the end of its list.":"第 {n} 层，排在清单末尾。",
+"Tools":"工具",
+"Select":"选择",
+"Wall":"墙",
+"Door":"门",
+"Stairs":"楼梯",
+"No-access block":"禁入区",
+"Label":"标签",
+"Undo (Ctrl+Z)":"撤销（Ctrl+Z）",
+"↶ Undo":"↶ 撤销",
+"Redo (Ctrl+Shift+Z)":"重做（Ctrl+Shift+Z）",
+"↷ Redo":"↷ 重做",
+"Tap a shape to select it · drag to move it · drag a handle to resize · arrow keys nudge (Shift = {n}) · R rotates · D duplicates · Delete removes":"点击对象即可选中 · 拖动可移动 · 拖动手柄可调整大小 · 方向键微调（Shift = {n}） · R 旋转 · D 复制 · Delete 删除",
+"Tap a shape to select it · drag to move it · drag a handle to resize":"点击对象即可选中 · 拖动可移动 · 拖动手柄可调整大小",
+"drag on the plan to draw one —or tap once for a standard one. Esc or Select stops.":"在平面图上拖动画出一个 —或点一下放一个标准大小的。按 Esc 或“选择”结束。",
+"Tap a rack, wall or door on the plan to select it —then drag it to move it, or drag one of its handles to resize it. Pick a tool above to draw new walls, doors and areas. Everything snaps to the grid and saves as you go; Undo takes back one change at a time.":"点击平面图上的货架、墙或门即可选中 —然后拖动来移动，或拖动它的手柄来调整大小。用上方的工具可画出新的墙、门和区块。所有对象都会对齐网格并随时自动保存；“撤销”每次撤回一步更改。",
+"Overlaps {s} —drag one of them clear.":"与 {s} 重叠 —请把其中一个拖开。",
+"Turn it a quarter (R)":"旋转 90°（R）",
+"↻ Rotate":"↻ 旋转",
+"Open rack":"打开货架",
+"Duplicate":"复制",
+"Opens towards":"开门方向",
+"up":"上",
+"down":"下",
+"left":"左",
+"right":"右",
+"Racks not on the plan":"未放上平面图的货架",
+"Place on {n}st floor":"放到 {n} 楼",
+"Place on {n}nd floor":"放到 {n} 楼",
+"Place on {n}rd floor":"放到 {n} 楼",
+"Place on {n}th floor":"放到 {n} 楼",
+"{n} · {n}st floor":"{n1} · {n2} 楼",
+"{n} · {n}nd floor":"{n1} · {n2} 楼",
+"{n} · {n}rd floor":"{n1} · {n2} 楼",
+"{n} · {n}th floor":"{n1} · {n2} 楼",
+"{n} racks · {n} products · {n} out · {n} low · {d}":"{n1} 个货架 · {n2} 个货品 · {n3} 缺货 · {n4} 低库存 · {d}",
+"{n} rack · {n} products · {n} out · {n} low · {d}":"{n1} 个货架 · {n2} 个货品 · {n3} 缺货 · {n4} 低库存 · {d}",
+"Open one and press Put it on the plan, or place them in Edit layout.":"打开其中一个并点“放上平面图”，或在编辑布局中放置。",
+"Rack settings —name, zone, levels, remove":"货架设置 —名称、区域、层、移除",
+"+ Add level":"+ 添加层",
+"Selection":"所选对象",
+"Rotate":"旋转",
+"Settings":"设置",
+"Off plan":"移出平面图",
+"Deselect":"取消选择",
+"Rename, zone, remove":"改名、区域、移除",
+"⚙ Settings":"⚙ 设置",
+"Levels":"层数",
+"Put it on the floor plan now —you then drag it to where it stands":"现在就放上平面图 —然后把它拖到实际位置",
+"A labelled rack —its products get rack codes like {s}.":"有编码的货架 —其货品的货位编码如 {s}。",
+"An open area, like CENTER —drawn as a room, its products are just listed.":"开放区域（如 CENTER）—画成一个房间，货品只按清单列出。",
+"{s} added —drag it to where it stands, then press Done editing":"已添加 {s} —把它拖到实际位置，然后点“完成编辑”",
+"Position in row":"排内位置",
+"Row and position set the walking order —on count sheets and the Shelves board (lower = earlier).":"排和位置决定巡货顺序 —用于盘点表和货架视图（数字越小越靠前）。",
+"on the {n}st floor plan":"在 {n} 楼平面图上",
+"on the {n}nd floor plan":"在 {n} 楼平面图上",
+"on the {n}rd floor plan":"在 {n} 楼平面图上",
+"on the {n}th floor plan":"在 {n} 楼平面图上",
+"not on the floor plan":"不在平面图上",
+"Move it on the plan":"在平面图上移动",
+"Put it on the plan":"放上平面图",
+"Not on the floor plan yet.":"尚未放上平面图。",
+"{n} products · {n} levels · not on the plan":"{n1} 个货品 · {n2} 层 · 不在平面图上",
+"{n} product · {n} levels · not on the plan":"{n1} 个货品 · {n2} 层 · 不在平面图上",
+"{n} products · {n} level · not on the plan":"{n1} 个货品 · {n2} 层 · 不在平面图上",
+"{n} product · {n} level · not on the plan":"{n1} 个货品 · {n2} 层 · 不在平面图上",
+"{n} products · not on the plan":"{n} 个货品 · 不在平面图上",
+"{n} product · not on the plan":"{n} 个货品 · 不在平面图上",
+"Level {n} added to {s}":"已为 {s} 添加第 {n} 层",
+"{s} saved —{s} · renamed from {s}":"{s1} 已保存 —{s2} · 原名 {s3}",
+"{s} saved —{s}":"{s1} 已保存 —{s2}",
+"A rack name can't have quotes, \\, <, > or & in it":"货架名称不能包含引号、\\、<、> 或 &",
+"Keep the rack name to {n} characters or fewer":"货架名称不能超过 {n} 个字符",
+"\"Unassigned\" is kept for products with no rack":"“Unassigned” 保留给没有货架的货品",
+"There's already a rack called {s}":"已有名为 {s} 的货架",
 "＋ insert {n}":"＋ 插入 {n}"
 }/*/ZH_DICT*/;
 const LANG_KEY = "qf_lang";
@@ -3390,16 +3575,17 @@ function smartDailyRate(id){
 }
 function usageRate(it){ const r=smartDailyRate(it.id); return r>0 ? r : (it.baseDaily||0); }
 /* One order's worth: the most a customer has taken in one day over the last
-   6 months. A product bought rarely but in one go —5 packets once a month—
+   ORDER_DAYS (30) days. A product bought rarely but in one go —5 packets at a time—
    averages almost nothing a day, so its cover looks like weeks and a
    percentile minimum comes out 0, and the next order takes it negative with
    no warning. Its minimum is never below this. With 4 or more orders, one
    more than 3× the usual size is left out, so a freak bulk order doesn't
    set it. */
+const ORDER_DAYS = 30;
 function orderSize(it){
   const ix = usageIndex(), k = "order|"+it.id;
   if(ix.series.has(k)) return ix.series.get(k)[0];
-  const nz = salesSeries(it.id, 180).filter(v=>v>0).sort((a,b)=>a-b);
+  const nz = salesSeries(it.id, ORDER_DAYS).filter(v=>v>0).sort((a,b)=>a-b);
   let v = 0;
   if(nz.length){
     const med = nz[Math.floor(nz.length/2)], use = nz.length>=4 ? nz.filter(x=>x<=med*3) : nz;
@@ -3462,7 +3648,7 @@ document.addEventListener("click", e=>{ if(!e.target.closest(".info")) closeInfo
 window.addEventListener("scroll", closeInfos, true);
 function minInfo(){
   const d = state.coverTarget||7;
-  return `<b>Auto</b> —the system sets the minimum from what goes out: enough stock for <b>${d} days</b> of issues${isWarehouse()?" (and sales, once imported)":""}, sized for the busiest weeks so a bad week is still covered. It updates by itself as history builds up; a product with no movement yet has no automatic minimum. It's never less than the most that's gone out in one day over the last 6 months, so a product taken rarely but in bulk still warns before the next order.<br><br><b>Manual</b> —you type the minimum and it stays exactly as you set it until you switch back to Auto.<br><br>Either way, when the balance drops below the minimum the product goes on <b>Low Stock</b> and you get an alert. The ${d} days can be changed in <b>Minimums</b>.`;
+  return `<b>Auto</b> —the system sets the minimum from what goes out: enough stock for <b>${d} days</b> of issues${isWarehouse()?" (and sales, once imported)":""}, sized for the busiest weeks so a bad week is still covered. It updates by itself as history builds up; a product with no movement yet has no automatic minimum. It's never less than the most that's gone out in one day over the last ${ORDER_DAYS} days, so a product taken rarely but in bulk still warns before the next order.<br><br><b>Manual</b> —you type the minimum and it stays exactly as you set it until you switch back to Auto.<br><br>Either way, when the balance drops below the minimum the product goes on <b>Low Stock</b> and you get an alert. The ${d} days can be changed in <b>Minimums</b>.`;
 }
 /* Auto | Manual pill for one product's minimum. Manual opens the editor,
    starting from what Auto gives now so the number doesn't jump. */
@@ -3544,7 +3730,7 @@ function sevTag(it){
 function coverCell(it){
   const c = coverDays(it), o = it.preorder || it.stopped ? 0 : orderSize(it);
   if(o>0 && it.stock>=0 && it.stock<o)      // days mean nothing if the next order alone takes more than there is
-    return `<span style="color:var(--warn);font-weight:600" title="Up to ${esc(fmtQty(it, o))} has gone out in one day —this balance can't cover one order">&lt; 1 order</span>`;
+    return `<span style="color:var(--warn);font-weight:600" title="Up to ${esc(fmtQty(it, o))} has gone out in one day in the last ${ORDER_DAYS} days —this balance can't cover one order">&lt; 1 order</span>`;
   if(c==null) return '<span class="faint">—</span>';
   return fmt1(c);
 }
@@ -3553,7 +3739,7 @@ function kitMinCell(it){
   const m = effMin(it);
   if(!(m>0)) return "—";
   const up = !it.preorder && orderSize(it)>(it.min||0);
-  return up ? `<span title="Raised to one order: up to ${esc(fmtQty(it, orderSize(it)))} has gone out in one day (set minimum ${esc(fmtQty(it, it.min||0))})">${esc(fmtQty(it, m))} ↑</span>` : esc(fmtQty(it, m));
+  return up ? `<span title="Raised to one order: up to ${esc(fmtQty(it, orderSize(it)))} has gone out in one day in the last ${ORDER_DAYS} days (set minimum ${esc(fmtQty(it, it.min||0))})">${esc(fmtQty(it, m))} ↑</span>` : esc(fmtQty(it, m));
 }
 
 /* ---------- the make list: the decision this page exists to produce ---------- */
@@ -7429,52 +7615,168 @@ function cmpLevel(a,b){
   if(an!==bn) return an?-1:1;
   return String(a).localeCompare(String(b));
 }
-function promptAddRack(){
-  const z = rkZoneTab!=="all" ? rkZoneTab : "dry";
+/* A rack name has to be unique (ignoring case) and safe to put in a rack
+   code and a button —no quotes, backslash, < > or &. */
+function rackNameError(name, except){
+  if(!name) return "Enter a rack name";
+  if(/['"\\<>&]/.test(name)) return "A rack name can't have quotes, \\, <, > or & in it";
+  if(name.length>24) return "Keep the rack name to 24 characters or fewer";
+  if(name.toLowerCase()==="unassigned") return "\"Unassigned\" is kept for products with no rack";
+  const clash = rackList().find(n=>n!==except && n.toLowerCase()===name.toLowerCase());
+  return clash ? "There's already a rack called "+clash : "";
+}
+/* The next name in the series on this floor: R1A…R9A → R10A, R1B…R5B → R6B. */
+function suggestRackName(){
+  const pat = /^([A-Za-z]{1,3})(\d+)([A-Za-z]{0,2})$/;
+  let pool = rkView!=="shelves" ? state.racks.filter(r=>r.x!=null && (r.floor||1)===fpFloor && pat.test(r.name)).map(r=>r.name) : [];
+  if(!pool.length) pool = rackList().filter(n=>pat.test(n));
+  if(!pool.length) return rackNameError("R1A") ? "" : "R1A";
+  const groups = new Map();      // the commonest letters-number-letters pattern wins
+  for(const n of pool){
+    const [, pre, num, suf] = n.match(pat), k = pre.toUpperCase()+"|"+suf.toUpperCase();
+    const g = groups.get(k) || {pre, suf, n:0, max:0};
+    g.n++; g.max = Math.max(g.max, +num); groups.set(k, g);
+  }
+  const g = [...groups.values()].sort((a,b)=>b.n-a.n)[0];
+  for(let i = g.max+1; i < g.max+100; i++){ const n = g.pre+i+g.suf; if(!rackNameError(n)) return n; }
+  return "";
+}
+/* Add a rack. On the floor plan it goes straight onto the floor —in the
+   middle of the screen, or where it was drawn with the Rack tool— and Edit
+   layout opens with it selected, ready to be dragged to where it stands.
+   On Shelves it joins a row there, as before. It starts with the number of
+   levels asked for (1L at the top). */
+let addRackRect = null;
+function promptAddRack(rect){
+  const plan = rkView!=="shelves";
+  addRackRect = rect || null;
+  const z = !plan && rkZoneTab!=="all" ? rkZoneTab : "dry";
+  const floors = planFloors(); if(!floors.includes(fpFloor)) floors.push(fpFloor);
   modal(`<h3>Add a rack</h3>
-    <div class="field"><label>Rack name</label><input id="m-rackname" placeholder="e.g. R10A or CENTER"></div>
-    <div class="field"><label>Zone —the room this rack stands in</label><select id="m-rackzone">${zoneOptions(z)}</select></div>
-    <div class="field"><label>Row</label><input id="m-rackrow" type="number" min="1" step="1" value="1"></div>
+    <div class="field"><label>Rack name</label><input id="m-rackname" value="${esc(suggestRackName())}" placeholder="e.g. R10A or CENTER" autocomplete="off"></div>
+    <p class="dim" id="m-rackkind" style="font-size:12px;margin:-4px 0 10px"></p>
+    <div class="fp-mv">
+      <div class="field"><label>Zone</label><select id="m-rackzone">${zoneOptions(z)}</select></div>
+      <div class="field"><label>Levels</label><input id="m-racklv" type="number" min="1" max="20" step="1" value="3" inputmode="numeric"></div>
+      ${plan ? (rect ? "" : `<div class="field"><label>Floor</label><select id="m-rackfloor">${floors.sort((x,y)=>x-y).map(f=>`<option value="${f}" ${f===fpFloor?"selected":""}>${ordinal(f)} floor</option>`).join("")}</select></div>`)
+             : `<div class="field"><label>Row</label><input id="m-rackrow" type="number" min="1" step="1" value="1"></div>`}
+    </div>
+    ${plan && !rect ? `<div class="field"><label class="opt"><input type="checkbox" id="m-rackplace" checked> Put it on the floor plan now —you then drag it to where it stands</label></div>` : ""}
     <div class="mfoot"><button class="btn" onclick="closeModal()">Cancel</button>
-      <button class="btn primary" onclick="addRack()">Add</button></div>`);
-  $("#m-rackname").focus();
+      <button class="btn primary" onclick="addRack()">Add rack</button></div>`);
+  const nm = $("#m-rackname"), lvBox = $("#m-racklv");
+  const kind = () => {
+    const v = nm.value.trim();
+    $("#m-rackkind").textContent = !v ? "" : rackCoded(v)
+      ? "A labelled rack —its products get rack codes like "+v+"1L01."
+      : "An open area, like CENTER —drawn as a room, its products are just listed.";
+    if(!lvBox.dataset.user) lvBox.value = rackCoded(v) || !v ? 3 : 1;
+  };
+  nm.addEventListener("input", kind);
+  lvBox.addEventListener("input", ()=>{ lvBox.dataset.user = "1"; });
+  kind(); nm.focus(); nm.select();
 }
 function addRack(){
   const name = ($("#m-rackname").value||"").trim();
-  if(!name){ toast("Enter a rack name"); return; }
-  if(state.racks.some(r=>r.name===name) || name==="Unassigned"){ toast("That rack already exists"); return; }
-  const row = Math.max(1, parseInt($("#m-rackrow").value,10)||1);
+  const err = rackNameError(name); if(err){ toast(err); return; }
   const zone = $("#m-rackzone").value || "dry";
+  const nLv = Math.min(20, Math.max(1, parseInt($("#m-racklv").value,10)||1));
+  const plan = rkView!=="shelves", rect = addRackRect;
+  const place = plan && (!!rect || !!($("#m-rackplace") && $("#m-rackplace").checked));
+  const floor = rect ? rect.floor : $("#m-rackfloor") ? (+$("#m-rackfloor").value||1) : fpFloor;
+  const row = plan ? floor : Math.max(1, parseInt($("#m-rackrow").value,10)||1);
   const inRow = state.racks.filter(r=>(r.row||1)===row);
   const order = (inRow.length?Math.max(...inRow.map(r=>r.order||0)):0)+1;
-  state.racks.push({name, order, row, zone});
-  registerLevel(name, "1");
-  closeModal(); save(); render();
-  toast("Rack "+name+" added —"+zoneInfo(zone).label);
+  if(place && fpEdit) planPush();
+  const rk = {name, order, row, zone};
+  state.racks.push(rk);
+  for(let l=1; l<=nLv; l++) registerLevel(name, String(l));
+  closeModal(); addRackRect = null;
+  if(!place){ save(); render(); toast("Rack "+name+" added —"+zoneInfo(zone).label); return; }
+  /* onto the plan, in Edit layout with it selected */
+  fpSel = null; fpTool = null;
+  if(!fpEdit){ fpEdit = true; fpHist = []; fpRedo = []; }
+  if(fpFloor!==floor){ fpFloor = floor; fpZoom = 1; }
+  let r = rect;
+  if(!r){
+    const coded = rackCoded(name), w = coded ? 5 : 10, h = coded ? Math.max(4, nLv*2+2) : 8;
+    renderRacks();
+    const c = planViewCenter(), at = planFreeSpot(c.x, c.y, w, h, name);
+    r = {x:at.x, y:at.y, w, h};
+  }
+  Object.assign(rk, {x:r.x, y:r.y, w:r.w, h:r.h, floor});
+  fpEditSel = {kind:"rack", key:name};
+  save(); render();
+  planShowMap(); planCenterOn(name);
+  toast(name+" added —drag it to where it stands, then press Done editing");
 }
-/* Rack settings: which zone it stands in, and where it sits on the board. */
+/* Rack settings: name, zone, walking order, and its place on the plan. */
 function promptMoveRack(name){
   const rk = state.racks.find(r=>r.name===name);
   const curRow = rk ? (rk.row||1) : defaultRackRow(name);
   const curOrder = rk ? (rk.order||0) : 0;
-  const n = state.items.filter(i=>(i.store||"")===name).length;
+  const n = state.items.filter(i=>(i.store||"")===name).length, lv = levelsOf(name), placed = rk && rk.x!=null;
   modal(`<h3>Rack ${esc(name)}</h3>
+    <div class="field"><label>Name</label><input id="m-mv-name" value="${esc(name)}" autocomplete="off"></div>
     <div class="field"><label>Zone —the room this rack stands in</label><select id="m-mv-zone">${zoneOptions(rackZone(name))}</select></div>
-    <div class="field"><label>Row</label><input id="m-mv-row" type="number" min="1" step="1" value="${curRow}"></div>
-    <div class="field"><label>Position in row (lower = further left)</label><input id="m-mv-order" type="number" step="1" value="${curOrder}"></div>
-    <p class="dim" style="font-size:12px">The ${n} item${n===1?"":"s"} on this rack count as stock in whichever zone it's set to.</p>
+    <div class="fp-mv" style="grid-template-columns:1fr 1fr">
+      <div class="field"><label>Row</label><input id="m-mv-row" type="number" min="1" step="1" value="${curRow}"></div>
+      <div class="field"><label>Position in row</label><input id="m-mv-order" type="number" step="1" value="${curOrder}"></div>
+    </div>
+    <p class="dim" style="font-size:12px;margin:-4px 0 10px">Row and position set the walking order —on count sheets and the Shelves board (lower = earlier).</p>
+    <p class="dim" style="font-size:12.5px"><span>${n} product${n===1?"":"s"} · ${lv.length} level${lv.length===1?"":"s"}</span> · <span>${placed ? "on the "+ordinal(rk.floor||1)+" floor plan" : "not on the floor plan"}</span></p>
+    <div class="fp-acts2">
+      <button class="btn sm" onclick="planEditRack('${esc(name)}')">${placed ? "Move it on the plan" : "Put it on the plan"}</button>
+      <button class="btn sm danger" style="margin-left:auto" onclick="closeModal();removeRack('${esc(name)}')">Remove rack</button>
+    </div>
     <div class="mfoot"><button class="btn" onclick="closeModal()">Cancel</button>
       <button class="btn primary" onclick="moveRack('${esc(name)}')">Save</button></div>`);
 }
 function moveRack(name){
+  const newName = ($("#m-mv-name").value||"").trim();
+  if(newName!==name){ const err = rackNameError(newName, name); if(err){ toast(err); return; } }
   const row = Math.max(1, parseInt($("#m-mv-row").value,10)||1);
   const order = parseInt($("#m-mv-order").value,10)||0;
   const zone = $("#m-mv-zone").value || "dry";
   let rk = state.racks.find(r=>r.name===name);
   if(!rk){ rk = {name, order:0, row:1, zone:"dry"}; state.racks.push(rk); }
   rk.row = row; rk.order = order; rk.zone = zone;
+  if(newName!==name) renameRack(name, newName);
   closeModal(); save(); render();
-  toast(name+" saved —"+zoneInfo(zone).label+", row "+row);
+  toast(newName+" saved —"+zoneInfo(zone).label+(newName!==name?" · renamed from "+name:""));
+}
+/* Renaming moves everything with it: the products on it (their rack codes
+   change with the name), its levels, its place on the plan. */
+function renameRack(oldName, newName){
+  const rk = state.racks.find(r=>r.name===oldName);
+  if(rk) rk.name = newName;
+  for(const lv of state.levels) if(lv.rack===oldName) lv.rack = newName;
+  for(const it of state.items) if((it.store||"")===oldName) it.store = newName;
+  if(expandedRacks.has(oldName)){ expandedRacks.delete(oldName); expandedRacks.add(newName); saveExpandedRacks(); }
+  if(fpSel===oldName) fpSel = newName;
+  if(fpEditSel && fpEditSel.kind==="rack" && fpEditSel.key===oldName) fpEditSel = {kind:"rack", key:newName};
+}
+/* "Put it on / Move it on the plan": Edit layout with the rack selected —placed
+   in the middle of the screen first if it isn't on the plan yet. */
+function planEditRack(name){
+  closeModal();
+  if(rkView==="shelves"){ rkView = "plan"; try{ localStorage.setItem("qf_racks_view", "plan"); }catch(e){} }
+  const rk = state.racks.find(r=>r.name===name);
+  fpSel = null; fpTool = null;
+  if(!fpEdit){ fpEdit = true; fpHist = []; fpRedo = []; }
+  if(rk && rk.x!=null){ fpFloor = rk.floor||1; fpEditSel = {kind:"rack", key:name}; renderRacks(); planShowMap(); planCenterOn(name); }
+  else { fpEditSel = null; renderRacks(); planShowMap(); planPlace(name); }
+}
+/* bring the map on screen (on a phone it's often scrolled away above the panel) */
+function planShowMap(){ const b = $("#fp-mapbox"); if(b) b.scrollIntoView({block: narrowScreen() ? "center" : "nearest", behavior:"instant"}); }
+/* "+ Add level" on the rack panel: the next number, straight away. */
+function addLevelQuick(rackName){
+  const lv = levelsOf(rackName), nums = lv.map(Number).filter(n=>!isNaN(n));
+  const next = String(nums.length ? Math.max(...nums)+1 : lv.length+1);
+  registerLevel(rackName, next);
+  save();
+  fpLvl = next; renderRacks();
+  toast("Level "+next+" added to "+rackName);
 }
 /* Removing a rack also unassigns whatever is on it (back to Unassigned,
    never deleted) and drops its registered levels —matching what the
@@ -7599,7 +7901,13 @@ function commitCard(el){
    ============================================================ */
 let rkView = "plan";          // "plan" | "shelves" —per-browser preference
 let fpFloor = 1, fpSel = null, fpEdit = false, fpEditSel = null, fpDrag = null, fpFocus = null;
-let fpZoom = false;   // phones: the plan fits the screen; Zoom in makes it bigger and scrollable
+let fpZoom = 1;       // 1 = the whole floor fits the map box; up to FP_ZMAX, then it scrolls
+const FP_ZMAX = 6;
+let fpShow = "all";   // what the map picks out: all | problems | out | low | empty | chg | dry | chilled | frozen
+let fpLvl = null;     // a level band tapped on the map —the rack panel opens at that level
+let fpCenter = false; // after the next draw, scroll the selected rack into the middle of the map
+let fpTool = null;    // Edit layout: the kind of shape being drawn (wall, door…) —null = select / move
+let fpHist = [], fpRedo = [];   // Edit layout: undo / redo, one snapshot of the layout per change
 /* Quantities changed on the plan but not saved yet: itemId -> new balance
    (packets). Kept until Save so a whole rack can be gone through, checked,
    and logged as one count —one Undo puts it all back. */
@@ -7764,17 +8072,42 @@ const ZONE_ICON = {
   chilled: `<path d="M14 14.8V4.5a2 2 0 0 0-4 0v10.3a4 4 0 1 0 4 0z"/><path d="M12 9v7.5"/>`,
   dry: `<path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 8l8 4 8-4M12 12v8"/>`
 };
+/* What Show picks out on the map. A rack that doesn't qualify is faded; on
+   one that does, a status filter (Out, Low…) also fades its other levels,
+   so the shelf that needs a look stands out from across the plan. */
+const FP_SHOW = [["all","Everything"],["problems","Out or low"],["out","Out"],["low","Low"],["empty","Empty levels"],["chg","Unsaved changes"],
+  ["dry","Dry 干货"],["chilled","Chiller 冷藏"],["frozen","Freezer 冷冻"]];
+function bandState(its){ return !its.length ? "empty" : its.some(it=>itemState(it)==="out") ? "out" : its.some(it=>itemState(it)==="low") ? "low" : "ok"; }
+function showBand(s, chg){
+  const f = fpShow;
+  return f==="problems" ? s==="out"||s==="low" : f==="out"||f==="low"||f==="empty" ? s===f : f==="chg" ? chg : true;
+}
+const fpZoneShow = () => ZONES.some(z=>z.id===fpShow);
+function planShows(rk, st, bands){
+  const f = fpShow;
+  if(f==="all") return true;
+  if(fpZoneShow()) return (rk.zone||"dry")===f;
+  if(bands) return bands.some(b=>showBand(b.s, b.chg));
+  return f==="problems" ? st.out+st.low>0 : f==="out" ? st.out>0 : f==="low" ? st.low>0 : f==="empty" ? !st.n : st.chg>0;
+}
+/* each level of a rack: what's on it, its state, and whether it's edited or searched for */
+function rackBands(name, st, q){
+  return levelsOf(name).map(l=>{
+    const its = st.its.filter(it=>(it.level||"1")===l);
+    return {l, its, s:bandState(its), chg:its.some(it=>fpDraft[it.id]!==undefined), hit:!!q && its.some(it=>planMatch(it,q))};
+  });
+}
 /* A room used as a storage area (the chiller, the freezer, CENTER): drawn as
    an insulated room with an icon, its name, and how much is in it. */
 function roomSvg(rk, q){
   const U = FPU, x = rk.x*U, y = rk.y*U, w = rk.w*U, h = rk.h*U, z = rk.zone||"dry", zi = zoneInfo(z);
   const st = rackStats(rk.name), hit = q && st.its.some(i=>planMatch(i,q));
-  const sel = !fpEdit && fpSel===rk.name;
+  const sel = !fpEdit && fpSel===rk.name, dim = (q && !hit) || !planShows(rk, st);
   const cx = x+w/2, cy = y+h/2, ic = Math.min(22, w*.32, h*.32);
+  const nHit = hit ? st.its.filter(i=>planMatch(i,q)).length : 0;
   const flags = [st.out?`<tspan class="t-out">${st.out} out</tspan>`:"", st.low?`<tspan class="t-low">${st.low} low</tspan>`:"",
-    st.chg?`<tspan class="t-chg">${st.chg} edited</tspan>`:""].filter(Boolean).join(`<tspan class="t-sep"> · </tspan>`);
-  return `<g data-kind="rack" data-key="${esc(rk.name)}" class="fp-room z-${z}${sel?" sel":""}${hit?" hit":""}${q&&!hit?" dim":""}" tabindex="0" role="button" aria-label="${esc(rk.name)}, ${zi.label}, ${st.n} products">
-    <title>${svgEsc(rk.name)} —${zi.label} ${zi.zh} · ${st.n} product${st.n===1?"":"s"}${st.out?` · ${st.out} out`:""}${st.low?` · ${st.low} low`:""}</title>
+    st.chg?`<tspan class="t-chg">${st.chg} edited</tspan>`:"", nHit?`<tspan class="t-hit">${nHit} found</tspan>`:""].filter(Boolean).join(`<tspan class="t-sep"> · </tspan>`);
+  return `<g data-kind="rack" data-key="${esc(rk.name)}" class="fp-room z-${z}${sel?" sel":""}${hit?" hit":""}${dim?" dim":""}${fpEdit&&fpOverlap.has(rk.name)?" ovl":""}" tabindex="0" role="button" aria-label="${esc(rk.name)}, ${zi.label}, ${st.n} products">
     <rect class="fp-room-b" x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="url(#fp-g-${z})"/>
     <rect class="fp-room-in" x="${x+2.5}" y="${y+2.5}" width="${w-5}" height="${h-5}" rx="2" fill="none"/>
     <svg x="${cx-ic/2}" y="${cy-ic-6}" width="${ic}" height="${ic}" viewBox="0 0 24 24" class="fp-room-ic">${ZONE_ICON[z]}</svg>
@@ -7787,27 +8120,26 @@ function roomSvg(rk, q){
 /* A labelled rack: a shelving unit with a header and one band per level,
    1L at the top as on the shelf labels. A band is white when everything on
    that level is fine, amber if something's below its minimum, red if
-   something's out, dashed if the level is empty. */
+   something's out, dashed if the level is empty. Each band can be tapped on
+   its own —the rack opens at that level. */
 function rackSvg(rk, q){
   const U = FPU, x = rk.x*U, y = rk.y*U, w = rk.w*U, h = rk.h*U, z = rk.zone||"dry", zi = zoneInfo(z);
-  const st = rackStats(rk.name), lv = levelsOf(rk.name);
-  const hit = q && st.its.some(i=>planMatch(i,q)), sel = !fpEdit && fpSel===rk.name;
-  const head = Math.min(13, h*.32), top = y+head+2, bh = (h-head-4)/lv.length;
+  const st = rackStats(rk.name), L = rackBands(rk.name, st, q);
+  const hit = L.some(b=>b.hit), sel = !fpEdit && fpSel===rk.name, pass = planShows(rk, st, L);
+  const fading = pass && fpShow!=="all" && !fpZoneShow();
+  const head = Math.min(13, h*.32), top = y+head+2, bh = (h-head-4)/L.length;
   const wide = w >= 4*U;
-  const bands = lv.map((l,i)=>{
-    const its = st.its.filter(it=>(it.level||"1")===l);
-    const s = !its.length ? "empty" : its.some(it=>itemState(it)==="out") ? "out" : its.some(it=>itemState(it)==="low") ? "low" : "ok";
-    const chg = its.some(it=>fpDraft[it.id]!==undefined);
+  const bands = L.map((b,i)=>{
     const by = top + i*bh, mid = by + bh/2 + 2.2;
-    return `<rect class="fp-band s-${s}${chg?" chg":""}" x="${x+2.5}" y="${by+.7}" width="${w-5}" height="${Math.max(1,bh-1.4)}" rx="1.4"/>`
-      + (bh>=6.5 ? `<text class="fp-bl s-${s}" x="${x+5}" y="${mid}">${svgEsc(l)}L</text>` : "")
-      + (bh>=6.5 && wide && its.length ? `<text class="fp-bc s-${s}" x="${x+w-5}" y="${mid}" text-anchor="end">${its.length}</text>` : "")
-      + (chg ? `<circle cx="${x+w-(wide?14:5)}" cy="${by+bh/2}" r="1.8" class="fp-dot"/>` : "");
+    const fade = (fading && !showBand(b.s, b.chg)) || (q && hit && !b.hit);
+    return `<g class="fp-lv${fade?" fade":""}" data-l="${esc(b.l)}"><rect class="fp-band s-${b.s}${b.chg?" chg":""}${b.hit?" hit":""}" x="${x+2.5}" y="${by+.7}" width="${w-5}" height="${Math.max(1,bh-1.4)}" rx="1.4"/>`
+      + (bh>=6.5 ? `<text class="fp-bl s-${b.s}" x="${x+5}" y="${mid}">${svgEsc(b.l)}L</text>` : "")
+      + (bh>=6.5 && wide && b.its.length ? `<text class="fp-bc s-${b.s}" x="${x+w-5}" y="${mid}" text-anchor="end">${b.its.length}</text>` : "")
+      + (b.chg ? `<circle cx="${x+w-(wide?14:5)}" cy="${by+bh/2}" r="1.8" class="fp-dot"/>` : "") + `</g>`;
   }).join("");
   const badge = st.out ? `<circle cx="${x+w-1}" cy="${y+1}" r="4.2" class="fp-bdg out"/><text class="fp-bdg-t" x="${x+w-1}" y="${y+2.8}" text-anchor="middle">${st.out}</text>`
     : st.low ? `<circle cx="${x+w-1}" cy="${y+1}" r="4.2" class="fp-bdg low"/><text class="fp-bdg-t" x="${x+w-1}" y="${y+2.8}" text-anchor="middle">${st.low}</text>` : "";
-  return `<g data-kind="rack" data-key="${esc(rk.name)}" class="fp-rk z-${z}${sel?" sel":""}${hit?" hit":""}${q&&!hit?" dim":""}" tabindex="0" role="button" aria-label="${esc(rk.name)}, ${zi.label}, ${st.n} products">
-    <title>${svgEsc(rk.name)} —${zi.label} · ${lv.length} level${lv.length===1?"":"s"} · ${st.n} product${st.n===1?"":"s"}${st.out?` · ${st.out} out`:""}${st.low?` · ${st.low} low`:""}</title>
+  return `<g data-kind="rack" data-key="${esc(rk.name)}" class="fp-rk z-${z}${sel?" sel":""}${hit?" hit":""}${(q&&!hit)||!pass?" dim":""}${fpEdit&&fpOverlap.has(rk.name)?" ovl":""}" tabindex="0" role="button" aria-label="${esc(rk.name)}, ${zi.label}, ${st.n} products">
     <rect class="fp-rk-b" x="${x}" y="${y}" width="${w}" height="${h}" rx="2"/>
     <path class="fp-rk-h" d="M${x} ${y+head}V${y+2}a2 2 0 0 1 2-2h${w-4}a2 2 0 0 1 2 2V${y+head}z"/>
     <text class="fp-rk-t" x="${x+4}" y="${y+head/2+3.2}">${svgEsc(rk.name)}</text>
@@ -7816,50 +8148,95 @@ function rackSvg(rk, q){
     ${planEditHandles(rk)}
   </g>`;
 }
+/* Edit layout: every shape gets an invisible hit area. The selected one gets
+   an outline and handles on its corners and sides (a thin wall or door only
+   on its two ends) —drawn on top of everything, so a rack's handle against
+   a wall is still the handle. Drag one to resize from that side. */
+const FP_COARSE = window.matchMedia("(pointer:coarse)").matches;
+const FP_HDIRS = {nw:[0,0], n:[.5,0], ne:[1,0], e:[1,.5], se:[1,1], s:[.5,1], sw:[0,1], w:[0,.5]};
 function planEditHandles(s){
   if(!fpEdit) return "";
-  const U = FPU, isSel = fpEditSel && ((fpEditSel.kind==="rack" && s.name===fpEditSel.key) || (fpEditSel.kind==="deco" && s.id===fpEditSel.key));
-  return (isSel ? `<rect class="fp-esel" x="${s.x*U-1.5}" y="${s.y*U-1.5}" width="${s.w*U+3}" height="${s.h*U+3}"/>` : "")
-    + `<rect class="fp-hitbox" x="${s.x*U}" y="${s.y*U}" width="${s.w*U}" height="${s.h*U}"/>`
-    + `<rect class="fp-rs" x="${(s.x+s.w)*U-5}" y="${(s.y+s.h)*U-5}" width="6" height="6"/>`;
+  return `<rect class="fp-hitbox" x="${s.x*FPU}" y="${s.y*FPU}" width="${s.w*FPU}" height="${s.h*FPU}"/>`;
+}
+function planSelLayer(){
+  const s = fpEdit && fpEditSel ? planObj(fpEditSel.kind, fpEditSel.key) : null;
+  if(!s || s.x==null || (s.floor||1)!==fpFloor) return "";
+  const U = FPU, x = s.x*U, y = s.y*U, w = s.w*U, h = s.h*U;
+  const dirs = s.h<2 && s.w>=2 ? ["w","e"] : s.w<2 && s.h>=2 ? ["n","s"] : Object.keys(FP_HDIRS);
+  const hs = FP_COARSE ? 11 : 7, hit = FP_COARSE ? 24 : 13;
+  let out = `<rect class="fp-esel" x="${x-1.5}" y="${y-1.5}" width="${w+3}" height="${h+3}"/>`;
+  for(const d of dirs){
+    const cx = x + FP_HDIRS[d][0]*w, cy = y + FP_HDIRS[d][1]*h;
+    out += `<g class="fp-h h-${d}" data-h="${d}"><rect class="fp-h-hit" x="${cx-hit/2}" y="${cy-hit/2}" width="${hit}" height="${hit}"/><rect class="fp-rs" x="${cx-hs/2}" y="${cy-hs/2}" width="${hs}" height="${hs}" rx="1"/></g>`;
+  }
+  return `<g class="fp-sel-layer" data-kind="${fpEditSel.kind}" data-key="${esc(fpEditSel.key)}">${out}</g>`;
+}
+/* racks on a floor that overlap another one (shown red while editing) */
+let fpOverlap = new Map();
+function planOverlaps(floor){
+  const rs = state.racks.filter(r=>r.x!=null && (r.floor||1)===floor), m = new Map();
+  for(let i=0;i<rs.length;i++) for(let j=i+1;j<rs.length;j++){
+    const a = rs[i], b = rs[j];
+    if(a.x < b.x+b.w && b.x < a.x+a.w && a.y < b.y+b.h && b.y < a.y+a.h){
+      if(!m.has(a.name)) m.set(a.name, []); if(!m.has(b.name)) m.set(b.name, []);
+      m.get(a.name).push(b.name); m.get(b.name).push(a.name);
+    }
+  }
+  return m;
 }
 function planMapHtml(q){
   const racks = state.racks.filter(r=>r.x!=null && (r.floor||1)===fpFloor);
   const deco = (state.floorPlan||[]).filter(s=>(s.floor||1)===fpFloor);
   const all = [...racks, ...deco], pad = fpEdit ? 4 : .5;
   const W = Math.max(12, ...all.map(s=>s.x+s.w)) + pad, H = Math.max(8, ...all.map(s=>s.y+s.h)) + pad;
+  fpOverlap = fpEdit ? planOverlaps(fpFloor) : new Map();
   const order = ["area","floor","block","stairs"];
   const under = order.flatMap(t=>deco.filter(s=>s.t===t)).map(decoSvg).join("");
   const over = ["wall","door","label"].flatMap(t=>deco.filter(s=>s.t===t)).map(decoSvg).join("");
   const stock = racks.map(rk=>rackCoded(rk.name) ? rackSvg(rk, q) : roomSvg(rk, q)).join("");
-  return `<svg id="fp-svg" class="fp-svg${fpEdit?" fp-edit":""}" viewBox="${-FPU} ${-FPU} ${(W+1)*FPU} ${(H+1)*FPU}" role="img" aria-label="${ordinal(fpFloor)} floor plan">
+  return `<svg id="fp-svg" class="fp-svg${fpEdit?" fp-edit":""}${fpEdit&&fpTool?" fp-drawing":""}" viewBox="${-FPU} ${-FPU} ${(W+1)*FPU} ${(H+1)*FPU}" role="img" aria-label="${ordinal(fpFloor)} floor plan">
     ${planDefs()}
     ${fpEdit ? `<rect x="${-FPU}" y="${-FPU}" width="${(W+1)*FPU}" height="${(H+1)*FPU}" fill="url(#fp-grid)"/>` : ""}
-    ${under}<g class="fp-stock">${stock}</g>${over}
+    ${under}<g class="fp-stock">${stock}</g>${over}${planSelLayer()}
     <rect id="fp-ghost" class="fp-ghost" x="0" y="0" width="0" height="0" visibility="hidden"/>
+    <text id="fp-ghost-t" class="fp-ghost-t" x="0" y="0" visibility="hidden"></text>
   </svg>`;
 }
 
+/* Everything placed on a floor —for the floor tabs' counts. */
+function floorItems(f){
+  const on = new Set(state.racks.filter(r=>r.x!=null && (r.floor||1)===f).map(r=>r.name));
+  return state.items.filter(i=>!i.stopped && on.has(i.store||""));
+}
 function renderPlan(){
   const host = $("#rk-plan"); if(!host) return;
   const q = norm($("#rk-q").value);
   if(fpSel && !rackList().includes(fpSel)) fpSel = null;
   const floors = planFloors();
   if(!floors.includes(fpFloor)){ if(fpEdit) floors.push(fpFloor); else fpFloor = floors[0]; }
+  /* searching for something that's only upstairs goes upstairs */
+  if(q && !fpEdit && !fpSel){
+    const hits = f => floorItems(f).filter(i=>planMatch(i,q)).length;
+    if(!hits(fpFloor)){ const f = floors.find(hits); if(f) fpFloor = f; }
+  }
   const empty = !state.racks.some(r=>r.x!=null) && !(state.floorPlan||[]).length;
   const floorTabs = (floors.length>1 || fpEdit)
-    ? floors.map(f=>`<button class="btn sm ${f===fpFloor?"on":""}" onclick="setPlanFloor(${f})">${ordinal(f)} floor</button>`).join("")
+    ? floors.map(f=>{
+        const its = fpEdit ? [] : floorItems(f), nh = q ? its.filter(i=>planMatch(i,q)).length : 0, no = its.filter(i=>itemState(i)==="out").length;
+        const b = q ? (nh ? `<span class="fp-fb hit">${nh}</span>` : "") : no ? `<span class="fp-fb out">${no}</span>` : "";
+        return `<button class="btn sm ${f===fpFloor?"on":""}" onclick="setPlanFloor(${f})">${ordinal(f)} floor${b}</button>`;
+      }).join("")
       + (fpEdit?`<button class="btn sm" onclick="setPlanFloor(${Math.max(...floors)+1})">+ floor</button>`:"")
     : "";
   const legend = `<span class="fp-leg"><i class="fp-sw sw-ok"></i>OK</span><span class="fp-leg"><i class="fp-sw sw-low"></i>Low</span>
     <span class="fp-leg"><i class="fp-sw sw-out"></i>Out</span><span class="fp-leg"><i class="fp-sw sw-empty"></i>Empty</span>`
     + ZONES.map(z=>`<span class="fp-leg"><i class="zdot ${z.cls}"></i>${z.label}</span>`).join("");
-  const bar = `<div class="fp-bar">${floorTabs}<span class="fp-legend">${legend}</span>
-      ${empty&&!fpEdit?"":`<button class="btn sm m-only fp-zoom-b${fpZoom?" on":""}" style="margin-left:auto" onclick="fpZoom=!fpZoom;renderRacks()">${fpZoom?"Fit to screen":"Zoom in"}</button>
-      <button class="btn sm ${fpEdit?"on":""}" style="margin-left:auto" onclick="setPlanEdit(${!fpEdit})">${fpEdit?"Done editing":"Edit layout"}</button>`}</div>
-    ${fpEdit?`<div class="fp-bar fp-tools"><span class="dim" style="font-size:12px">Drag to move · drag the corner square to resize · add:</span>
-      ${["wall","door","stairs","block","area","floor","label"].map(t=>`<button class="btn sm" onclick="planAddDeco('${t}')">+ ${DECO_TYPES[t]}</button>`).join("")}
-      ${[...PLAN_0434.racks, ...PLAN_0434.shapes].some(x=>x.floor===fpFloor) ? `<button class="btn sm" style="margin-left:auto" onclick="loadPlan0434(${fpFloor})">Redraw ${ordinal(fpFloor)} floor from the 0434 plan</button>` : ""}</div>`:""}`;
+  const show = `<label class="fp-show${fpShow!=="all"?" on":""}"><span>Show</span><select onchange="setPlanShow(this.value)" aria-label="Show on the map">
+      ${FP_SHOW.map(([v,l])=>`<option value="${v}" ${v===fpShow?"selected":""}>${l}</option>`).join("")}</select></label>`;
+  const bar = `<div class="fp-bar">${floorTabs}
+      ${empty&&!fpEdit?"":`${fpEdit?"":show}<span class="fp-bar-r">${fpEdit?"":`<button class="btn sm" onclick="printFloorPlan()" title="Print the floor plan"><svg class="ic"><use href="#i-print"/></svg>Print</button>`}
+      <button class="btn sm ${fpEdit?"on primary":""}" onclick="setPlanEdit(${!fpEdit})">${fpEdit?"Done editing":"Edit layout"}</button></span>`}</div>
+    ${fpEdit ? planToolbar() : empty ? "" : `<div class="fp-legend">${legend}</div>`}`;
   const map = empty && !fpEdit
     ? `<div class="empty" style="padding:40px 16px"><b>No floor plan yet</b>Draw 0434 —the ground floor's walls and doors, chiller, freezer and R1A to R9A, and the 2nd floor's stairs, CENTER and R1B to R5B— or start from a blank plan.
         <div style="margin-top:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
@@ -7873,50 +8250,246 @@ function renderPlan(){
       return `<div class="notebar"><span><b>The ${ordinal(f)} floor's layout is ready</b> —your plan was drawn before it was added, so ${names.join(", ")}${f===2?" and the stairs":""} aren't on it yet.</span>
         <button class="btn sm primary" onclick="loadPlan0434(${f})">Draw the ${ordinal(f)} floor</button></div>`;
     }).join("") : "";
+  const zoomCtl = empty && !fpEdit ? "" : `<div class="fp-zctl" role="group" aria-label="Zoom">
+      <button type="button" class="fp-zb" data-z="in" onclick="planZoomBy(1.5)" title="Zoom in (Ctrl + scroll, or pinch)" aria-label="Zoom in">+</button>
+      <button type="button" class="fp-zb" data-z="out" onclick="planZoomBy(1/1.5)" title="Zoom out" aria-label="Zoom out">−</button>
+      <button type="button" class="fp-zb" data-z="fit" onclick="planZoomTo(1)" title="Fit the whole floor" aria-label="Fit the whole floor"><svg viewBox="0 0 24 24" class="ic"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button></div>`;
   const marks = scrollMarks(host);
-  host.innerHTML = `${drawBar}<div class="fp-wrap"><div class="fp-left">${bar}<div class="fp-mapbox${fpZoom?" zoom":""}" id="fp-mapbox" data-keep="map:${fpFloor}:${fpZoom?1:0}:${fpEdit?1:0}">${map}</div></div>
+  host.innerHTML = `${drawBar}${fpEdit ? planSelBar() : ""}<div class="fp-wrap"><div class="fp-left">${bar}<div class="fp-stage"><div class="fp-mapbox${empty&&!fpEdit?" empty-map":""}" id="fp-mapbox" data-keep="map:${fpFloor}:${fpEdit?1:0}:${Math.round(fpZoom*100)}">${map}</div>${zoomCtl}</div></div>
     <div class="fp-side" id="fp-side">${side}${planSaveBar()}</div></div>`;
+  planFit();
+  wirePlanBox();
   wirePlanMap();
   wirePlanSide();
   restoreScroll(host, marks);
+  if(fpCenter){ fpCenter = false; if(fpSel) planCenterOn(fpSel); }
   if(fpFocus!=null){
     const row = document.querySelector(`.fp-it[data-id="${fpFocus}"]`); fpFocus = null;
     if(row){ row.scrollIntoView({block:"center"}); row.classList.add("hit"); }
+  } else if(fpLvl!=null){
+    const l = fpLvl; fpLvl = null;
+    planJumpLevel(l);
   }
 }
 /* Redraws only the map —used while editing quantities, so the side panel
    (and the box being typed in) is never touched. */
 function planRenderMap(){
   const box = $("#fp-mapbox"); if(!box || !$("#fp-svg")) return;
+  const sl = box.scrollLeft, st = box.scrollTop;
   box.innerHTML = planMapHtml(norm($("#rk-q").value));
+  planFit();
+  box.scrollLeft = sl; box.scrollTop = st;
   wirePlanMap();
 }
+
+/* ---------- zoom & pan ----------
+   The map box is sized so the whole floor fits it; zooming makes the drawing
+   bigger inside the box, which then scrolls (drag it, or use the scroll bars
+   / two fingers). Ctrl + scroll wheel, a trackpad or two-finger pinch, the
+   + / − buttons, or a double-click all zoom around the point under them. */
+let fpPx = 1;              // screen pixels per drawing unit at the current zoom
+function planFit(){
+  const box = $("#fp-mapbox"), svg = $("#fp-svg"); if(!box || !svg) return;
+  const vb = svg.viewBox.baseVal; if(!vb || !vb.width) return;
+  const cs = getComputedStyle(box);
+  const padX = parseFloat(cs.paddingLeft)+parseFloat(cs.paddingRight), padY = parseFloat(cs.paddingTop)+parseFloat(cs.paddingBottom);
+  const bw = parseFloat(cs.borderLeftWidth)+parseFloat(cs.borderRightWidth), bh = parseFloat(cs.borderTopWidth)+parseFloat(cs.borderBottomWidth);
+  const cw = box.getBoundingClientRect().width - bw - padX; if(cw<=0) return;
+  const maxH = Math.max(300, narrowScreen() ? innerHeight*.72 : innerHeight-190);
+  const fitH = Math.min(maxH, cw*vb.height/vb.width);
+  box.style.height = Math.round(fitH + padY + bh) + "px";
+  const s = Math.min(cw/vb.width, fitH/vb.height) * fpZoom;
+  svg.style.width = Math.floor(vb.width*s) + "px"; svg.style.height = Math.floor(vb.height*s) + "px";
+  fpPx = s;
+  box.classList.toggle("zoomed", fpZoom>1.001);
+  for(const b of document.querySelectorAll(".fp-zb")){
+    const z = b.dataset.z;
+    b.disabled = z==="in" ? fpZoom>=FP_ZMAX-.001 : fpZoom<=1.001;
+  }
+}
+/* zoom to z, keeping the point (cx, cy) —pixels from the box's top-left— where it is */
+function planZoomTo(z, cx, cy){
+  const box = $("#fp-mapbox"), svg = $("#fp-svg"); if(!box || !svg) return;
+  z = Math.min(FP_ZMAX, Math.max(1, z));
+  if(Math.abs(z-fpZoom)<.001) return;
+  const br = box.getBoundingClientRect();
+  if(cx==null){ cx = box.clientWidth/2; cy = box.clientHeight/2; }
+  const r = svg.getBoundingClientRect();
+  const fx = (br.left+cx-r.left)/r.width, fy = (br.top+cy-r.top)/r.height;
+  fpZoom = z; planFit();
+  const r2 = svg.getBoundingClientRect();
+  box.scrollLeft += r2.left + fx*r2.width - (br.left+cx);
+  box.scrollTop += r2.top + fy*r2.height - (br.top+cy);
+  box.dataset.keep = `map:${fpFloor}:${fpEdit?1:0}:${Math.round(fpZoom*100)}`;
+  planTip(null);
+}
+function planZoomBy(f){ planZoomTo(fpZoom*f); }
+/* scroll the map so a rack is in the middle of the box */
+function planCenterOn(name){
+  const box = $("#fp-mapbox"), g = box && box.querySelector(`[data-kind="rack"][data-key="${CSS.escape(name)}"]`); if(!g) return;
+  const br = box.getBoundingClientRect(), r = g.getBoundingClientRect();
+  box.scrollLeft += (r.left+r.width/2) - (br.left+box.clientWidth/2);
+  box.scrollTop += (r.top+r.height/2) - (br.top+box.clientHeight/2);
+}
+window.addEventListener("resize", ()=>{ if($("#fp-svg")) planFit(); });
+
+/* Pointer handling on the box: two fingers pinch-zoom (on top of whatever
+   the map itself does with one), Ctrl + wheel zooms, double-click zooms in,
+   and with a mouse an empty part of the map can be dragged to pan. */
+let fpTouch = new Map(), fpPinch = null, fpPan = null;
+function wirePlanBox(){
+  const box = $("#fp-mapbox"); if(!box) return;
+  box.addEventListener("pointerdown", e=>{
+    if(e.pointerType!=="touch") return;
+    if(e.isPrimary) fpTouch.clear();          // a new gesture: forget fingers whose lift happened elsewhere
+    fpTouch.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    if(fpTouch.size===2){
+      const [a, b] = [...fpTouch.values()];
+      fpPinch = {d:Math.hypot(a.x-b.x, a.y-b.y)||1, z:fpZoom};
+      if(fpDrag){ fpDrag = null; planGhost(null); }
+      fpPan = null;
+      e.stopPropagation(); e.preventDefault();
+    }
+  }, true);
+  box.addEventListener("pointermove", e=>{
+    if(!fpTouch.has(e.pointerId)) return;
+    fpTouch.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    if(!fpPinch || fpTouch.size<2) return;
+    e.stopPropagation();
+    const [a, b] = [...fpTouch.values()], br = box.getBoundingClientRect();
+    planZoomTo(fpPinch.z * Math.hypot(a.x-b.x, a.y-b.y)/fpPinch.d, (a.x+b.x)/2-br.left, (a.y+b.y)/2-br.top);
+  }, true);
+  const lift = e=>{
+    if(!fpTouch.delete(e.pointerId)) return;
+    if(fpPinch){ if(fpTouch.size<2) fpPinch = null; e.stopPropagation(); }
+  };
+  box.addEventListener("pointerup", lift, true);
+  box.addEventListener("pointercancel", lift, true);
+  box.addEventListener("wheel", e=>{
+    if(!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const br = box.getBoundingClientRect();
+    planZoomTo(fpZoom*Math.exp(-e.deltaY*(e.deltaMode ? .05 : .002)), e.clientX-br.left, e.clientY-br.top);
+  }, {passive:false});
+  box.addEventListener("dblclick", e=>{
+    if(fpEdit && e.target.closest("[data-kind]")) return;
+    const br = box.getBoundingClientRect(), g = !fpEdit && e.target.closest('[data-kind="rack"]');
+    if(g){ planZoomTo(Math.max(fpZoom, 2.5), e.clientX-br.left, e.clientY-br.top); planCenterOn(g.dataset.key); return; }
+    planZoomTo(fpZoom>=FP_ZMAX-.001 ? 1 : fpZoom*2, e.clientX-br.left, e.clientY-br.top);
+  });
+  box.addEventListener("scroll", ()=>planTip(null), {passive:true});
+}
+/* drag-to-pan: scrolls the box, and the page once the box can't go further */
+function planPanStart(e){
+  const box = $("#fp-mapbox"); if(!box) return;
+  fpPan = {x:e.clientX, y:e.clientY, moved:false};
+}
+function planPanMove(e){
+  const p = fpPan, box = $("#fp-mapbox"); if(!p || !box) return;
+  const dx = e.clientX-p.x, dy = e.clientY-p.y;
+  if(!p.moved && Math.hypot(dx, dy)<4) return;
+  p.moved = true; p.x = e.clientX; p.y = e.clientY;
+  const sl = box.scrollLeft, st = box.scrollTop;
+  box.scrollLeft -= dx; box.scrollTop -= dy;
+  const restY = -dy - (box.scrollTop-st);
+  if(Math.abs(restY)>.5 && e.pointerType==="touch") window.scrollBy(0, restY);
+  box.classList.add("panning");
+}
+function planPanEnd(){ const p = fpPan; fpPan = null; const box = $("#fp-mapbox"); if(box) box.classList.remove("panning"); return !!(p && p.moved); }
+
+/* ---------- hover card (mouse only): what's on a rack before opening it ---------- */
+let fpTipKey = null;
+function planTip(e, g){
+  let tip = $("#fp-tip");
+  if(!e || !g){ fpTipKey = null; if(tip) tip.classList.add("hidden"); return; }
+  if(!tip){ tip = document.createElement("div"); tip.id = "fp-tip"; tip.className = "fp-tip hidden"; tip.setAttribute("role", "tooltip"); document.body.appendChild(tip); }
+  const name = g.dataset.key;
+  if(fpTipKey!==name){
+    fpTipKey = name;
+    const st = rackStats(name), coded = rackCoded(name), lv = levelsOf(name), zi = zoneInfo(rackZone(name)) || {label:""};
+    const probs = st.its.filter(i=>itemState(i)!=="ok").sort(walkCmp());
+    tip.innerHTML = `<div class="fp-tip-h"><b class="mono">${esc(name)}</b><span>${[esc(zi.label), coded ? lv.length+" level"+(lv.length===1?"":"s") : "", st.n+" product"+(st.n===1?"":"s")].filter(Boolean).map(x=>`<span>${x}</span>`).join(" · ")}</span></div>`
+      + (st.out||st.low||st.chg ? `<div class="fp-tip-f">${st.out?`<span class="t-out">${st.out} out</span>`:""}${st.low?`<span class="t-low">${st.low} low</span>`:""}${st.chg?`<span class="t-chg">${st.chg} unsaved</span>`:""}</div>` : "")
+      + probs.slice(0,5).map(i=>`<div class="fp-tip-r"><span class="mono">${esc(coded?posCode(i).slice(name.length):"")}</span><span class="nm">${esc(i.name)}</span>${stockFlag(i)}</div>`).join("")
+      + (probs.length>5 ? `<div class="fp-tip-m">and ${probs.length-5} more</div>` : "")
+      + `<div class="fp-tip-m">Click to open</div>`;
+    tip.classList.remove("hidden");
+  }
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  let x = e.clientX+16, y = e.clientY+16;
+  if(x+tw > innerWidth-8) x = e.clientX-tw-12;
+  if(y+th > innerHeight-8) y = Math.max(8, e.clientY-th-12);
+  tip.style.left = x+"px"; tip.style.top = y+"px";
+}
+
 function wirePlanMap(){
   const svg = $("#fp-svg"); if(!svg) return;
   if(fpEdit){
     svg.addEventListener("pointerdown", planPointerDown);
     svg.addEventListener("pointermove", planPointerMove);
     svg.addEventListener("pointerup", planPointerUp);
-    svg.addEventListener("pointercancel", ()=>{ fpDrag = null; renderRacks(); });
+    svg.addEventListener("pointercancel", ()=>{ fpPan = null; if(fpDrag){ fpDrag = null; planGhost(null); } });
     return;
   }
-  svg.addEventListener("click", e=>{ const g = e.target.closest('[data-kind="rack"]'); if(g) planSelect(g.dataset.key); });
+  /* a mouse drag on the floor (not on a rack) pans a zoomed-in map */
+  svg.addEventListener("pointerdown", e=>{
+    if(e.pointerType!=="mouse" || e.button!==0 || e.target.closest('[data-kind="rack"]')) return;
+    planPanStart(e);
+    try{ svg.setPointerCapture(e.pointerId); }catch(err){}
+  });
+  svg.addEventListener("pointermove", e=>{
+    if(fpPan){ planPanMove(e); return; }
+    if(e.pointerType!=="mouse") return;
+    const g = e.target.closest('[data-kind="rack"]');
+    planTip(g ? e : null, g);
+  });
+  svg.addEventListener("pointerup", ()=>planPanEnd());
+  svg.addEventListener("pointerleave", ()=>planTip(null));
+  svg.addEventListener("click", e=>{
+    const g = e.target.closest('[data-kind="rack"]'); if(!g) return;
+    const lv = e.target.closest("[data-l]");
+    planTip(null);
+    planSelect(g.dataset.key, null, false, lv ? lv.dataset.l : null);
+  });
   svg.addEventListener("keydown", e=>{
     if(e.key!=="Enter" && e.key!==" ") return;
     const g = e.target.closest('[data-kind="rack"]'); if(g){ e.preventDefault(); planSelect(g.dataset.key); }
   });
 }
-function planSelect(name, focusId){
+/* Open a rack's panel. From a list (focusId given, or center), the map also
+   scrolls to the rack; tapping a level band (level) opens the panel there. */
+function planSelect(name, focusId, center, level){
+  const prev = fpSel;
   fpSel = name || null;
   const rk = name ? state.racks.find(r=>r.name===name) : null;
-  if(rk && rk.x!=null) fpFloor = rk.floor||1;
+  if(rk && rk.x!=null){ if((rk.floor||1)!==fpFloor) center = true; fpFloor = rk.floor||1; }
   fpFocus = focusId ?? null;
-  const focusing = fpFocus!=null;
+  fpLvl = level ?? null;
+  fpCenter = !!name && (center || fpFocus!=null);
+  const focusing = fpFocus!=null || fpLvl!=null;
   renderRacks();
-  const b = $("#fp-side-b"); if(b && !focusing) b.scrollTop = 0;
+  const b = $("#fp-side-b"); if(b && !focusing && prev!==name) b.scrollTop = 0;
   if(name && !focusing && narrowScreen()){ const sd = $("#fp-side"); if(sd) sd.scrollIntoView({behavior:"smooth", block:"start"}); }
 }
-function setPlanFloor(f){ fpFloor = f; fpEditSel = null; renderRacks(); }
+/* the racks on the plan in walking order —for the rack panel's ‹ › */
+function planWalk(){
+  const order = rackList();
+  return state.racks.filter(r=>r.x!=null).sort((a,b)=>(a.floor||1)-(b.floor||1) || order.indexOf(a.name)-order.indexOf(b.name)).map(r=>r.name);
+}
+function planStep(d){
+  const w = planWalk(); if(!w.length) return;
+  const i = w.indexOf(fpSel);
+  planSelect(w[((i<0 ? (d>0?-1:0) : i) + d + w.length) % w.length], null, true);
+}
+function planJumpLevel(l){
+  const el = document.querySelector(`.fp-lvl[data-l="${CSS.escape(String(l))}"]`); if(!el) return;
+  const b = $("#fp-side-b");
+  if(b && b.scrollHeight>b.clientHeight+2) b.scrollTop = el.offsetTop - b.offsetTop;
+  else el.scrollIntoView({behavior:"smooth", block:"start"});
+  el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
+}
+function setPlanFloor(f){ fpFloor = f; fpEditSel = null; fpZoom = 1; renderRacks(); }
+function setPlanShow(v){ fpShow = v || "all"; renderRacks(); }
 /* A plan drawn before a floor's layout existed (the 2nd floor used to be a
    bare outline with CENTER in it) has that floor's walls but none of its
    racks —those floors get a one-tap "draw it" prompt. */
@@ -7928,26 +8501,34 @@ function floorsNeedingDraw(){
     return !PLAN_0434.racks.some(r=>r.floor===f && placed.has(r.name));
   });
 }
-function setPlanEdit(on){ fpEdit = !!on; fpEditSel = null; renderRacks(); }
+function setPlanEdit(on){ fpEdit = !!on; fpEditSel = null; fpTool = null; fpHist = []; fpRedo = []; planTip(null); renderRacks(); }
 
 /* ---------- rack panel: what's on each level, with steppers ---------- */
 function planRackPanel(name, q){
   const lv = levelsOf(name), coded = rackCoded(name);
   const its = state.items.filter(i=>(i.store||"")===name);
   const rk = state.racks.find(r=>r.name===name);
+  const st = rackStats(name), L = rackBands(name, st, q), walk = planWalk();
   const head = `<div class="fp-side-h">${zoneChip(rackZone(name))}<b class="mono" style="font-size:15px">${esc(name)}</b>
       <span class="dim" style="font-size:12px">${its.length} product${its.length===1?"":"s"}${coded?" · "+lv.length+" level"+(lv.length===1?"":"s"):""}${rk&&rk.x==null?" · not on the plan":""}</span>
-      <span style="margin-left:auto;display:flex;gap:4px">
-        <button class="btn sm" onclick="promptMoveRack('${esc(name)}')" title="Rack settings —zone">⚙</button>
+      <span class="fp-side-btns">
+        ${walk.length>1 && walk.includes(name) ? `<button class="btn sm" onclick="planStep(-1)" title="Previous rack" aria-label="Previous rack">‹</button><button class="btn sm" onclick="planStep(1)" title="Next rack" aria-label="Next rack">›</button>` : ""}
+        <button class="btn sm" onclick="promptMoveRack('${esc(name)}')" title="Rack settings —name, zone, levels, remove">⚙</button>
         <button class="btn sm m-only" onclick="$('#fp-mapbox').scrollIntoView({behavior:'smooth',block:'center'})" title="Back to the map">↑ Map</button>
         <button class="btn sm" onclick="planSelect(null)" title="Close">✕</button></span></div>`;
+  const chips = L.length>1 ? `<div class="fp-lchips">${L.map(b=>`<button type="button" class="fp-lchip s-${b.s}${b.chg?" chg":""}${b.hit?" hit":""}" onclick="planJumpLevel('${esc(b.l)}')" title="Go to level ${esc(b.l)}">${esc(b.l)}L<span>${b.its.length}</span></button>`).join("")}
+      <span class="fp-lsum">${st.out?`<span class="t-out">${st.out} out</span>`:""}${st.low?`<span class="t-low">${st.low} low</span>`:""}</span></div>` : "";
   const body = lv.map(l=>{
     const rows = its.filter(i=>(i.level||"1")===l).sort((a,b)=>(a.slot||0)-(b.slot||0) || a.name.localeCompare(b.name));
-    return `<div class="fp-lvl"><div class="fp-lvl-h">${coded||lv.length>1 ? esc(l)+"L" : "Products"}<span class="dim" style="font-weight:400">${rows.length}</span>
-        <button class="btn sm" style="margin-left:auto" onclick="planAddHere('${esc(name)}','${esc(l)}')">+ Add product</button></div>
+    return `<div class="fp-lvl" data-l="${esc(l)}"><div class="fp-lvl-h">${coded||lv.length>1 ? esc(l)+"L" : "Products"}<span class="dim" style="font-weight:400">${rows.length}</span>
+        ${!rows.length && lv.length>1 ? `<button class="btn sm" style="margin-left:auto" onclick="removeLevel('${esc(name)}','${esc(l)}')" title="Remove this empty level">Remove level</button>` : ""}
+        <button class="btn sm" style="${!rows.length && lv.length>1 ? "" : "margin-left:auto"}" onclick="planAddHere('${esc(name)}','${esc(l)}')">+ Add product</button></div>
       ${rows.length ? rows.map((it,k)=>(coded && !q ? insertLine(name, l, rows[k-1], it) : "")+planItemRow(it, q)).join("") : '<div class="dim" style="font-size:12px;padding:6px 0 8px">Nothing on this level.</div>'}</div>`;
   }).join("");
-  return head + `<div class="fp-side-b" id="fp-side-b" data-keep="rack:${esc(name)}">${body}</div>`;
+  const off = !rk || rk.x==null
+    ? `<div class="fp-offnote"><span>Not on the floor plan yet.</span><button class="btn sm primary" onclick="planEditRack('${esc(name)}')">Put it on the plan</button></div>` : "";
+  return head + off + chips + `<div class="fp-side-b" id="fp-side-b" data-keep="rack:${esc(name)}">${body}
+    <button type="button" class="btn sm fp-addlv" onclick="addLevelQuick('${esc(name)}')">+ Add level</button></div>`;
 }
 function planItemRow(it, q){
   const v = fpDraft[it.id]!==undefined ? fpDraft[it.id] : it.stock;
@@ -7957,10 +8538,74 @@ function planItemRow(it, q){
   const d = planDiff(it), pc = posCode(it);
   return `<div class="fp-it${d.chg?" chg":""}${planMatch(it,q)?" hit":""}" data-id="${it.id}">
     <div class="fp-it-top">${pc&&rackCoded(it.store)?`<span class="mono fp-code">${esc(pc)}</span>`:""}<b>${esc(it.name)}</b>${stockFlag(it)}${sharedTag(it)}
-      <span class="fp-acts"><button type="button" class="btn sm" onclick="openEdit(${it.id})">Edit</button><button type="button" class="btn sm danger" onclick="delItem(${it.id})">Delete</button></span></div>
+      <span class="fp-acts"><button type="button" class="btn sm" onclick="planMoveItem(${it.id})" title="Move to another rack or level">Move</button><button type="button" class="btn sm" onclick="openEdit(${it.id})">Edit</button><button type="button" class="btn sm danger" onclick="delItem(${it.id})">Delete</button></span></div>
     <div class="fp-it-sub">${esc(it.uom||"")}${p>1?` · ${p} ${esc(unitOf(it))}/ctn`:""}${it.code?" · "+esc(it.code):""}${!hasPack(it)&&it.looseQty?` · +${fmt(it.looseQty)} loose (set a pack size to merge)`:""}</div>
     <div class="fp-it-q">${qty}<span class="fp-diff" data-diff>${d.html}</span></div>
   </div>`;
+}
+/* ---------- moving a product to another rack / level ----------
+   Pick the rack and level; on a labelled rack the next free position is
+   filled in (any free one can be typed). The product keeps everything else
+   —quantity, history, any unsaved count— only its rack code changes. */
+let fpMoveId = null;
+function planMoveItem(id){
+  const it = item(id); if(!it) return;
+  fpMoveId = id;
+  const racks = rackList();
+  if(it.store && !racks.includes(it.store)) racks.push(it.store);
+  modal(`<h3>Move ${esc(it.name)}</h3>
+    <p class="dim" style="font-size:12.5px;margin-bottom:2px"><span>Now at</span> <b class="mono" style="color:var(--ink)">${esc(posCode(it)||"no rack")}</b></p>
+    <p class="dim" style="font-size:12.5px;margin-bottom:10px">Pick where it goes —the next free spot there is filled in.</p>
+    <div class="fp-mv">
+      <div class="field"><label>Rack</label><select id="mv-rack">${racks.map(n=>`<option value="${esc(n)}" ${n===it.store?"selected":""}>${esc(n)}${zoneInfo(rackZone(n))?" · "+zoneInfo(rackZone(n)).label+" "+zoneInfo(rackZone(n)).zh:""}</option>`).join("")}</select></div>
+      <div class="field"><label>Level</label><select id="mv-lvl"></select></div>
+      <div class="field" id="mv-slot-f"><label>Position</label><input id="mv-slot" type="number" min="1" step="1" inputmode="numeric"></div>
+    </div>
+    <div class="ins-note" id="mv-note"></div>
+    <div class="mfoot"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" id="mv-go" onclick="doMoveItem(${id})">Move</button></div>`);
+  const fillLevels = keep => {
+    const r = $("#mv-rack").value, lv = levelsOf(r);
+    const cur = keep && lv.includes(keep) ? keep : r===it.store && lv.includes(it.level||"1") ? (it.level||"1") : lv[0];
+    $("#mv-lvl").innerHTML = lv.map(l=>`<option value="${esc(l)}" ${l===cur?"selected":""}>${esc(l)}L</option>`).join("");
+    fillSlot();
+  };
+  const fillSlot = () => {
+    const r = $("#mv-rack").value, l = $("#mv-lvl").value, same = r===it.store && l===(it.level||"1");
+    $("#mv-slot").value = same && it.slot>0 ? it.slot : nextSlot(r, l, id);
+    moveNote();
+  };
+  $("#mv-rack").addEventListener("change", ()=>fillLevels());
+  $("#mv-lvl").addEventListener("change", fillSlot);
+  $("#mv-slot").addEventListener("input", moveNote);
+  fillLevels(it.level||"1");
+}
+function moveTarget(id){
+  const it = item(id), r = $("#mv-rack").value, l = $("#mv-lvl").value, coded = rackCoded(r);
+  const slot = coded ? parseInt($("#mv-slot").value, 10) : 0;
+  const clash = coded && slot>0 ? state.items.find(o=>o.id!==id && (o.store||"")===r && (o.level||"1")===l && o.slot===slot) : null;
+  const same = it && r===(it.store||"") && l===(it.level||"1") && (!coded || slot===it.slot);
+  return {r, l, coded, slot, clash, same, code: coded ? r+l+"L"+pad2(slot>0?slot:0) : r};
+}
+function moveNote(){
+  const t = moveTarget(fpMoveId);
+  $("#mv-slot-f").classList.toggle("hidden", !t.coded);
+  const bad = t.coded && !(t.slot>0);
+  $("#mv-note").innerHTML = bad ? "Type a position number."
+    : t.same ? "That's where it is now."
+    : t.clash ? `<b>${esc(t.code)}</b> is already the rack code of ${esc(t.clash.name)} —pick another position.`
+    : t.coded ? `It goes to <b>${esc(t.code)}</b> —that spot is free, nothing else moves.`
+    : `It goes to <b>${esc(t.r)}</b>${levelsOf(t.r).length>1?" level "+esc(t.l):""}, at the end of its list.`;
+  $("#mv-go").disabled = bad || t.same || !!t.clash;
+}
+function doMoveItem(id){
+  const it = item(id); if(!it) return;
+  const t = moveTarget(id);
+  if(t.same || t.clash || (t.coded && !(t.slot>0))) return;
+  it.slot = t.coded ? t.slot : nextSlot(t.r, t.l, id);
+  it.store = t.r; it.level = t.l;
+  ensureRack(t.r); registerLevel(t.r, t.l);
+  save(); closeModal(); render();
+  toast("Moved "+it.name+" to "+posCode(it));
 }
 function planDiff(it){
   const v = fpDraft[it.id];
@@ -8130,7 +8775,8 @@ function planOverview(q, empty){
       : '<div class="dim" style="font-size:12.5px;padding-top:8px">Nothing matches.</div>';
     return html + "</div>";
   }
-  if(!empty) html += `<p class="dim" style="font-size:12.5px;margin:8px 0 10px">Tap a rack to see what's on each level and adjust quantities. Changes stay as a draft until you press <b>Save changes</b>, then go in the log like a count.</p>`;
+  if(!empty) html += `<p class="dim" style="font-size:12.5px;margin:8px 0 6px">Tap a rack to see what's on each level and adjust quantities. Changes stay as a draft until you press <b>Save changes</b>, then go in the log like a count.</p>
+    <p class="dim" style="font-size:12px;margin:0 0 10px">Tap one of a rack's levels to open it at that level. Zoom with + / −, a pinch or Ctrl + scroll; Show picks out what's out, low or empty.</p>`;
   const rows = ZONES.map(z=>{
     const its = active().filter(i=>zoneOf(i)===z.id);
     const nr = rackList().filter(n=>rackZone(n)===z.id).length;
@@ -8139,51 +8785,132 @@ function planOverview(q, empty){
       <td class="num" style="${out?"color:var(--crit);font-weight:600":""}">${out}</td><td class="num" style="${low?"color:var(--warn);font-weight:600":""}">${low}</td></tr>`;
   }).join("");
   html += `<table class="fp-zt"><thead><tr><th>Zone</th><th class="num">Racks</th><th class="num">Products</th><th class="num">Out</th><th class="num">Low</th></tr></thead><tbody>${rows}</tbody></table>`;
-  const problems = active().filter(i=>i.store && itemState(i)!=="ok").sort(walkCmp()).slice(0,12);
-  if(problems.length) html += `<div class="fp-lvl-h" style="margin-top:14px">Needs a look</div>`
-    + problems.map(i=>`<button class="fp-hit" onclick="planSelect('${esc(i.store)}', ${i.id})"><span class="mono">${esc(posCode(i))}</span><b>${esc(i.name)}</b>${stockFlag(i)}<span class="dim">${esc(fmtBal(i))}</span></button>`).join("");
+  const allProblems = active().filter(i=>i.store && itemState(i)!=="ok").sort(walkCmp()), problems = allProblems.slice(0,12);
+  if(problems.length) html += `<div class="fp-lvl-h" style="margin-top:14px">Needs a look<span class="dim" style="font-weight:400">${allProblems.length}</span>
+      ${fpShow!=="problems"&&!empty?`<button class="btn sm" style="margin-left:auto" onclick="setPlanShow('problems')">Show on the map</button>`:""}</div>`
+    + problems.map(i=>`<button class="fp-hit" onclick="planSelect('${esc(i.store)}', ${i.id})"><span class="mono">${esc(posCode(i))}</span><b>${esc(i.name)}</b>${stockFlag(i)}<span class="dim">${esc(fmtBal(i))}</span></button>`).join("")
+    + (allProblems.length>problems.length ? `<p class="dim" style="font-size:12px;margin-top:6px">and ${allProblems.length-problems.length} more —Low Stock (station 01) has the full list.</p>` : "");
   const off = rackList().filter(n=>{ const rk = state.racks.find(r=>r.name===n); return !rk || rk.x==null; });
   if(off.length){
     html += `<div class="fp-lvl-h" style="margin-top:14px">Not on the plan<span class="dim" style="font-weight:400">${off.length}</span></div>`
       + off.map(n=>`<button class="fp-hit" onclick="planSelect('${esc(n)}')"><span class="mono">${esc(n)}</span><b>${zoneInfo(rackZone(n)).label}</b><span class="dim">${state.items.filter(i=>(i.store||"")===n).length} products</span></button>`).join("")
-      + (empty ? "" : `<p class="dim" style="font-size:12px;margin-top:6px">Place these with <b>Edit layout</b>.</p>`);
+      + (empty ? "" : `<p class="dim" style="font-size:12px;margin-top:6px">Open one and press Put it on the plan, or place them in Edit layout.</p>`);
   }
   const noRack = active().filter(i=>!(i.store||"").trim()).length;
   if(noRack) html += `<p style="font-size:12.5px;margin-top:12px;color:var(--warn)"><b>${noRack} product${noRack===1?" has":"s have"} no rack yet</b> —give ${noRack===1?"it":"them"} a rack code with Edit on station 02, or drag ${noRack===1?"it":"them"} in the Shelves view.</p>`;
   return html + "</div>";
 }
 
-/* ---------- edit layout ---------- */
+/* ---------- edit layout ----------
+   Every change to the layout saves as it's made and can be undone (Undo /
+   Redo, Ctrl+Z) until Done editing. Pick a tool (Wall, Door…) and drag on
+   the plan to draw one that size —or tap to drop a standard one. A shape is
+   selected by tapping it; it then shows handles on its corners and sides. */
+const FP_TOOLS = ["rack","wall","door","stairs","block","area","floor","label"];
+const fpToolName = t => t==="rack" ? "Rack" : DECO_TYPES[t];
+const FP_DECO_SIZE = {wall:{w:8,h:1}, door:{w:4,h:1,text:"Door",swing:"up"}, block:{w:4,h:4}, area:{w:10,h:6,text:"Area"},
+  floor:{w:20,h:20}, stairs:{w:6,h:8,text:"Stairs"}, label:{w:8,h:2,text:"Label"}};
+function planToolbar(){
+  const redraw = [...PLAN_0434.racks, ...PLAN_0434.shapes].some(x=>x.floor===fpFloor);
+  const hint = fpTool
+    ? `<b>${esc(fpToolName(fpTool))}</b> · <span>drag on the plan to draw one —or tap once for a standard one. Esc or Select stops.</span>`
+    : `Tap a shape to select it · drag to move it · drag a handle to resize${FP_COARSE?"":" · arrow keys nudge (Shift = 5) · R rotates · D duplicates · Delete removes"}`;
+  return `<div class="fp-bar fp-tools">
+      <span class="fp-toolset" role="group" aria-label="Tools"><button class="btn sm ${!fpTool?"on":""}" onclick="planSetTool(null)">Select</button>${FP_TOOLS.map(t=>`<button class="btn sm ${fpTool===t?"on":""}${t==="rack"?" fp-tool-rack":""}" onclick="planSetTool('${t}')">${t==="rack"?"+ ":""}${fpToolName(t)}</button>`).join("")}</span>
+      <span class="fp-bar-r"><button class="btn sm" onclick="planUndo()" ${fpHist.length?"":"disabled"} title="Undo (Ctrl+Z)">↶ Undo</button><button class="btn sm" onclick="planRedo()" ${fpRedo.length?"":"disabled"} title="Redo (Ctrl+Shift+Z)">↷ Redo</button></span></div>
+    <div class="fp-hint">${hint}${redraw && !fpTool ? ` <button class="linkbtn" onclick="loadPlan0434(${fpFloor})">Redraw ${ordinal(fpFloor)} floor from the 0434 plan</button>` : ""}</div>`;
+}
+function planSetTool(t){ fpTool = t || null; renderRacks(); }
+/* On a phone the side panel is below the map, out of sight while you work on
+   the map —so what can be done to the selection sits in a bar at the bottom
+   of the screen. */
+function planSelBar(){
+  const s = fpEditSel ? planObj(fpEditSel.kind, fpEditSel.key) : null;
+  if(!s || s.x==null) return "";
+  const isRack = fpEditSel.kind==="rack";
+  return `<div class="fp-selbar" role="toolbar" aria-label="Selection">
+    <b class="mono">${isRack ? esc(s.name) : esc(DECO_TYPES[s.t]||"")}</b>
+    <button class="btn sm" onclick="planRotate()" aria-label="Rotate">↻</button>
+    ${isRack ? `<button class="btn sm" onclick="promptMoveRack('${esc(s.name)}')" aria-label="Settings">⚙</button><button class="btn sm" onclick="planUnplace()">Off plan</button>`
+             : `<button class="btn sm" onclick="planDuplicate()">Duplicate</button><button class="btn sm danger" onclick="planDeleteDeco()">Delete</button>`}
+    <button class="btn sm" onclick="$('#fp-side').scrollIntoView({behavior:'smooth',block:'start'})">Details</button>
+    <button class="btn sm" onclick="fpEditSel=null;renderRacks()" aria-label="Deselect">✕</button></div>`;
+}
+/* undo / redo: the whole layout (every rack's place, every shape) before each change */
+const FP_SNAP_KEYS = ["x","y","w","h","floor","zone"];
+function planSnap(){ return JSON.stringify({r:state.racks.map(r=>[r.name, ...FP_SNAP_KEYS.map(k=>r[k]??null)]), p:state.floorPlan||[]}); }
+function planPush(){ fpHist.push(planSnap()); if(fpHist.length>80) fpHist.shift(); fpRedo = []; }
+function planRestore(snap){
+  const o = JSON.parse(snap), by = new Map(o.r.map(a=>[a[0], a]));
+  for(const r of state.racks){
+    const a = by.get(r.name);
+    if(a) FP_SNAP_KEYS.forEach((k,i)=>{ if((r[k]??null)!==a[i+1]) r[k] = a[i+1]; });
+    else if(r.x!=null) r.x = r.y = r.w = r.h = null;
+  }
+  state.floorPlan = o.p;
+  if(fpEditSel){ const s = planObj(fpEditSel.kind, fpEditSel.key); if(!s || s.x==null) fpEditSel = null; }
+}
+function planUndo(){ if(!fpHist.length) return; fpRedo.push(planSnap()); planRestore(fpHist.pop()); save(); render(); }
+function planRedo(){ if(!fpRedo.length) return; fpHist.push(planSnap()); planRestore(fpRedo.pop()); save(); render(); }
+/* the grid cell in the middle of what the map box is showing */
+function planViewCenter(){
+  const box = $("#fp-mapbox"), svg = $("#fp-svg"); if(!box || !svg) return {x:1, y:1};
+  const br = box.getBoundingClientRect(), p = svgPoint(svg, {clientX:br.left+box.clientWidth/2, clientY:br.top+box.clientHeight/2});
+  return {x:Math.max(0, Math.floor(p.x/FPU)), y:Math.max(0, Math.floor(p.y/FPU))};
+}
+/* a free w×h spot near (cx, cy) on this floor —clear of every rack and room,
+   and of walls, doors, stairs and no-access blocks */
+function planFreeSpot(cx, cy, w, h, except){
+  const rs = state.racks.filter(r=>r.x!=null && (r.floor||1)===fpFloor && r.name!==except)
+    .concat((state.floorPlan||[]).filter(s=>(s.floor||1)===fpFloor && ["wall","door","stairs","block"].includes(s.t))
+      .map(s=>s.t==="door" ? {x:s.x-1, y:s.y-1, w:s.w+2, h:s.h+2} : s));      // and a step clear of a doorway
+  const free = (x, y) => x>=0 && y>=0 && !rs.some(b=>x < b.x+b.w && b.x < x+w && y < b.y+b.h && b.y < y+h);
+  const x0 = Math.max(0, Math.round(cx-w/2)), y0 = Math.max(0, Math.round(cy-h/2));
+  for(let r=0; r<40; r++) for(let dy=-r; dy<=r; dy++) for(let dx=-r; dx<=r; dx++){
+    if(Math.max(Math.abs(dx), Math.abs(dy))!==r) continue;
+    if(free(x0+dx, y0+dy)) return {x:x0+dx, y:y0+dy};
+  }
+  return {x:x0, y:y0};
+}
 function planInspector(){
   const s = fpEditSel ? planObj(fpEditSel.kind, fpEditSel.key) : null;
   let html = `<div class="fp-side-h"><b>Edit layout</b><span class="dim" style="font-size:12px">${ordinal(fpFloor)} floor</span></div><div class="fp-side-b">`;
   if(s){
     const isRack = fpEditSel.kind==="rack";
-    html += `<div class="fp-lvl-h">${isRack ? "Rack "+esc(s.name) : (DECO_TYPES[s.t]||"Shape")}</div>
-      <div class="fp-ins">
+    const ov = isRack ? (planOverlaps(s.floor||1).get(s.name)||[]) : [];
+    const st = isRack ? rackStats(s.name) : null;
+    html += `<div class="fp-lvl-h">${isRack ? zoneChip(s.zone||"dry")+"<span>Rack "+esc(s.name)+"</span>" : (DECO_TYPES[s.t]||"Shape")}
+        ${isRack?`<span class="dim" style="font-weight:400;margin-left:auto">${st.n} product${st.n===1?"":"s"}</span>`:""}</div>
+      ${ov.length ? `<div class="fp-warn">Overlaps ${ov.map(esc).join(", ")} —drag one of them clear.</div>` : ""}
+      <div class="fp-insp">
         ${[["x","Left",0],["y","Top",0],["w","Width",1],["h","Height",1],["floor","Floor",1]].map(([k,l,m])=>
           `<label>${l}<input type="number" step="1" min="${m}" value="${k==="floor"?(s.floor||1):s[k]}" onchange="planSetProp('${k}', this.value)"></label>`).join("")}
       </div>
       ${isRack
-        ? `<div class="field" style="margin-top:8px"><label>Zone</label><select onchange="planSetProp('zone', this.value)">${zoneOptions(s.zone||"dry")}</select></div>
-           <button class="btn sm" onclick="planUnplace()">Take off the plan</button>`
+        ? `<div class="field" style="margin-top:8px"><label>Zone</label><select onchange="planSetProp('zone', this.value)">${zoneOptions(s.zone||"dry")}</select></div>`
         : `${["door","area","label","stairs"].includes(s.t)?`<div class="field" style="margin-top:8px"><label>Text</label><input value="${esc(s.text||"")}" onchange="planSetProp('text', this.value)"></div>`:""}
            ${s.t==="door"?`<div class="field"><label>Opens towards</label><select onchange="planSetProp('swing', this.value)">
-              ${["up","down","left","right"].map(d=>`<option value="${d}" ${(s.swing||(s.w>=s.h?"up":"right"))===d?"selected":""}>${d}</option>`).join("")}</select></div>`:""}
-           <button class="btn sm danger" onclick="planDeleteDeco()">Delete</button>`}`;
-  } else html += `<p class="dim" style="font-size:12.5px;margin-top:8px">Tap something on the plan to set its exact place and size. Drag it to move it; drag the small square on its corner to resize. Everything snaps to the grid and saves as you go.</p>`;
+              ${["up","down","left","right"].map(d=>`<option value="${d}" ${(s.swing||(s.w>=s.h?"up":"right"))===d?"selected":""}>${d}</option>`).join("")}</select></div>`:""}`}
+      <div class="fp-acts2">
+        <button class="btn sm" onclick="planRotate()" title="Turn it a quarter (R)">↻ Rotate</button>
+        ${isRack
+          ? `<button class="btn sm" onclick="planOpenRack('${esc(s.name)}')">Open rack</button><button class="btn sm" onclick="promptMoveRack('${esc(s.name)}')" title="Rename, zone, remove">⚙ Settings</button><button class="btn sm" onclick="planUnplace()">Take off the plan</button>`
+          : `<button class="btn sm" onclick="planDuplicate()" title="D">Duplicate</button><button class="btn sm danger" onclick="planDeleteDeco()">Delete</button>`}
+      </div>`;
+  } else html += `<p class="dim" style="font-size:12.5px;margin-top:8px">Tap a rack, wall or door on the plan to select it —then drag it to move it, or drag one of its handles to resize it. Pick a tool above to draw new walls, doors and areas. Everything snaps to the grid and saves as you go; Undo takes back one change at a time.</p>`;
   const off = rackList().filter(n=>{ const rk = state.racks.find(r=>r.name===n); return !rk || rk.x==null; });
   if(off.length) html += `<div class="fp-lvl-h" style="margin-top:14px">Racks not on the plan<span class="dim" style="font-weight:400">${off.length}</span></div>`
-    + off.map(n=>`<div class="fp-off"><span class="mono">${esc(n)}</span><button class="btn sm" onclick="planPlace('${esc(n)}')">Place on ${ordinal(fpFloor)} floor</button></div>`).join("");
+    + off.map(n=>`<div class="fp-off"><span class="mono">${esc(n)}</span><span class="dim">${zoneInfo(rackZone(n)).label}</span><button class="btn sm" onclick="planPlace('${esc(n)}')">Place on ${ordinal(fpFloor)} floor</button></div>`).join("");
   return html + "</div>";
 }
 function planSetProp(k, v){
   const s = fpEditSel ? planObj(fpEditSel.kind, fpEditSel.key) : null; if(!s) return;
+  planPush();
   if(k==="zone" || k==="swing") s[k] = v;
   else if(k==="text") s.text = String(v||"").trim();
   else {
     const n = parseFloat(v);
-    if(isNaN(n)) return;
+    if(isNaN(n)){ fpHist.pop(); return; }
     s[k] = Math.max(k==="x"||k==="y" ? 0 : 1, k==="floor" ? Math.round(n) : n);
     if(k==="floor") fpFloor = s.floor;
   }
@@ -8191,68 +8918,225 @@ function planSetProp(k, v){
 }
 function planUnplace(){
   const s = fpEditSel && fpEditSel.kind==="rack" ? planObj("rack", fpEditSel.key) : null; if(!s) return;
+  planPush();
   s.x = s.y = s.w = s.h = null; fpEditSel = null;
   save(); render();
 }
-/* A rack put on the plan starts just below everything already on this floor. */
+/* A rack put on the plan goes in the middle of what's on screen, at the
+   nearest spot that's clear of other racks. */
 function planPlace(name){
-  const rk = ensureRack(name);
-  const onFloor = [...state.racks.filter(r=>r.x!=null && (r.floor||1)===fpFloor), ...(state.floorPlan||[]).filter(s=>(s.floor||1)===fpFloor)];
-  rk.x = 1; rk.y = onFloor.length ? Math.ceil(Math.max(...onFloor.map(s=>s.y+s.h)))+1 : 1;
-  rk.w = 5; rk.h = Math.max(4, levelsOf(name).length*2+2); rk.floor = fpFloor;
+  planPush();
+  const coded = rackCoded(name), rk = ensureRack(name, rackZone(name));
+  const w = coded ? 5 : 10, h = coded ? Math.max(4, levelsOf(name).length*2+2) : 8, c = planViewCenter();
+  const at = planFreeSpot(c.x, c.y, w, h, name);
+  Object.assign(rk, {x:at.x, y:at.y, w, h, floor:fpFloor});
   fpEditSel = {kind:"rack", key:name};
   save(); render();
+  planCenterOn(name);
 }
-function planAddDeco(t){
-  const d = {wall:{w:8,h:1}, door:{w:4,h:1,text:"Door",swing:"up"}, block:{w:4,h:4}, area:{w:10,h:6,text:"Area"},
-             floor:{w:20,h:20}, stairs:{w:6,h:8,text:"Stairs"}, label:{w:8,h:2,text:"Label"}}[t];
-  const s = Object.assign({id:"s"+Date.now().toString(36)+Math.floor(Math.random()*1e4), t, floor:fpFloor, x:1, y:1}, d);
+function newDeco(t, r){
+  const s = Object.assign({id:"s"+Date.now().toString(36)+Math.floor(Math.random()*1e4), t, floor:fpFloor}, FP_DECO_SIZE[t], r||{});
+  if(t==="door" && r && !r.swing) s.swing = s.w>=s.h ? "up" : "right";
   if(!state.floorPlan) state.floorPlan = [];
   state.floorPlan.push(s);
+  return s;
+}
+function planAddDeco(t){
+  planPush();
+  const c = planViewCenter(), d = FP_DECO_SIZE[t];
+  const s = newDeco(t, {x:Math.max(0, c.x-Math.floor(d.w/2)), y:Math.max(0, c.y-Math.floor(d.h/2))});
   fpEditSel = {kind:"deco", key:s.id};
   save(); render();
 }
 function planDeleteDeco(){
   if(!fpEditSel || fpEditSel.kind!=="deco") return;
+  planPush();
   state.floorPlan = (state.floorPlan||[]).filter(s=>s.id!==fpEditSel.key);
   fpEditSel = null; save(); render();
 }
+/* a quarter turn about its middle; a door's swing turns with it */
+function planRotate(){
+  const s = fpEditSel ? planObj(fpEditSel.kind, fpEditSel.key) : null; if(!s || s.x==null) return;
+  planPush();
+  const cx = s.x+s.w/2, cy = s.y+s.h/2, w = s.h, h = s.w;
+  s.w = w; s.h = h; s.x = Math.max(0, Math.round(cx-w/2)); s.y = Math.max(0, Math.round(cy-h/2));
+  if(s.t==="door") s.swing = {up:"right", right:"down", down:"left", left:"up"}[s.swing || (h>=w ? "up" : "right")];
+  save(); render();
+}
+function planDuplicate(){
+  const s = fpEditSel && fpEditSel.kind==="deco" ? planObj("deco", fpEditSel.key) : null; if(!s) return;
+  planPush();
+  const {id, ...rest} = s;
+  const c = newDeco(s.t, Object.assign({}, rest, {x:s.x+1, y:s.y+1}));
+  fpEditSel = {kind:"deco", key:c.id};
+  save(); render();
+}
+function planNudge(dx, dy){
+  const s = fpEditSel ? planObj(fpEditSel.kind, fpEditSel.key) : null; if(!s || s.x==null) return;
+  const x = Math.max(0, s.x+dx), y = Math.max(0, s.y+dy);
+  if(x===s.x && y===s.y) return;
+  planPush(); s.x = x; s.y = y; save(); render();
+}
+function planOpenRack(name){ fpEdit = false; fpEditSel = null; fpTool = null; fpHist = []; fpRedo = []; planSelect(name, null, true); }
+/* keys while editing the layout (not while typing in a box or a dialog is open);
+   Esc also closes the rack panel when just looking */
+document.addEventListener("keydown", e=>{
+  if(rkView==="shelves" || !$("#fp-svg") || $("#page-racks").classList.contains("hidden")) return;
+  if($("#modal-root").children.length || e.target.closest("input,select,textarea,[contenteditable]")) return;
+  const k = e.key, mod = e.ctrlKey || e.metaKey;
+  if(!fpEdit){
+    if(k==="Escape" && fpSel){ planSelect(null); }
+    return;
+  }
+  if(mod && (k==="z" || k==="Z")){ e.preventDefault(); e.shiftKey ? planRedo() : planUndo(); return; }
+  if(mod && (k==="y" || k==="Y")){ e.preventDefault(); planRedo(); return; }
+  if(mod || e.altKey) return;
+  if(k==="Escape"){ if(fpTool) planSetTool(null); else if(fpEditSel){ fpEditSel = null; renderRacks(); } return; }
+  if(!fpEditSel) return;
+  const step = e.shiftKey ? 5 : 1;
+  const arrows = {ArrowLeft:[-step,0], ArrowRight:[step,0], ArrowUp:[0,-step], ArrowDown:[0,step]};
+  if(arrows[k]){ e.preventDefault(); planNudge(...arrows[k]); return; }
+  if(k==="Delete" || k==="Backspace"){ e.preventDefault(); fpEditSel.kind==="deco" ? planDeleteDeco() : planUnplace(); return; }
+  if(k==="r" || k==="R"){ planRotate(); return; }
+  if(k==="d" || k==="D"){ planDuplicate(); return; }
+});
 /* Dragging works on a ghost outline in grid steps; the shape itself only
-   moves (and saves) when the pointer is let go. */
+   moves (and saves) when the pointer is let go. A press on empty grid —or
+   on the floor or an outside area, which lie under everything— pans the map,
+   and only selects that floor or area if the pointer didn't move. */
 function svgPoint(svg, e){ const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; return pt.matrixTransform(svg.getScreenCTM().inverse()); }
 function planPointerDown(e){
-  const svg = $("#fp-svg"), g = e.target.closest("[data-kind]");
-  if(!g){ if(fpEditSel){ fpEditSel = null; renderRacks(); } return; }
-  const obj = planObj(g.dataset.kind, g.dataset.key); if(!obj) return;
+  if(e.button>0) return;
+  const svg = $("#fp-svg"), p = svgPoint(svg, e);
+  if(fpTool){
+    e.preventDefault();
+    const c = {x:Math.max(0, Math.floor(p.x/FPU)), y:Math.max(0, Math.floor(p.y/FPU))};
+    fpDrag = {draw:fpTool, c0:c, sx:p.x, sy:p.y, n:null};
+    planGhost({x:c.x, y:c.y, w:1, h:1});
+    try{ svg.setPointerCapture(e.pointerId); }catch(err){}
+    return;
+  }
+  const g = e.target.closest("[data-kind]");
+  const obj = g && planObj(g.dataset.kind, g.dataset.key);
+  const isSel = g && fpEditSel && fpEditSel.kind===g.dataset.kind && fpEditSel.key===g.dataset.key;
   e.preventDefault();
-  /* The floor and outside areas sit under everything —a press on empty floor
-     selects them first rather than dragging the whole building around. */
-  const isSel = fpEditSel && fpEditSel.kind===g.dataset.kind && fpEditSel.key===g.dataset.key;
-  if(g.dataset.kind==="deco" && (obj.t==="floor" || obj.t==="area") && !isSel){ fpEditSel = {kind:"deco", key:obj.id}; renderRacks(); return; }
-  const p = svgPoint(svg, e);
-  fpDrag = {kind:g.dataset.kind, key:g.dataset.key, obj, resize:!!e.target.closest(".fp-rs"),
-    sx:p.x, sy:p.y, o:{x:obj.x, y:obj.y, w:obj.w, h:obj.h}, n:null};
-  planGhost(fpDrag.o);
   try{ svg.setPointerCapture(e.pointerId); }catch(err){}
+  if(!obj || (g.dataset.kind==="deco" && (obj.t==="floor" || obj.t==="area") && !isSel)){
+    planPanStart(e);
+    fpPan.tap = obj ? {kind:"deco", key:obj.id} : "none";
+    return;
+  }
+  const h = e.target.closest("[data-h]");
+  fpDrag = {kind:g.dataset.kind, key:g.dataset.key, obj, resize:h ? h.dataset.h : null,
+    sx:p.x, sy:p.y, o:{x:obj.x, y:obj.y, w:obj.w, h:obj.h}, n:null, sel:isSel};
 }
-function planGhost(r){
-  const gh = $("#fp-ghost"); if(!gh) return;
+function planGhost(r, label){
+  const gh = $("#fp-ghost"), gt = $("#fp-ghost-t"); if(!gh) return;
+  if(!r){ gh.setAttribute("visibility", "hidden"); if(gt) gt.setAttribute("visibility", "hidden"); return; }
   gh.setAttribute("x", r.x*FPU); gh.setAttribute("y", r.y*FPU); gh.setAttribute("width", r.w*FPU); gh.setAttribute("height", r.h*FPU);
   gh.setAttribute("visibility", "visible");
+  if(gt){
+    gt.textContent = label || "";
+    gt.setAttribute("x", r.x*FPU); gt.setAttribute("y", Math.max(-FPU+7, r.y*FPU-3));
+    gt.setAttribute("visibility", label ? "visible" : "hidden");
+  }
+}
+function planResize(o, dir, dx, dy){
+  let {x, y, w, h} = o;
+  if(dir.includes("e")) w = Math.max(1, o.w+dx);
+  if(dir.includes("s")) h = Math.max(1, o.h+dy);
+  if(dir.includes("w")){ x = Math.min(o.x+o.w-1, Math.max(0, o.x+dx)); w = o.w+(o.x-x); }
+  if(dir.includes("n")){ y = Math.min(o.y+o.h-1, Math.max(0, o.y+dy)); h = o.h+(o.y-y); }
+  return {x, y, w, h};
 }
 function planPointerMove(e){
+  if(fpPinch) return;
+  if(fpPan){ planPanMove(e); return; }
   const d = fpDrag; if(!d) return;
   const p = svgPoint($("#fp-svg"), e);
+  if(d.draw){
+    const c = {x:Math.max(0, Math.floor(p.x/FPU)), y:Math.max(0, Math.floor(p.y/FPU))};
+    if(!d.n && Math.hypot(p.x-d.sx, p.y-d.sy) < FPU*.6) return;
+    const x = Math.min(c.x, d.c0.x), y = Math.min(c.y, d.c0.y);
+    d.n = {x, y, w:Math.max(c.x, d.c0.x)-x+1, h:Math.max(c.y, d.c0.y)-y+1};
+    planGhost(d.n, d.n.w+" × "+d.n.h);
+    return;
+  }
   const dx = Math.round((p.x-d.sx)/FPU), dy = Math.round((p.y-d.sy)/FPU);
-  d.n = d.resize ? {x:d.o.x, y:d.o.y, w:Math.max(1, d.o.w+dx), h:Math.max(1, d.o.h+dy)}
+  if(!d.n && !dx && !dy) return;
+  d.n = d.resize ? planResize(d.o, d.resize, dx, dy)
                  : {x:Math.max(0, d.o.x+dx), y:Math.max(0, d.o.y+dy), w:d.o.w, h:d.o.h};
-  planGhost(d.n);
+  planGhost(d.n, d.resize ? d.n.w+" × "+d.n.h : d.n.x+", "+d.n.y);
 }
 function planPointerUp(){
+  if(fpPan){
+    const tap = fpPan.tap, moved = planPanEnd();
+    if(!moved){
+      const sel = tap==="none" ? null : tap;
+      if(JSON.stringify(sel)!==JSON.stringify(fpEditSel)){ fpEditSel = sel; renderRacks(); }
+    }
+    return;
+  }
   const d = fpDrag; fpDrag = null; if(!d) return;
+  if(d.draw==="rack"){
+    const r = d.n || {x:d.c0.x, y:d.c0.y, w:5, h:8};
+    fpTool = null; renderRacks();
+    promptAddRack(Object.assign({floor:fpFloor}, r));
+    return;
+  }
+  if(d.draw){
+    planPush();
+    const sz = FP_DECO_SIZE[d.draw];
+    const r = d.n || {x:d.c0.x, y:d.c0.y, w:sz.w, h:sz.h};
+    const s = newDeco(d.draw, r);
+    fpTool = null; fpEditSel = {kind:"deco", key:s.id};
+    save(); render();
+    return;
+  }
   fpEditSel = {kind:d.kind, key:d.key};
-  if(d.n && (d.n.x!==d.o.x || d.n.y!==d.o.y || d.n.w!==d.o.w || d.n.h!==d.o.h)){ Object.assign(d.obj, d.n); save(); }
+  if(d.n && (d.n.x!==d.o.x || d.n.y!==d.o.y || d.n.w!==d.o.w || d.n.h!==d.o.h)){ planPush(); Object.assign(d.obj, d.n); save(); }
+  else if(d.sel){ planGhost(null); return; }
   renderRacks();
+}
+/* ---------- printing the plan ----------
+   Each floor on its own page, drawn as on screen (no filter, nothing
+   selected), with a table of its racks underneath —to pin up by the door or
+   take round with a clipboard. The drawing's look comes from this page's
+   own floor-plan styles. */
+function printFloorPlan(){
+  const ad = activeDept(), keep = [fpFloor, fpSel, fpShow, fpEdit];
+  fpSel = null; fpShow = "all"; fpEdit = false;
+  const css = [...document.styleSheets].flatMap(ss=>{ try{ return [...ss.cssRules]; }catch(e){ return []; } })
+    .filter(r=>r.selectorText && /fp-|:root|\.zdot|\.zchip/.test(r.selectorText)).map(r=>r.cssText).join("\n");
+  const pages = planFloors().map(f=>{
+    fpFloor = f;
+    let svg = planMapHtml("").replace(' id="fp-svg"', "").replace(/<rect id="fp-ghost"[^>]*\/>\s*<text id="fp-ghost-t"[^>]*><\/text>/, "");
+    const vb = (svg.match(/viewBox="([^"]+)"/)||[])[1].split(" ").map(Number);
+    const k = Math.min(190/vb[2], 180/vb[3]);
+    svg = svg.replace("<svg ", `<svg style="width:${(vb[2]*k).toFixed(1)}mm;height:${(vb[3]*k).toFixed(1)}mm" `);
+    const racks = state.racks.filter(r=>r.x!=null && (r.floor||1)===f).map(r=>r.name);
+    const order = rackList(); racks.sort((a,b)=>order.indexOf(a)-order.indexOf(b));
+    const rows = racks.map(n=>{ const st = rackStats(n), zi = zoneInfo(rackZone(n))||{label:"", zh:""};
+      return `<tr><td class="c">${esc(n)}</td><td>${esc(zi.label)} ${esc(zi.zh)}</td><td class="n">${rackCoded(n)?levelsOf(n).length:"—"}</td><td class="n">${st.n}</td><td class="n${st.out?" o":""}">${st.out||""}</td><td class="n${st.low?" l":""}">${st.low||""}</td></tr>`; }).join("");
+    const its = floorItems(f);
+    return `<section><h1>${esc(ad.code)} · ${ordinal(f)} floor</h1><p>${racks.length} rack${racks.length===1?"":"s"} · ${its.length} products · ${its.filter(i=>itemState(i)==="out").length} out · ${its.filter(i=>itemState(i)==="low").length} low · ${todayStr()}</p>
+      <div class="map">${svg}</div>
+      <table><thead><tr><th>Rack 货架</th><th>Zone 区域</th><th class="n">Levels 层</th><th class="n">Products 货品</th><th class="n">Out 缺货</th><th class="n">Low 低库存</th></tr></thead><tbody>${rows}</tbody></table></section>`;
+  }).join("");
+  [fpFloor, fpSel, fpShow, fpEdit] = keep;
+  const doc = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${esc(ad.code)} floor plan ${todayStr()}</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>${css}
+body{font:12px/1.4 "IBM Plex Sans","Noto Sans SC",sans-serif;color:#12171A;margin:0;padding:18px 22px;--f-mono:"IBM Plex Mono",monospace;--f-ui:"IBM Plex Sans",sans-serif;--accent:#0B4F4A;--accent-ink:#E3EFED}
+@page{size:A4;margin:10mm}
+section{page-break-after:always;break-after:page}section:last-child{page-break-after:auto;break-after:auto}
+h1{font-size:20px;margin:0 0 2px}p{color:#586268;margin:0 0 10px}.map{display:flex;justify-content:center;margin-bottom:10px}
+.fp-svg{max-width:none;margin:0}
+table{border-collapse:collapse;width:100%;font-size:11px}th{text-align:left;font:600 9.5px "IBM Plex Mono",monospace;letter-spacing:.06em;text-transform:uppercase;color:#586268;border-bottom:1.5px solid #12171A;padding:4px 5px}
+td{padding:4px 5px;border-bottom:1px solid #D6DBD5}td.c{font:700 12px "IBM Plex Mono",monospace}.n{text-align:right}td.o{color:#B5342A;font-weight:700}td.l{color:#A1660B;font-weight:700}
+.pb{position:fixed;top:12px;right:12px;background:#0B4F4A;color:#fff;border:none;padding:9px 17px;font:600 13px sans-serif;cursor:pointer}@media print{.pb{display:none}body{padding:0}}</style></head><body>
+<button class="pb" onclick="window.print()">Print / Save PDF</button>${pages}</body></html>`;
+  openOrSave(doc, ad.code+"-floor-plan-"+todayStr()+".html");
 }
 /* Draws 0434 —both floors, or just one (Edit layout → Redraw this floor).
    Racks that already exist keep their zone and everything on them; missing
@@ -8266,6 +9150,7 @@ async function loadPlan0434(onlyFloor){
         ? `Puts the ${ordinal(onlyFloor)} floor's walls, doors and racks back where the 0434 plan has them. Anything moved or added on this floor with Edit layout is reset; racks keep everything on them, and the other floor isn't touched.`
         : "Draws both floors: the ground floor's walls and doors, the chiller and freezer and R1A–R9A, and the 2nd floor's stairs, CENTER and R1B–R5B. Missing racks are added with their levels; nothing on any rack is changed. Everything can be moved afterwards with Edit layout.",
       onlyFloor ? "Redraw it" : "Draw it")) return;
+  if(fpEdit) planPush();
   for(const r of PLAN_0434.racks.filter(r=>on(r.floor))){
     const rk = ensureRack(r.name, "dry");
     Object.assign(rk, {x:r.x, y:r.y, w:r.w, h:r.h, floor:r.floor});
@@ -8279,7 +9164,7 @@ async function loadPlan0434(onlyFloor){
   }
   const keep = (state.floorPlan||[]).filter(s=>!on(s.floor||1));
   state.floorPlan = keep.concat(PLAN_0434.shapes.filter(s=>on(s.floor)).map((s,i)=>Object.assign({id:"p"+s.floor+"-"+i}, s)));
-  fpFloor = onlyFloor || 1; fpSel = null; fpEditSel = null;
+  fpFloor = onlyFloor || 1; fpSel = null; fpEditSel = null; fpZoom = 1;
   save(); render();
   toast(onlyFloor ? ordinal(onlyFloor)+" floor redrawn" : "0434 floor plan drawn —both floors; tap a rack to see what's on it");
 }
@@ -8323,6 +9208,7 @@ function restoreScroll(host, m){
 /* The Racks page: floor plan or shelves. */
 function renderRacks(){
   if(!isWarehouse() || !$("#rk-plan")) return;
+  planTip(null);
   const plan = rkView!=="shelves";
   $("#rk-plan").classList.toggle("hidden", !plan);
   $("#racks-board").classList.toggle("hidden", plan);
@@ -10605,6 +11491,13 @@ $("#sr-from").addEventListener("change", e=>{ e.target.dataset.user = "1"; rende
 $("#sr-zone").addEventListener("change", renderStocktakeSum);
 /* On the floor plan, typing a search shows the matches in the side panel. */
 $("#rk-q").addEventListener("input", ()=>{ fpSel = null; renderRacks(); });
+/* …and Enter opens the rack of the first one found (in walking order) */
+$("#rk-q").addEventListener("keydown", e=>{
+  if(e.key!=="Enter" || e.isComposing || rkView==="shelves") return;
+  const q = norm(e.target.value); if(!q) return;
+  const hit = state.items.filter(i=>(i.store||"").trim() && planMatch(i, q)).sort(walkCmp())[0];
+  if(hit){ e.preventDefault(); planSelect(hit.store, hit.id, true); }
+});
 $("#is-co-filter").addEventListener("change", renderIssueStock);
 $("#rc-sup-filter").addEventListener("change", renderReceive);
 $("#al-zone").addEventListener("change", renderLowStock);
