@@ -178,6 +178,37 @@ in the menu shows a red dot while anything is low. **Turn on desktop alerts**
 (per device) also pops up a system notification when the app isn't the
 window in front.
 
+### Production minimum (0434)
+
+Some 0434 stock is also needed by the production kitchens, and that use doesn't
+show up in sales or issues. Each product can have a **production minimum**: a
+fixed amount kept back for production, on top of its minimum for sales.
+
+- **Total:** the minimum in use is the sales minimum (Auto or Manual) plus
+  the production minimum. Low Stock warns when the balance drops below the
+  two together.
+- **Where it shows:** the Min column on Stock and Low Stock shows the total,
+  with "incl. 2 ctn production" under it (hover for the split).
+- **Suggested order:** it tops up to twice the sales minimum plus the
+  production minimum (the production part is a fixed amount to keep, so it
+  isn't doubled).
+- **Bought to order / Stopped:** no minimum at all, production included.
+- **Set one product:** **Edit item** (or Add item), in cartons and packets,
+  just under the minimum. Leave both boxes empty for none.
+- **Set many at once:** **Minimums** → **Download sheet** gives every product
+  with its current production minimum. Fill in the **Production ctn** /
+  **Production pkt** columns and **Upload sheet** (xlsx, xls or csv).
+  - Rows are matched by Code (and UOM if two products share a code), or by
+    Name.
+  - A blank row is left as it is; 0 clears it.
+  - A preview shows what will change, and which rows didn't match, before
+    anything is applied.
+- **Storage:** `items.prod_min`, in packets like `min`, and converted with
+  it when a pack size is set. Re-run `supabase-schema.sql` (or just
+  `alter table items add column if not exists prod_min numeric;`). Until
+  then the box and the upload are switched off with a note.
+- Kitchens (0428, 0227) don't have it.
+
 ### Minimums never below one order (kitchens and 0434)
 
 Some products go out rarely but in one go: a customer takes 5 packets at a
