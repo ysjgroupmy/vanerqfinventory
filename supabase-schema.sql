@@ -69,6 +69,9 @@ alter table items add column if not exists unit text;
 -- Mark ordered), so it isn't ordered twice; cleared when the delivery is
 -- received. Null = nothing on order.
 alter table items add column if not exists ordered_on date;
+-- Free text about the product (brand, what it's for, how to store it), typed
+-- at the bottom of Add / Edit item. Null = none.
+alter table items add column if not exists description text;
 
 create table if not exists tx (
   id          bigint not null,           -- client-assigned (state.txSeq), per department
