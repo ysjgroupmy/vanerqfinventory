@@ -72,6 +72,11 @@ alter table items add column if not exists ordered_on date;
 -- Free text about the product (brand, what it's for, how to store it), typed
 -- at the bottom of Add / Edit item. Null = none.
 alter table items add column if not exists description text;
+-- Warehouse depts: the production minimum —a fixed amount (in packets, like
+-- `min`) kept back for the production kitchens, on top of the minimum for
+-- sales. Low Stock warns when the balance drops below the two together.
+-- Null/0 = none.
+alter table items add column if not exists prod_min numeric;
 
 create table if not exists tx (
   id          bigint not null,           -- client-assigned (state.txSeq), per department

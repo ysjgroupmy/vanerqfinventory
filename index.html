@@ -250,6 +250,11 @@ tbody tr:hover td{background:var(--panel-2)}
 tr.rowlink{cursor:pointer}
 td.name{min-width:190px}
 .sub{display:block;font-size:11px;color:var(--ink-3);font-family:var(--f-mono);margin-top:1px}
+fieldset.bare{border:0;padding:0;margin:0;min-width:0}
+fieldset.bare[disabled]{opacity:.55}
+.minprod{font-size:10.5px;color:var(--info);font-family:var(--f-mono);white-space:nowrap}
+.prodbox{border:1px solid var(--rule);background:var(--panel-2);padding:10px 12px;margin-top:12px;font-size:12.5px}
+.prodbox p{margin:4px 0 8px}
 .idesc{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:11.5px;line-height:1.35;color:var(--ink-2);margin-top:2px;white-space:pre-line;font-family:var(--f-ui)}
 #m-desc{font-family:var(--f-ui);font-size:13px}
 tr.sev-crit td:first-child{box-shadow:inset 3px 0 0 var(--crit)}
@@ -3021,6 +3026,34 @@ const ZH_DICT = /*ZH_DICT*/{
 "There's already a rack called {s}":"已有名为 {s} 的货架",
 "Description (optional)":"描述（可选）",
 "Descriptions turn on once supabase-schema.sql has been re-run in Supabase (see README).":"在 Supabase 中重新运行 supabase-schema.sql 后即可使用描述（见 README）。",
+"Production minimum —kept back for the production kitchens (optional)":"生产最低库存 —为生产厨房预留（可选）",
+"Production minimums turn on once supabase-schema.sql has been re-run in Supabase (see README).":"在 Supabase 中重新运行 supabase-schema.sql 后即可使用生产最低库存（见 README）。",
+"Added on top of the minimum above —Low Stock warns when the balance drops below the two together. Not used while Bought to order is ticked.":"加在上面的最低库存之上 —结存低于两者之和时，低库存会提醒。勾选“按单订购”时不使用。",
+"incl. {s} production":"含生产 {s}",
+"Sales {s} + production {s}":"销售 {s1} + 生产 {s2}",
+"Production minimum":"生产最低库存",
+"—an amount kept back for the production kitchens, typed in Edit item or uploaded in Minimums. It's added on top of the minimum above.":"—为生产厨房预留的数量，可在编辑货品中填写，或在最低库存中上传。它加在上面的最低库存之上。",
+"Plus the production minimum:":"另加生产最低库存：",
+"(change it in Edit item).":"（在编辑货品中修改）。",
+"With a production minimum":"设有生产最低库存",
+"Production minimums":"生产最低库存",
+"An amount of a product kept back for the production kitchens, added on top of its minimum. Set one product in Edit item, or many at once: download the sheet, fill in the":"为生产厨房预留的货品数量，加在其最低库存之上。单个货品可在编辑货品中设置；批量设置：下载表格，填写",
+"columns, then upload it.":"两列，然后上传。",
+"Download sheet":"下载表格",
+"Upload sheet":"上传表格",
+"Production minimums —{s}":"生产最低库存 —{s}",
+"To change":"将更改",
+"Already the same":"已相同",
+"Not matched to a product":"未匹配到货品",
+"row {n}: {s}":"第 {n} 行：{s}",
+"Not a number, or below 0 —skipped":"不是数字或小于 0 —已跳过",
+"Apply {n} change":"应用 {n} 项更改",
+"Apply {n} changes":"应用 {n} 项更改",
+"{n} production minimum updated":"已更新 {n} 个生产最低库存",
+"{n} production minimums updated":"已更新 {n} 个生产最低库存",
+"No Production column (or no Code / Name column) found —start from Download sheet":"找不到生产列（或编码 / 名称列）—请先用“下载表格”",
+"The production minimum can't be below 0":"生产最低库存不能小于 0",
+"New":"新",
 "＋ insert {n}":"＋ 插入 {n}"
 }/*/ZH_DICT*/;
 const LANG_KEY = "qf_lang";
@@ -3429,6 +3462,7 @@ function convertToPacks(it, size, wasCartons){
     const f = wasCartons ? size : 1;
     it.stock = Math.round((it.stock*f + (it.looseQty||0))*100)/100;
     it.min = Math.round((it.min||0)*f*100)/100;
+    if(it.prodMin>0) it.prodMin = Math.round(it.prodMin*f*100)/100;
     it.baseDaily = (it.baseDaily||0)*f;
     if(f!==1){
       for(const t of state.tx) if(t.itemId===it.id) t.qty = Math.round(t.qty*f*100)/100;
@@ -3623,9 +3657,18 @@ function autoMin(it){
 function minMode(it){ return !isWarehouse() ? "fixed" : it.preorder ? "none" : it.min>0 ? "fixed" : "auto"; }
 function effMin(it){
   if(!isWarehouse()) return it.preorder || it.stopped ? (it.min||0) : Math.max(it.min||0, orderSize(it));   // a kitchen's minimum, never under one order
+  return salesMin(it) + prodMin(it);
+}
+/* 0434's minimum has two parts: what customers take (Auto from issues and
+   sales, or set by hand) and the production minimum —a fixed amount typed in
+   Edit item or uploaded in Minimums, kept back for the production kitchens.
+   Low Stock warns when the balance drops below the two together. "Bought to
+   order" and Stopped mean no minimum at all. */
+function salesMin(it){
   if(it.preorder || it.stopped) return 0;
   return it.min>0 ? it.min : autoMin(it);
 }
+function prodMin(it){ return isWarehouse() && !it.preorder && !it.stopped && it.prodMin>0 ? it.prodMin : 0; }
 /* ⓘ that opens a short explanation on tap (hover-only tooltips don't work
    on a tablet). The bubble is positioned on screen so a scrolling table
    can't clip it; tapping anywhere else, or scrolling, closes it. */
@@ -3652,7 +3695,7 @@ document.addEventListener("click", e=>{ if(!e.target.closest(".info")) closeInfo
 window.addEventListener("scroll", closeInfos, true);
 function minInfo(){
   const d = state.coverTarget||7;
-  return `<b>Auto</b> —the system sets the minimum from what goes out: enough stock for <b>${d} days</b> of issues${isWarehouse()?" (and sales, once imported)":""}, sized for the busiest weeks so a bad week is still covered. It updates by itself as history builds up; a product with no movement yet has no automatic minimum. It's never less than the most that's gone out in one day over the last ${ORDER_DAYS} days, so a product taken rarely but in bulk still warns before the next order.<br><br><b>Manual</b> —you type the minimum and it stays exactly as you set it until you switch back to Auto.<br><br>Either way, when the balance drops below the minimum the product goes on <b>Low Stock</b> and you get an alert. The ${d} days can be changed in <b>Minimums</b>.`;
+  return `<b>Auto</b> —the system sets the minimum from what goes out: enough stock for <b>${d} days</b> of issues${isWarehouse()?" (and sales, once imported)":""}, sized for the busiest weeks so a bad week is still covered. It updates by itself as history builds up; a product with no movement yet has no automatic minimum. It's never less than the most that's gone out in one day over the last ${ORDER_DAYS} days, so a product taken rarely but in bulk still warns before the next order.<br><br><b>Manual</b> —you type the minimum and it stays exactly as you set it until you switch back to Auto.${isWarehouse() ? `<br><br><b>Production minimum</b> —an amount kept back for the production kitchens, typed in Edit item or uploaded in Minimums. It's added on top of the minimum above.` : ""}<br><br>Either way, when the balance drops below the minimum the product goes on <b>Low Stock</b> and you get an alert. The ${d} days can be changed in <b>Minimums</b>.`;
 }
 /* Auto | Manual pill for one product's minimum. Manual opens the editor,
    starting from what Auto gives now so the number doesn't jump. */
@@ -3663,9 +3706,10 @@ function minPill(it){
 }
 function minCell(it){
   if(it.preorder) return '<span class="tag t-info" title="Bought to order —no minimum, never on Low Stock">To order</span>';
-  const auto = !(it.min>0), v = effMin(it);
+  const auto = !(it.min>0), v = effMin(it), pm = prodMin(it);
   return `<span class="mincell">${minPill(it)}<button type="button" class="minv${auto?" auto":""}" onclick="openMinEdit(${it.id})"
-    title="${auto ? (v>0 ? "Worked out from usage —tap to set your own" : "No usage yet, so no automatic minimum —tap to set one") : "Your minimum —tap to change"}">${v>0 ? esc(fmtQty(it, v)) : "—"}</button></span>`;
+    title="${auto ? (v>0 ? "Worked out from usage —tap to set your own" : "No usage yet, so no automatic minimum —tap to set one") : "Your minimum —tap to change"}">${v>0 ? esc(fmtQty(it, v)) : "—"}</button>${pm
+    ? `<span class="minprod" title="${esc("Sales "+fmtQty(it, v-pm)+" + production "+fmtQty(it, pm))}">incl. ${esc(fmtQty(it, pm))} production</span>` : ""}</span>`;
 }
 function setMinMode(id, mode){
   const it = item(id); if(!it) return;
@@ -3685,6 +3729,7 @@ function openMinEdit(id){
     <p class="dim" style="font-size:12.5px;margin-bottom:10px">${esc(it.name)} —the low-stock alert fires when the balance drops below this, and it stays as you set it until you switch back to <b>Auto</b>.
       ${a>0 ? `Automatic would be <b class="mono">${esc(fmtQty(it, a))}</b> (${state.coverTarget||7} days of usage).` : "There's no usage history yet, so there's no automatic minimum to start from."}</p>
     <div class="field"><label>Minimum</label>${qtyInputs(it, "m-min", start)}</div>
+    ${prodMin(it)>0 ? `<p class="dim" style="font-size:12.5px;margin-top:-4px"><span>Plus the production minimum:</span> <b class="mono" style="color:var(--ink)">${esc(fmtQty(it, prodMin(it)))}</b> <span>(change it in Edit item).</span></p>` : ""}
     <div class="mfoot"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="saveMinEdit(${id})">Save</button></div>`);
   const f = $("#m-min-c") || $("#m-min-p"); if(f){ f.focus(); f.select(); }
 }
@@ -3852,6 +3897,7 @@ function itemRow(i){ const r = {id:i.id, dept_id:dept, name:i.name, uom:i.uom||"
   if(i.unit!=null) r.unit = i.unit;
   if(i.orderedOn!==undefined) r.ordered_on = i.orderedOn || null;
   if(itemDescOk && i.desc!==undefined) r.description = i.desc || null;
+  if(itemProdOk && i.prodMin!==undefined) r.prod_min = i.prodMin>0 ? i.prodMin : null;
   return r; }
 function rowItem(r){ return {id:Number(r.id), name:r.name, uom:r.uom, code:r.code, store:r.store, cat:r.cat,
   stock:Number(r.stock), min:Number(r.min), baseDaily:Number(r.base_daily),
@@ -3859,7 +3905,8 @@ function rowItem(r){ return {id:Number(r.id), name:r.name, uom:r.uom, code:r.cod
   looseQty:Number(r.loose_qty||0), level:r.level||"1", slot:Number(r.slot||0),
   packSize:r.pack_size==null?null:Number(r.pack_size), unit:r.unit??null,
   ...(r.ordered_on!==undefined ? {orderedOn:r.ordered_on} : {}),
-  ...(r.description!==undefined ? {desc:r.description||""} : {})}; }
+  ...(r.description!==undefined ? {desc:r.description||""} : {}),
+  ...(r.prod_min!==undefined ? {prodMin:Number(r.prod_min)||0} : {})}; }
 
 function txRow(t){ const r = {id:t.id, dept_id:dept, ts:t.ts, date:t.date, item_id:t.itemId, type:t.type,
   qty:t.qty, note:t.note||"", batch:t.b??null, planned:(t.planned??null), hist:!!t.h, amount:(t.amount??null),
@@ -3906,6 +3953,7 @@ let billInfoOk = true;
 /* items.description came with a later supabase-schema.sql too: until this
    database has it, a description typed here stays on this device. */
 let itemDescOk = false;
+let itemProdOk = false;      // items.prod_min, the same way
 const billSide = k => k.endsWith("@d") || k.endsWith("@s");
 function billRowsFromState(b){
   const out=[];
@@ -4378,6 +4426,7 @@ async function subscribeDept(){
      this database has it, before anything is compared with the server */
   try{ billInfoOk = !(await sb.from("bills").select("info").range(0,0)).error; }catch(e){ billInfoOk = false; }
   try{ itemDescOk = !(await sb.from("items").select("description").range(0,0)).error; }catch(e){ itemDescOk = false; }
+  try{ itemProdOk = !(await sb.from("items").select("prod_min").range(0,0)).error; }catch(e){ itemProdOk = false; }
   applyStore(readPending());
   DB_READY = true;
   if(upgradePlan0434()){ save(); render(); }
@@ -6380,7 +6429,26 @@ function minBox(it){
       <span class="min-auto dim">${it ? (a>0 ? "now <b class=\"mono\">"+esc(fmtQty(it,a))+"</b> —from usage" : "no usage yet") : "worked out once it has usage"}</span>
       <span class="min-man">${it ? qtyInputs(it, "m-min", manual ? it.min : (a>0?a:"")) : pairNew("m-min", true)}</span>
     </div></div>
+    ${prodField(it)}
     <div class="field"><label class="opt"><input type="checkbox" id="m-toorder" ${it&&it.preorder?"checked":""}> Bought to order —no minimum, never on Low Stock</label></div>`;
+}
+/* The production minimum in Add / Edit item (0434): cartons + packets like the
+   minimum, blank = none. Read-only until the database has items.prod_min. */
+function prodField(it){
+  const off = DB_READY && !itemProdOk;
+  return `<div class="field"><label>Production minimum —kept back for the production kitchens (optional)</label>
+    <fieldset class="bare" ${off?"disabled":""}>${it ? qtyInputs(it, "m-prod", it.prodMin>0 ? it.prodMin : "") : pairNew("m-prod", true)}</fieldset>
+    <div class="qhint" style="margin-top:4px${off?";color:var(--warn)":""}">${off
+      ? "Production minimums turn on once supabase-schema.sql has been re-run in Supabase (see README)."
+      : "Added on top of the minimum above —Low Stock warns when the balance drops below the two together. Not used while Bought to order is ticked."}</div></div>`;
+}
+/* -> packets (0 = none), undefined if the box is off, or null (with a message) if it's below 0 */
+function readProd(it){
+  const p = $("#m-prod-p"); if(!p || p.closest("fieldset[disabled]")) return undefined;
+  const v = readQty(it, "m-prod");
+  if(isNaN(v)) return 0;
+  if(v<0){ toast("The production minimum can't be below 0"); return null; }
+  return v;
 }
 function minBoxMode(m){
   const b = $("#m-minbox"); if(!b) return;
@@ -6468,6 +6536,8 @@ function doAdd(){
     it.packSize = pack==null ? 1 : pack;
     readUnitField(it);
     const mb = readMinBox(it); if(!mb) return;
+    const pm = readProd(it); if(pm===null) return;
+    if(pm>0) it.prodMin = pm;
     /* inserting between two products: make room first (only if the rack code
        offered wasn't changed in the form) */
     const ins = addInsert && $("#m-pos").value.trim().toUpperCase()===addInsert.code.toUpperCase() ? addInsert : null;
@@ -6523,11 +6593,12 @@ function doEdit(id){
   const it = item(id), name = $("#m-name").value.trim();
   if(!name){ toast("A name is required"); return; }
   const wh = isWarehouse();
-  let pack = null, mb = null;
+  let pack = null, mb = null, pm;
   if(wh){
     pack = readPackInput();
     if(Number.isNaN(pack)){ toast("Packets per carton must be 1 or more"); return; }
     mb = readMinBox(it); if(!mb) return;
+    pm = readProd(it); if(pm===null) return;
     const posRaw = $("#m-pos").value.trim();
     if(posRaw !== posCode(it)){ const err = placeItem(it, posRaw); if(err){ toast(err); return; } }
   } else it.store=$("#m-store").value.trim();
@@ -6535,7 +6606,7 @@ function doEdit(id){
   it.cat=$("#m-cat").value.trim()||"Uncategorised";
   /* Minimum and baseline are read in the item's current unit, before any pack
      size change below converts them along with the balance. */
-  if(wh){ it.min = mb.min; it.preorder = mb.preorder; }
+  if(wh){ it.min = mb.min; it.preorder = mb.preorder; if(pm!==undefined && (pm>0 || it.prodMin)) it.prodMin = pm; }
   else it.min=parseFloat($("#m-min").value)||0;
   it.baseDaily=parseFloat($("#m-base").value)||0;
   if(wh) readUnitField(it);
@@ -6693,9 +6764,94 @@ function openMinToolWh(){
     <div class="kv"><span>On Auto</span><b>${auto.length}${noUse?` (${noUse} with no usage yet)`:""}</b></div>
     <div class="kv"><span>Manual</span><b>${manual.length}</b></div>
     <div class="kv"><span>Bought to order —no minimum</span><b>${none.length}</b></div>
+    <div class="kv"><span>With a production minimum</span><b>${active().filter(i=>prodMin(i)>0).length}</b></div>
+    <div class="prodbox">
+      <b>Production minimums</b>
+      <p class="dim">An amount of a product kept back for the production kitchens, added on top of its minimum. Set one product in Edit item, or many at once: download the sheet, fill in the <b>Production ctn / pkt</b> columns, then upload it.</p>
+      ${DB_READY && !itemProdOk ? `<p style="color:var(--warn);font-size:12.5px">Production minimums turn on once supabase-schema.sql has been re-run in Supabase (see README).</p>` : `<div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn sm" onclick="downloadProdSheet()">Download sheet</button>
+        <button class="btn sm" onclick="$('#prod-file').click()">Upload sheet</button>
+        <input type="file" id="prod-file" accept=".xlsx,.xls,.csv" class="hidden" onchange="if(this.files[0]) readGrid(this.files[0], previewProdSheet)"></div>`}
+    </div>
     <div class="mfoot"><button class="btn" onclick="closeModal()">Cancel</button>
       ${manual.length?`<button class="btn" onclick="allMinsAuto()">Put the ${manual.length} manual on Auto</button>`:""}
       <button class="btn primary" onclick="saveMinDays()">Save</button></div>`);
+}
+/* ---------- production minimums from a sheet ----------
+   The sheet lists every stocked product with its current production minimum
+   split into cartons and packets; fill in the two Production columns (blank =
+   leave as it is, 0 = none) and upload it —xlsx, xls or csv. Rows are matched
+   by Code (and UOM when two products share a code), else by Name. Nothing
+   changes until the preview is confirmed. */
+function downloadProdSheet(){
+  let csv = "Code,Name,UOM,Pkt per ctn,Rack code,Production ctn,Production pkt\n";
+  for(const it of active().filter(i=>!i.preorder).sort(walkCmp())){
+    const p = packOf(it), v = it.prodMin>0 ? it.prodMin : 0, sp = v ? splitQty(it, v) : null;
+    csv += [it.code||"", it.name, it.uom||"", p>1 ? p : "", posCode(it), p>1 && sp ? sp.ctn : "", sp ? (p>1 ? sp.pkt : v) : ""].map(csvCell).join(",")+"\n";
+  }
+  saveFile(activeDept().code+"-production-minimums-"+todayStr()+".csv", "\ufeff"+csv, "text/csv;charset=utf-8");
+}
+function parseProdSheet(grid){
+  let hr = -1, c = {};
+  for(let r=0; r<Math.min(grid.length, 12); r++){
+    const row = (grid[r]||[]).map(v=>norm(v));
+    const prod = row.map((v,i)=>({v,i})).filter(x=>/production|生产/.test(x.v));
+    if(!prod.length) continue;
+    hr = r;
+    const isCtn = v => /ctn|carton|箱/.test(v);
+    c.ctn = (prod.find(x=>isCtn(x.v))||{i:-1}).i;
+    c.pkt = (prod.find(x=>!isCtn(x.v))||{i:-1}).i;
+    c.code = row.findIndex(v=>v==="code" || v==="编码" || (/code|编码/.test(v) && !/rack|货位|货架/.test(v)));
+    c.name = row.findIndex(v=>v==="name" || /名称|品名/.test(v) || (/name|product/.test(v) && !/production/.test(v)));
+    c.uom = row.findIndex(v=>/uom|规格/.test(v));
+    break;
+  }
+  if(hr<0 || (c.code<0 && c.name<0)) return {error:"No Production column (or no Code / Name column) found —start from Download sheet"};
+  const out = {changes:[], same:0, missing:[], bad:[]};
+  const cell = (row, i) => i>=0 && row[i]!=null ? String(row[i]).trim() : "";
+  const seen = new Set();
+  for(let r=hr+1; r<grid.length; r++){
+    const row = grid[r]||[], code = cell(row, c.code), name = cell(row, c.name), uom = cell(row, c.uom);
+    const cr = cell(row, c.ctn), pr = cell(row, c.pkt);
+    if(!code && !name) continue;
+    if(cr==="" && pr==="") continue;                         // blank = leave as it is
+    let its = code ? state.items.filter(i=>!i.stopped && norm(i.code)===norm(code)) : [];
+    if(its.length>1 && uom) its = its.filter(i=>normUom(i.uom)===normUom(uom));
+    if(!its.length && name) its = state.items.filter(i=>!i.stopped && norm(i.name)===norm(name));
+    if(its.length!==1){ out.missing.push({r:r+1, label:[code, name, uom].filter(Boolean).join(" · "), many:its.length>1}); continue; }
+    const it = its[0], cn = cr==="" ? 0 : Number(cr), pn = pr==="" ? 0 : Number(pr);
+    if(isNaN(cn) || isNaN(pn) || cn<0 || pn<0){ out.bad.push({r:r+1, label:it.name}); continue; }
+    if(seen.has(it.id)) continue;
+    seen.add(it.id);
+    const to = Math.round((cn*packOf(it) + pn)*100)/100, from = it.prodMin>0 ? it.prodMin : 0;
+    if(Math.abs(to-from)<0.001) out.same++; else out.changes.push({it, from, to});
+  }
+  return out;
+}
+let prodSheet = null;
+function previewProdSheet(grid, fname){
+  const res = parseProdSheet(grid);
+  if(res.error){ toast(res.error); return; }
+  prodSheet = res.changes;
+  const q = (it, v) => v>0 ? esc(fmtQty(it, v)) : '<span class="faint">none</span>';
+  modal(`<h3>Production minimums —${esc(fname)}</h3>
+    <div class="kv"><span>To change</span><b>${res.changes.length}</b></div>
+    <div class="kv"><span>Already the same</span><b>${res.same}</b></div>
+    ${res.missing.length ? `<div class="kv"><span>Not matched to a product</span><b style="color:var(--warn)">${res.missing.length}</b></div>
+      <p class="dim" style="font-size:12px;margin:2px 0 8px">${res.missing.slice(0,8).map(m=>`<span>row ${m.r}: ${esc(m.label)}${m.many?" (more than one product)":""}</span>`).join(" · ")}${res.missing.length>8?" …":""}</p>` : ""}
+    ${res.bad.length ? `<div class="kv"><span>Not a number, or below 0 —skipped</span><b style="color:var(--warn)">${res.bad.length}</b></div>
+      <p class="dim" style="font-size:12px;margin:2px 0 8px">${res.bad.slice(0,8).map(m=>`row ${m.r}: ${esc(m.label)}`).join(" · ")}</p>` : ""}
+    ${res.changes.length ? `<div style="max-height:44vh;overflow:auto;border:1px solid var(--rule);margin-top:8px"><table><thead><tr><th>Product</th><th class="num">Now</th><th class="num">New</th></tr></thead><tbody>
+      ${res.changes.slice(0,200).map(x=>`<tr><td class="name">${esc(x.it.name)}<span class="sub">${esc(x.it.uom||"")}${x.it.code?" · "+esc(x.it.code):""}</span></td><td class="num dim">${q(x.it, x.from)}</td><td class="num"><b>${q(x.it, x.to)}</b></td></tr>`).join("")}
+      </tbody></table></div>` : ""}
+    <div class="mfoot"><button class="btn" onclick="openMinTool()">Back</button>
+      ${res.changes.length ? `<button class="btn primary" onclick="applyProdSheet()">Apply ${res.changes.length} change${res.changes.length===1?"":"s"}</button>` : ""}</div>`);
+}
+function applyProdSheet(){
+  const ch = prodSheet || []; prodSheet = null;
+  for(const x of ch) x.it.prodMin = x.to;
+  save(); closeModal(); render();
+  toast(ch.length+" production minimum"+(ch.length===1?"":"s")+" updated");
 }
 function saveMinDays(){
   const d = Math.max(1, parseInt($("#m-days").value,10)||7);
@@ -9427,8 +9583,8 @@ function lastReceipt(id){
    covers the next N days, the order covers the N after that— rounded up to
    whole cartons. */
 function suggestOrder(it){
-  const mn = effMin(it); if(!(mn>0)) return 0;
-  const q = Math.max(0, 2*mn - Math.max(it.stock, 0)), p = packOf(it);
+  const sm = salesMin(it), pm = prodMin(it); if(!(sm+pm>0)) return 0;
+  const q = Math.max(0, 2*sm + pm - Math.max(it.stock, 0)), p = packOf(it);     // the production amount is kept, not used up —once
   return p>1 ? Math.ceil(q/p)*p : Math.ceil(q);
 }
 function lowRows(zone){
