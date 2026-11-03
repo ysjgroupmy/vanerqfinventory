@@ -355,6 +355,9 @@ textarea{width:100%;resize:vertical;font-family:var(--f-mono);font-size:12px;lin
 .sg-stats+.sg-stats{margin-top:-15px}
 .sg-stat .v .u{font-size:12.5px;font-weight:500;color:var(--ink-2)}
 .legend i.lk{width:14px;height:2px;border:none;vertical-align:3px}
+.tip-in{color:#5FD3C4}.tip-out{color:#F5A15A}
+#salesview-table tr.link{cursor:pointer}
+#salesview-table tr.link:hover td{background:var(--panel-3)}
 .bl-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 26px;margin-top:16px}
 .bl-h{font-size:12px;color:var(--ink-2);font-weight:600;margin-bottom:6px}
 .bl-row{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(40px,1fr) auto;gap:10px;align-items:center;padding:4px 0;border-top:1px solid var(--rule)}
@@ -3054,6 +3057,50 @@ const ZH_DICT = /*ZH_DICT*/{
 "No Production column (or no Code / Name column) found —start from Download sheet":"找不到生产列（或编码 / 名称列）—请先用“下载表格”",
 "The production minimum can't be below 0":"生产最低库存不能小于 0",
 "New":"新",
+"Sales and production of this product, day by day":"该货品每天的销售和生产",
+"a day":"每天",
+"Produced":"生产",
+"{n} batches · {s} each":"{n} 批 · 每批 {s}",
+"1 batch · {s} each":"1 批 · 每批 {s}",
+"no batches":"没有批次",
+"Made − sold":"生产 − 销售",
+"drawing stock down":"库存在减少",
+"building stock up":"库存在增加",
+"even":"持平",
+"Balance now":"当前结存",
+"lasts about":"约可维持",
+"Busiest sales day":"销售最多的一天",
+"Days":"天数",
+"{n} sold":"{n} 天有销售",
+"{n} cooked":"{n} 天有生产",
+"of {n}":"共 {n} 天",
+"{s} made of":"实做 {s} /",
+"{s} planned":"计划 {s}",
+"no planned batches":"没有计划批次",
+"per":"每",
+"unit":"单位",
+"no amounts imported":"未导入金额",
+"Produced and sold each day":"每天的生产和销售",
+"Produced ▲":"生产 ▲",
+"Sold ▼":"销售 ▼",
+"Balance at the end of each day":"每天结束时的结存",
+"Minimum (now)":"最低库存（当前）",
+"Batches cooked":"已煮批次",
+"Other moves":"其他变动",
+"Other moves are stock counts and changes made by {n} on this shared product —see the Log for each one.":"其他变动是盘点，以及 {n} 对这个共享货品所做的更改 —每一笔可在流水中查看。",
+"Other moves are stock counts and corrections —see the Log for each one.":"其他变动是盘点和更正 —每一笔可在流水中查看。",
+"Balance that night":"当晚结存",
+"(planned {s})":"（计划 {s}）",
+"Nothing made or sold":"未生产也未销售",
+"Show all {n} batches":"显示全部 {n} 批",
+"Show the newest {n} batches":"只显示最新 {n} 批",
+"{n} sales day was recorded for trends only —it's in Sold, but didn't change the balance.":"有 {n} 天的销售只记作趋势 —计入已售，但没有改变结存。",
+"{n} sales days were recorded for trends only —they're in Sold, but didn't change the balance.":"有 {n} 天的销售只记作趋势 —计入已售，但没有改变结存。",
+"Nothing sold or cooked yet":"尚未销售或生产",
+"Sales imported on Sales In and batches logged on the Cook page show here day by day.":"在销售导入中导入的销售和在烹煮页记录的批次会按天显示在这里。",
+"Go to Sales In":"前往销售导入",
+"Go to Cook":"前往烹煮",
+"Nothing sold or cooked in these days.":"这些天没有销售或生产。",
 "＋ insert {n}":"＋ 插入 {n}"
 }/*/ZH_DICT*/;
 const LANG_KEY = "qf_lang";
@@ -5483,7 +5530,7 @@ function renderSalesView(){
     return;
   }
   table.innerHTML = `<table><thead><tr><th>Item</th><th class="num">Units</th><th class="num">Revenue</th><th class="num">Avg / unit</th><th class="num">Sale lines</th></tr></thead><tbody>`
-    + items.map(a=>`<tr>
+    + items.map(a=>`<tr class="link" onclick="openKitchenGraph(${a.it.id})" title="Sales and production of this product, day by day">
         <td class="name">${esc(a.it.name)}<span class="sub">${esc(a.it.uom)} · ${esc(a.it.cat||"Uncategorised")}</span></td>
         <td class="num">${fmt(a.units)}</td>
         <td class="num">${a.hasRev?fmtMoney(a.rev):'<span class="faint">—</span>'}</td>
@@ -5663,7 +5710,8 @@ function renderStock(){
           <td class="num dim">${u>0?fmt1(u)+(hasPack(i)?" "+esc(unitOf(i)):""):"—"}</td>
           <td class="num">${sevTag(i)}</td>
           <td class="num"><div class="row-acts">
-            ${wh?`<button class="btn sm" onclick="openSalesGraph(${i.id})" title="Daily sales of this product"><svg class="ic"><use href="#i-chart"/></svg>Sales</button>`:""}
+            ${wh?`<button class="btn sm" onclick="openSalesGraph(${i.id})" title="Daily sales of this product"><svg class="ic"><use href="#i-chart"/></svg>Sales</button>`
+                :`<button class="btn sm" onclick="openKitchenGraph(${i.id})" title="Sales and production of this product, day by day"><svg class="ic"><use href="#i-chart"/></svg>Sales</button>`}
             <button class="btn sm" onclick="openAdjust(${i.id})">± Count</button>
             ${wh?"":`<button class="btn sm ${i.preorder?"on":""}" onclick="togglePreorder(${i.id})" title="${i.preorder?"Stock this item normally":"Make to order —no minimum, never on the cook list"}">Pre-order</button>`}
             <button class="btn sm" onclick="openEdit(${i.id})">Edit</button>
@@ -10831,8 +10879,8 @@ function lineChart(host, days, series, o){
   for(const s of series){
     const pts = s.vals.map((v,i)=>v==null ? null : [x(i), y(v)]).filter(Boolean);
     if(!pts.length) continue;
-    paths += `<path d="${pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ")}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
-    if(pts.length<=45) paths += pts.map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="${s.color}" stroke="var(--panel)" stroke-width="2"/>`).join("");
+    paths += `<path d="${pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ")}" fill="none" stroke="${s.color}" stroke-width="${s.dash?1.5:2}" ${s.dash?'stroke-dasharray="5 4"':""} stroke-linejoin="round" stroke-linecap="round"/>`;
+    if(pts.length<=45 && !s.flat) paths += pts.map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="${s.color}" stroke="var(--panel)" stroke-width="2"/>`).join("");
     const last = pts[pts.length-1];
     ends += `<circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="4" fill="${s.color}" stroke="var(--panel)" stroke-width="2"/>`
          + `<text x="${(last[0]+8).toFixed(1)}" y="${(last[1]+3.5).toFixed(1)}" class="axl" style="fill:var(--ink-2);font-weight:600">${o.tick(s.vals.filter(v=>v!=null).pop())}</text>`;
@@ -10846,7 +10894,7 @@ function lineChart(host, days, series, o){
     const r = svg.getBoundingClientRect(), i = Math.max(0, Math.min(n-1, Math.floor((e.clientX - r.left - L)/pw)));
     cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.setAttribute("visibility", "visible");
     const rows = series.map(s=>s.vals[i]==null ? "" : `<br><span style="display:inline-block;width:12px;height:2px;background:${s.color};vertical-align:3px;margin-right:6px"></span>${esc(o.tick(s.vals[i]))} <span style="opacity:.75">${esc(s.name)}</span>`).join("");
-    showTip(e, `<b>${esc(dashDate(days[i]))}</b>${rows || "<br>no sale"}`);
+    showTip(e, `<b>${esc(dashDate(days[i]))}</b>${rows || "<br>"+esc(o.none||"no sale")}`);
   };
   hit.addEventListener("pointermove", show); hit.addEventListener("pointerdown", show);
   hit.addEventListener("pointerleave", ()=>{ cross.setAttribute("visibility", "hidden"); hideTip(); });
@@ -10956,6 +11004,189 @@ function renderSalesGraph(){
     if($("#sg-price")) lineChart($("#sg-price"), days, [{name:"highest price", vals:top, color:"var(--ink-3)"}, {name:"sold at", vals:net, color:"var(--accent)"}],
       {tick:v=>money(v), aria:`${it.name}: price per ${unit}, sold at and highest`});
   }
+}
+
+/* ---------- one product in a kitchen (Stock → Sales) ----------
+   Sales and production of one product, day by day: what was sold (imported
+   on Sales In, trend-only lines included —they're real sales), what was
+   cooked (the Cook page's batches, with what was planned), and the balance
+   at the end of each day. The balance is worked back from today's balance
+   through the log: every movement that changed it —sales taken off, cooks,
+   counts, and moves from 0434 on shared stock— is undone day by day. */
+let kgState = null, kgRange = {range:"30"};
+function openKitchenGraph(id){
+  if(!item(id)) return;
+  kgState = Object.assign({id, table:false, allCooks:false}, kgRange);
+  renderKitchenGraph();
+}
+function kgSet(k, v){
+  rangeSet(kgState, k, v);
+  if(k==="range" || k==="from" || k==="to") kgRange = {range:kgState.range, from:kgState.from, to:kgState.to};
+  renderKitchenGraph();
+}
+/* the product's day-by-day figures: sold, revenue, produced, planned, other moves */
+function kitchenDays(it){
+  const sold = new Map(), rev = new Map(), made = new Map(), plan = new Map(), other = new Map(), moves = new Map(), cooks = [];
+  const add = (m, d, v) => m.set(d, (m.get(d)||0) + v);
+  for(const t of state.tx){
+    if(t.itemId!==it.id) continue;
+    if(t.type==="sale"){ add(sold, t.date, -t.qty); if(t.amount!=null) add(rev, t.date, t.amount); }
+    else if(t.type==="production"){ add(made, t.date, t.qty); if(t.planned>0) add(plan, t.date, t.planned); cooks.push(t); }
+    else add(other, t.date, t.qty);
+    if(!t.h && t.qty) add(moves, t.date, t.qty);            // what changed the balance that day
+  }
+  return {sold, rev, made, plan, other, moves, cooks};
+}
+function renderKitchenGraph(){
+  hideTip();
+  const it = kgState && item(kgState.id); if(!it){ closeModal(); return; }
+  const K = kitchenDays(it), unit = hasPack(it) ? unitOf(it) : "", q = v => fmtQty(it, r2(v));
+  const head = `<h3>${esc(it.name)}</h3>
+    <div class="sg-sub"><span data-notr>${esc(it.uom||"")}${it.code?" · "+esc(it.code):""}${it.store?" · "+esc(it.store):""}</span> · <span>Balance</span> <span>${uncounted(it) ? "not counted" : esc(fmtBal(it))}</span>${effMin(it)>0 ? ` · <span>Minimum</span> <span>${esc(q(effMin(it)))}</span>` : ""}</div>`;
+  const foot = `<div class="mfoot"><button class="btn primary" onclick="kgState=null;closeModal()">Close</button></div>`;
+  if(!K.sold.size && !K.made.size){
+    modal(head + `<div class="empty" style="padding:30px 12px"><b>Nothing sold or cooked yet</b>
+        Sales imported on Sales In and batches logged on the Cook page show here day by day.
+        <div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button class="btn" onclick="kgState=null;closeModal();go('sales')">Go to Sales In</button><button class="btn" onclick="kgState=null;closeModal();go('cook')">Go to Cook</button></div></div>` + foot);
+    $("#modal-root .modal").classList.add("wide");
+    return;
+  }
+  const sAsOf = salesAsOf(), lastMade = [...K.made.keys()].sort().pop() || null;
+  const end = [sAsOf, lastMade].filter(Boolean).sort().pop();
+  const first = [...K.sold.keys(), ...K.made.keys()].sort()[0];
+  const R = rangeDays(kgState, first, end), days = R.days, from = R.from, to = R.to, one = days.length===1;
+  kgState.cur = {from, to};
+  const sCovered = sAsOf ? days.filter(d=>d<=sAsOf).length : 0;
+  const sNote = !sAsOf ? "No sales imported yet." : to>sAsOf ? `Sales imported up to ${shortDate(sAsOf)}.` : "";
+  const sold = days.map(d=>r2(K.sold.get(d)||0)), made = days.map(d=>r2(K.made.get(d)||0));
+  const plan = days.map(d=>r2(K.plan.get(d)||0)), rev = days.map(d=>K.rev.has(d) ? r2(K.rev.get(d)) : null), other = days.map(d=>r2(K.other.get(d)||0));
+  /* the balance at the end of each day: today's, less everything that moved it since */
+  const known = !uncounted(it);
+  let bal = null;
+  if(known){
+    const after = [...K.moves.entries()].filter(([d])=>d>to).reduce((a,[,v])=>a+v, 0);
+    let b = it.stock - after;
+    bal = new Array(days.length);
+    for(let i=days.length-1; i>=0; i--){ bal[i] = r2(b); b -= (K.moves.get(days[i])||0); }
+  }
+  const sum = a => r2(a.reduce((x,v)=>x+(v||0), 0));
+  const tSold = sum(sold), tMade = sum(made), tRev = sum(rev), hasRev = rev.some(v=>v!=null);
+  const perDay = tSold/Math.max(1, sCovered || days.length);
+  let bs = 0; sold.forEach((v,i)=>{ if(v>sold[bs]) bs = i; });
+  const cooks = K.cooks.filter(t=>t.date>=from && t.date<=to).sort((a,b)=>b.date.localeCompare(a.date) || b.ts-a.ts);
+  const withPlan = cooks.filter(t=>t.planned>0), pSum = withPlan.reduce((a,t)=>a+t.planned, 0), aSum = withPlan.reduce((a,t)=>a+t.qty, 0);
+  const yieldPct = pSum>0 ? aSum/pSum*100 : null, ycol = y => y<90 ? "var(--crit)" : y<98 ? "var(--warn)" : "var(--ok)";
+  const daysSold = sold.filter(v=>v>0).length, daysMade = made.filter(v=>v>0).length;
+  const net = r2(tMade - tSold);
+  const cover = known && perDay>0 && it.stock>0 ? Math.floor(it.stock/perDay) : null;
+  const bar = rangeBar(kgState, Object.assign({}, R, {note:sNote}), "kgSet", `<button class="btn sm" style="margin-left:auto" onclick="kgSet('table', ${!kgState.table})">${kgState.table?"Graph":"Table"}</button>`);
+  const tiles = dashTiles([
+    ["Sold", esc(q(tSold)), one ? esc(dashDate(from)) : `<span>${esc(fmt1(perDay))}${unit?" "+esc(unit):""}</span> <span>a day</span>`],
+    ["Produced", esc(q(tMade)), cooks.length ? `${cooks.length===1 ? "1 batch" : cooks.length+" batches"} · ${esc(q(Math.round(tMade/cooks.length*10)/10))} each` : "no batches"],
+    ["Made − sold", `<span style="color:${net<0?"var(--crit)":net>0?"var(--ok)":"var(--ink)"}">${net>0?"+":""}${esc(q(net))}</span>`, net<0 ? "drawing stock down" : net>0 ? "building stock up" : "even"],
+    ["Balance now", known ? esc(fmtBal(it)) : "not counted", cover!=null ? `<span>lasts about</span> <span>${fmt(cover)} days</span>` : ""]])
+  + dashTiles([
+    ["Busiest sales day", sold[bs]>0 ? esc(q(sold[bs])) : "—", sold[bs]>0 ? esc(dashDate(days[bs])) : ""],
+    ["Days with sales", `${daysSold}`, `<span>of ${sCovered || days.length}</span> · <span>${daysMade} cooked</span>`],
+    ["Yield", yieldPct!=null ? `<span style="color:${ycol(yieldPct)}">${fmt1(yieldPct)}%</span>` : "—", yieldPct!=null ? `<span>${esc(q(aSum))} made of</span> <span>${esc(q(pSum))} planned</span>` : "no planned batches"],
+    hasRev ? ["Revenue", esc(money(tRev)), tSold>0 ? `<span>${esc(money(tRev/tSold))}</span> <span>per</span> <span>${esc(unit||"unit")}</span>` : ""] : ["Revenue", "—", "no amounts imported"]]);
+  const busy = tSold>0 || tMade>0;
+  const chartsHtml = !busy && !(bal && bal.some(v=>v!=null)) ? `<div class="empty" style="padding:30px 12px">Nothing sold or cooked in these days.</div>`
+    : one ? ""
+    : (busy ? `<div class="sg-cap"><span>Produced and sold each day</span>${unit?" · <span>"+esc(unit)+"</span>":""}</div>
+        <div class="legend" style="padding:2px 0 4px"><span><i style="background:var(--series-in)"></i>Produced ▲</span><span><i style="background:var(--series-out)"></i>Sold ▼</span></div>
+        <div class="sg-chart" id="kg-chart"></div>` : "")
+      + (bal ? `<div class="sg-cap" style="margin-top:14px"><span>Balance at the end of each day</span></div>
+        <div class="legend" style="padding:2px 0 4px"><span><i class="lk" style="background:var(--accent)"></i>Balance</span>${effMin(it)>0?`<span><i class="lk" style="background:var(--warn)"></i>Minimum (now)</span>`:""}</div>
+        <div class="sg-chart" id="kg-bal"></div>` : "");
+  const cookRows = (kgState.allCooks ? cooks : cooks.slice(0, 12)).map(t=>{ const y = t.planned>0 ? t.qty/t.planned*100 : null;
+    return `<tr><td class="mono dim" style="white-space:nowrap">${esc(dashDate(t.date))}</td><td class="num dim">${t.planned>0 ? esc(q(t.planned)) : "—"}</td><td class="num"><b>${esc(q(t.qty))}</b></td>
+      <td class="num">${y!=null ? `<span style="color:${ycol(y)};font-weight:600">${fmt1(y)}%</span>` : ""}</td></tr>`; }).join("");
+  const cookLog = cooks.length ? `<div class="sg-cap" style="margin-top:14px">Batches cooked</div>
+      <div class="scroll"><table><thead><tr><th>Date</th><th class="num">Planned</th><th class="num">Produced</th><th class="num">Yield</th></tr></thead><tbody>${cookRows}</tbody></table></div>
+      ${cooks.length>12 ? `<button class="btn sm" style="margin-top:6px" onclick="kgSet('allCooks', ${!kgState.allCooks})">${kgState.allCooks ? "Show the newest 12 batches" : `Show all ${cooks.length} batches`}</button>` : ""}` : "";
+  const sign = v => v ? `<span style="color:${v<0?"var(--series-out)":"var(--series-in)"}">${v>0?"+":""}${esc(q(v))}</span>` : "";
+  const table = `<div class="scroll" style="max-height:50vh;overflow-y:auto"><table><thead><tr><th>Date</th><th class="num">Produced</th><th class="num">Planned</th><th class="num">Sold</th><th class="num">Revenue</th><th class="num">Other moves</th>${bal?`<th class="num">Balance</th>`:""}</tr></thead><tbody>
+      ${days.map((d,i)=>({d, i})).filter(r=>made[r.i] || sold[r.i] || other[r.i] || rev[r.i]!=null).reverse().map(({d, i})=>`<tr><td class="mono dim" style="white-space:nowrap">${esc(dashDate(d))}</td>
+        <td class="num">${made[i] ? `<b style="color:var(--series-in)">${esc(q(made[i]))}</b>` : ""}</td><td class="num dim">${plan[i] ? esc(q(plan[i])) : ""}</td>
+        <td class="num">${sold[i] ? `<b style="color:var(--series-out)">${esc(q(sold[i]))}</b>` : ""}</td><td class="num dim">${rev[i]!=null ? esc(money(rev[i])) : ""}</td>
+        <td class="num">${sign(other[i])}</td>${bal?`<td class="num">${esc(q(bal[i]))}</td>`:""}</tr>`).join("")}
+      <tr><td><b>Total</b></td><td class="num"><b>${esc(q(tMade))}</b></td><td class="num dim">${pSum ? esc(q(sum(plan))) : ""}</td><td class="num"><b>${esc(q(tSold))}</b></td><td class="num"><b>${hasRev ? esc(money(tRev)) : ""}</b></td><td class="num">${sign(sum(other))}</td>${bal?"<td></td>":""}</tr></tbody></table></div>`;
+  const trendOnly = state.tx.filter(t=>t.type==="sale" && t.h && t.itemId===it.id && t.date>=from && t.date<=to).length;
+  const shared = state.tx.some(t=>t.type==="link" && t.itemId===it.id && t.date>=from && t.date<=to);
+  const notes = [
+    trendOnly ? `<div class="sg-note">${trendOnly===1 ? "1 sales day was recorded for trends only —it's in Sold, but didn't change the balance." : trendOnly+" sales days were recorded for trends only —they're in Sold, but didn't change the balance."}</div>` : "",
+    other.some(v=>v) ? `<div class="sg-note">${shared ? "Other moves are stock counts and changes made by 0434 on this shared product —see the Log for each one." : "Other moves are stock counts and corrections —see the Log for each one."}</div>` : ""].join("");
+  modal(head + bar + tiles + (kgState.table ? table : chartsHtml + cookLog) + notes + foot);
+  $("#modal-root .modal").classList.add("wide");
+  if(!kgState.table && !one){
+    if($("#kg-chart")) flowChart($("#kg-chart"), days, made, sold, {q, plan, rev, bal,
+      aria:`${it.name}: produced and sold each day from ${from} to ${to}`});
+    if($("#kg-bal")) lineChart($("#kg-bal"), days, [{name:"minimum", vals:days.map(()=>effMin(it)>0 ? effMin(it) : null), color:"var(--warn)", dash:true, flat:true}, {name:"balance", vals:bal, color:"var(--accent)"}],
+      {tick:v=>fmt(r2(v)), none:"—", aria:`${it.name}: balance at the end of each day`});
+  }
+}
+/* Produced above the line, sold below it, one column each per day; the
+   busiest day of each written at its cap, the averages as thin lines, every
+   day readable on hover / tap (with what was planned, the revenue and the
+   balance that night). */
+function flowChart(host, days, up, down, o){
+  if(!host) return;
+  const n = days.length, L = 46, R = 58, T = 20, PH = 200, B = 24;
+  const W = Math.max(host.clientWidth || 600, n*6 + L + R), H = T + PH + B;
+  const maxU = Math.max(...up, 0), maxD = Math.max(...down, 0);
+  const step = niceStep(Math.max(maxU, maxD)/2.5 || 1, true);
+  const top = Math.max(step, Math.ceil(maxU/step - 1e-9)*step), bot = -Math.max(step, Math.ceil(maxD/step - 1e-9)*step);
+  const y = v => T + PH*(top - v)/(top - bot);
+  const pw = (W - L - R)/n, bw = Math.max(1, Math.min(22, pw - 2));
+  let g = "";
+  for(let v=bot; v<=top+1e-9; v+=step){
+    const yy = y(v).toFixed(1);
+    g += `<line x1="${L}" y1="${yy}" x2="${W-R}" y2="${yy}" stroke="var(--rule)" stroke-width="1"/><text x="${L-6}" y="${(+yy+3.2).toFixed(1)}" text-anchor="end" class="axl">${fmt(Math.abs(r2(v)))}</text>`;
+  }
+  const col = (x, v) => {
+    const y0 = y(0), e = y(v), h = Math.abs(e - y0); if(h<0.5) return "";
+    const r = Math.min(4, bw/2, h), xr = x + bw, s = v>0 ? 1 : -1;
+    return `M${x.toFixed(1)},${y0.toFixed(1)} V${(e + s*r).toFixed(1)} Q${x.toFixed(1)},${e.toFixed(1)} ${(x+r).toFixed(1)},${e.toFixed(1)} H${(xr-r).toFixed(1)} Q${xr.toFixed(1)},${e.toFixed(1)} ${xr.toFixed(1)},${(e + s*r).toFixed(1)} V${y0.toFixed(1)} Z`;
+  };
+  const every = Math.max(1, Math.ceil(52/pw));
+  let marks = "", hits = "", labels = "";
+  days.forEach((d, i)=>{
+    const cx = L + i*pw + pw/2, x = cx - bw/2;
+    const pu = col(x, up[i]), pd = col(x, -down[i]);
+    if(pu) marks += `<path class="sg-col" data-i="${i}" d="${pu}" fill="var(--series-in)"/>`;
+    if(pd) marks += `<path class="sg-col" data-i="${i}" d="${pd}" fill="var(--series-out)"/>`;
+    hits += `<rect class="sg-hit" data-i="${i}" x="${(L + i*pw).toFixed(1)}" y="${T}" width="${pw.toFixed(2)}" height="${PH}" fill="transparent"/>`;
+    if((n-1-i) % every === 0) labels += `<text x="${cx.toFixed(1)}" y="${H-7}" text-anchor="middle" class="axl">${esc(shortDate(d))}</text>`;
+  });
+  const peak = (arr, sgn) => {
+    let bi = 0; arr.forEach((v,i)=>{ if(v>arr[bi]) bi = i; });
+    if(!(arr[bi]>0)) return "";
+    const bx = Math.min(Math.max(L + bi*pw + pw/2, L+16), W-R-16), yy = sgn>0 ? y(arr[bi])-6 : y(-arr[bi])+13;
+    return `<text x="${bx.toFixed(1)}" y="${yy.toFixed(1)}" text-anchor="middle" class="axl" style="fill:var(--ink-2);font-weight:600">${fmt(r2(arr[bi]))}</text>`;
+  };
+  const avgLine = (arr, sgn) => {
+    const a = arr.reduce((s,v)=>s+v, 0)/n; if(!(a>0)) return "";
+    const yy = y(sgn*a).toFixed(1);
+    return `<line x1="${L}" y1="${yy}" x2="${W-R}" y2="${yy}" stroke="var(--ink-2)" stroke-width="1" stroke-dasharray="3 3"/>
+      <text x="${W-R+5}" y="${(+yy+3.2).toFixed(1)}" text-anchor="start" class="axl" style="fill:var(--ink-2)">avg ${fmt(r2(a))}</text>`;
+  };
+  host.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.aria)}">
+    ${g}${marks}<line x1="${L}" y1="${y(0).toFixed(1)}" x2="${W-R}" y2="${y(0).toFixed(1)}" stroke="var(--ink-3)" stroke-width="1"/>
+    ${avgLine(up, 1)}${avgLine(down, -1)}${peak(up, 1)}${peak(down, -1)}${labels}${hits}</svg>`;
+  if(W > host.clientWidth) host.scrollLeft = W;
+  const lit = i => host.querySelectorAll(".sg-col").forEach(c=>c.classList.toggle("hover", +c.dataset.i===i));
+  host.querySelectorAll(".sg-hit").forEach(el=>{
+    const i = +el.dataset.i, show = e => { lit(i);
+      const lines = [up[i] ? `<span class="tip-in">▲</span> <span>Produced</span> ${esc(o.q(up[i]))}${o.plan[i] ? ` <span style="opacity:.75">(planned ${esc(o.q(o.plan[i]))})</span>` : ""}` : "",
+        down[i] ? `<span class="tip-out">▼</span> <span>Sold</span> ${esc(o.q(down[i]))}${o.rev[i]!=null ? ` <span style="opacity:.75">${esc(money(o.rev[i]))}</span>` : ""}` : "",
+        !up[i] && !down[i] ? "<span>Nothing made or sold</span>" : "",
+        o.bal ? `<span style="opacity:.75">Balance that night</span> ${esc(o.q(o.bal[i]))}` : ""].filter(Boolean);
+      showTip(e, `<b>${esc(dashDate(days[i]))}</b><br>${lines.join("<br>")}`); };
+    el.addEventListener("pointermove", show); el.addEventListener("pointerdown", show);
+    el.addEventListener("pointerleave", ()=>{ lit(-1); hideTip(); });
+  });
+  host.addEventListener("scroll", hideTip, {passive:true});
 }
 
 /* ---------- the whole warehouse (Sales Deduction) ---------- */

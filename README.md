@@ -121,6 +121,38 @@ Every page fits the screen width, with no sideways scrolling:
 - **Shelves view:** dragging cards may not work on every phone. If it doesn't,
   change a product's rack code with **Edit**.
 
+### Sales and production of one product (kitchens)
+
+On a kitchen's Stock page (0428, 0227), **Sales** on a product opens its sales
+and production day by day. Tapping a product on the Sales page opens the same
+view.
+
+- **Range:** Today, Yesterday, 7 / 30 / 90 days, All, or two dates picked on
+  the calendar (the range you pick is kept for the next product). **Table**
+  switches to one row per day.
+- **Figures:**
+  - Sold, with the average a day.
+  - Produced, with the number of batches and the average batch.
+  - Made − sold, which shows whether stock is being built up or drawn down.
+  - The balance now and how long it lasts.
+  - The busiest sales day, and how many days had sales and cooks.
+  - Yield (made against planned).
+  - Revenue, with the average price, when the sales file had amounts.
+- **Produced and sold each day:** one bar chart, with what was cooked
+  going up and what was sold going down, and an average line for each. Hover
+  or tap a day for what was made (and planned), sold and taken that day,
+  and the balance that night.
+- **Balance at the end of each day:** worked back from today's balance
+  through the Log (sales taken off, cooks, counts, and changes made by 0434 on
+  shared products), with the current minimum as a dashed line.
+- **Batches cooked:** every batch in the range with what was planned,
+  produced and the yield.
+- **Table:** per day, what was produced, planned, sold, the revenue, other
+  moves (counts, 0434's changes) and the balance, with totals.
+- **Trend-only sales:** sales recorded for trends only count in Sold but
+  never moved the balance.
+- 0434 keeps its own Sales dashboard, with customers, salesmen and prices.
+
 ## Warehouse departments (0434)
 
 A department can be `kitchen` (the cook-line pages: Panel/Cook/Sales In/Sales)
